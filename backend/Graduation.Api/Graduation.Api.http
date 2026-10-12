@@ -1,0 +1,6 @@
+@Graduation.Api_HostAddress = http://localhost:5089
+
+GET {{Graduation.Api_HostAddress}}/weatherforecast/
+Accept: application/json
+
+###
