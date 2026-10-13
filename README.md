@@ -1,6 +1,6 @@
 # Chạy dự án nha khoa trên máy local
 
-Dự án dùng **NestJS/TypeScript** cho API, React/TypeScript cho giao diện và SQL Server `.\SQLEXPRESS` cho dữ liệu. Database `Graduation Project` và ba tài khoản mẫu đã có trên máy này. Cần Node.js 24, npm, SQL Server Express và **ODBC Driver 17 for SQL Server**. API dùng Windows Authentication của tài khoản đang chạy PowerShell.
+Dự án dùng **NestJS/TypeScript** cho API, React/TypeScript cho giao diện và SQL Server `.\SQLEXPRESS` cho dữ liệu. Database `Graduation Project` và dữ liệu mẫu đã có trên máy này. Cần Node.js 24, npm, SQL Server Express và **ODBC Driver 17 for SQL Server**. API dùng Windows Authentication của tài khoản đang chạy PowerShell.
 
 ## 1. Chạy API NestJS
 
@@ -30,8 +30,21 @@ Mở `http://localhost:5173` và đăng nhập:
 - Quản trị (`ADMIN`): `admin` / `Admin1234@`.
 - Lễ tân (`RECEPTIONIST`): `receptionist` / `Reception1234@`.
 - Bác sĩ (`DOCTOR`): `doctor` / `Doctor1234@`.
+- Lễ tân demo (`RECEPTIONIST`): `demo.receptionist` / `Reception1234@`.
+- Bác sĩ demo (`DOCTOR`): `demo.doctor` / `Doctor1234@`.
 
 Tài khoản quản trị có thể tạo người dùng. Mật khẩu mới phải **dài hơn 8 ký tự và có ít nhất một ký tự đặc biệt**. Các mật khẩu mẫu và `JWT_KEY` trên chỉ dùng khi chạy local.
+
+## Dữ liệu mẫu cho toàn bộ bảng nghiệp vụ
+
+Sau khi đã có ba tài khoản đầu tiên, chạy một lần từ thư mục gốc:
+
+```powershell
+cd C:\Users\ADMIN\Documents\GitHub\Graduation-Project
+sqlcmd -S '.\SQLEXPRESS' -E -b -f 65001 -i database/004_demo_data.sql
+```
+
+Script tạo khoảng 5 bản ghi giả lập cho mỗi bảng nghiệp vụ, 2 tài khoản demo bổ sung và 2 dòng Nợ/Có cho mỗi trong 5 bút toán. Bảng `Roles` giữ 3 vai trò của ứng dụng. `-f 65001` giữ đúng dấu tiếng Việt khi đọc file UTF-8. Các mã `DEMO-*` giúp nhận diện dữ liệu mẫu; chạy lại lệnh sẽ không tạo trùng. Dữ liệu bảo hiểm trong script là **bảo hiểm tư nhân giả lập**, không tính tiền BHYT. Nếu vừa tạo lại database, hãy khởi động API một lần với `SEED_LOCAL_ACCOUNTS=true` như bên dưới, rồi mới chạy script này.
 
 ## Nếu tạo lại database
 
