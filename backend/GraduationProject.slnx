@@ -1,4 +1,0 @@
-<Solution>
-  <Project Path="Graduation.Api.Tests/Graduation.Api.Tests.csproj" />
-  <Project Path="Graduation.Api/Graduation.Api.csproj" />
-</Solution>

@@ -1,11 +1,10 @@
 .dotnet/
 .nuget/
-**/bin/
-**/obj/
 frontend/node_modules/
 frontend/dist/
+backend/node_modules/
+backend/dist/
 frontend/*.tsbuildinfo
 frontend/.env.local
-backend/**/appsettings.Local.json
 *.user
 *.suo
