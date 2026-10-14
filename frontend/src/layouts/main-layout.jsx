@@ -51,6 +51,16 @@ export function MainLayout() {
       icon: <DashboardOutlined />,
       label: 'Bảng điều khiển',
     },
+    {
+      key: '/catalog/services',
+      icon: <MedicineBoxOutlined />,
+      label: 'Dịch vụ & Bảng giá',
+    },
+    {
+      key: '/catalog/rooms',
+      icon: <AppstoreOutlined />,
+      label: 'Phòng khám & Ghế',
+    },
     ...(user?.role === 'ADMIN'
       ? [
           {

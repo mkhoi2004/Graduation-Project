@@ -6,6 +6,9 @@ import { DashboardPage } from '../pages/dashboard/dashboard-page.jsx';
 import { UsersPage } from '../pages/users/users-page.jsx';
 import { EnvironmentPage } from '../pages/environment/environment-page.jsx';
 
+import { ServicesPage } from '../pages/catalog/services-page.jsx';
+import { RoomsPage } from '../pages/catalog/rooms-page.jsx';
+
 export function AppRoutes() {
   return (
     <Routes>
@@ -16,6 +19,8 @@ export function AppRoutes() {
         <Route element={<MainLayout />}>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/catalog/services" element={<ServicesPage />} />
+          <Route path="/catalog/rooms" element={<RoomsPage />} />
           <Route path="/environment" element={<EnvironmentPage />} />
 
           {/* Admin only routes */}

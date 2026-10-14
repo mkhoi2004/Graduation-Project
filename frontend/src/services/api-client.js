@@ -47,3 +47,22 @@ export const userApi = {
   getBranches: () => apiClient.get('/users/branches').then(res => res.data),
   getAuditLogs: (params) => apiClient.get('/users/audit-logs', { params }).then(res => res.data),
 };
+
+export const catalogApi = {
+  getServices: (params) => apiClient.get('/catalog/services', { params }).then(res => res.data),
+  getServiceById: (id) => apiClient.get(`/catalog/services/${id}`).then(res => res.data),
+  createService: (data) => apiClient.post('/catalog/services', data).then(res => res.data),
+  updateService: (id, data) => apiClient.put(`/catalog/services/${id}`, data).then(res => res.data),
+  deleteService: (id) => apiClient.delete(`/catalog/services/${id}`).then(res => res.data),
+  getDeletedServices: () => apiClient.get('/catalog/services/deleted').then(res => res.data),
+  restoreService: (id) => apiClient.post(`/catalog/services/${id}/restore`).then(res => res.data),
+  createPriceVersion: (serviceId, data) => apiClient.post(`/catalog/services/${serviceId}/prices`, data).then(res => res.data),
+  approvePriceVersion: (serviceId, versionId) => apiClient.post(`/catalog/services/${serviceId}/prices/${versionId}/approve`).then(res => res.data),
+  getRooms: (params) => apiClient.get('/catalog/rooms', { params }).then(res => res.data),
+  createRoom: (data) => apiClient.post('/catalog/rooms', data).then(res => res.data),
+  deleteRoom: (id) => apiClient.delete(`/catalog/rooms/${id}`).then(res => res.data),
+  getSuppliers: (params) => apiClient.get('/catalog/suppliers', { params }).then(res => res.data),
+  createSupplier: (data) => apiClient.post('/catalog/suppliers', data).then(res => res.data),
+  deleteSupplier: (id) => apiClient.delete(`/catalog/suppliers/${id}`).then(res => res.data),
+  getConfigs: () => apiClient.get('/catalog/configs').then(res => res.data),
+};
