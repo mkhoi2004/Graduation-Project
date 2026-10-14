@@ -31,7 +31,7 @@ Hệ thống quản lý phòng khám nha khoa tích hợp ERP & EMR (theo Quy_tr
 3. Phân quyền (5 Role) & tách nhiệm vụ
 3.1 Ánh xạ vai trò quy trình v14 vào 5 Role của hệ thống
 | Role                | Quyền chính (theo v14)                                                                       | Giới hạn bắt buộc |
-| Admin               | Tài khoản, phân quyền, tham số kỹ thuật, tích hợp, nhật ký vận hành                          | Không mặc định xem EMR/định danh nhạy cảm; không tự phê duyệt tài chính; không xóa vết audit của chính mình |
+| Admin               | XEM TOÀN BỘ dữ liệu mọi module (kể cả EMR, tài chính, kho, audit, dữ liệu _Deleted); quản lý tài khoản, phân quyền, tham số kỹ thuật, tích hợp                          | Xem được tất cả nhưng mọi lần xem EMR/dữ liệu nhạy cảm đều ghi AccessAuditLogs; không ký EMR, không chốt dịch vụ, không tự phê duyệt tài chính (không được thay bác sĩ/kế toán ghi nghiệp vụ); không xóa vết audit của chính mình |
 | Nhân viên tiếp nhận | Hồ sơ hành chính bệnh nhân, đặt lịch, tạo lượt khám, phiếu thu, mở/đóng ca thu ngân        | Không sửa EMR đã ký; không tự duyệt giảm giá/hoàn tiền của mình; không ghi sổ |
 | Bác sĩ              | Khám, chẩn đoán, chỉ định, kế hoạch, kê đơn, ký EMR, đồng thuận, chốt dịch vụ                | Chỉ hồ sơ trong quan hệ điều trị; không xác nhận tiền đã nhận |
 | Kế toán             | Kiểm chứng từ, đối soát, hóa đơn, công nợ, BHTM, hoa hồng, lập và duyệt bút toán             | Không duyệt giao dịch do chính mình tạo; chỉ xem dữ liệu EMR tối thiểu cần cho chứng từ |
@@ -40,6 +40,33 @@ Hệ thống quản lý phòng khám nha khoa tích hợp ERP & EMR (theo Quy_tr
 - Quyền kiểm tra theo: vai trò + chi nhánh + quan hệ điều trị + mục đích + trạng thái bản ghi. Backend kiểm tra ở mọi endpoint; frontend ẩn menu bằng ProtectedRoute.
 - Truy cập khẩn cấp EMR: bảng EmergencyAccessGrants (lý do, phạm vi, thời hạn, người duyệt hoặc quy trình ngoại lệ, tự hết hạn, hậu kiểm). Không dùng tài khoản chung.
 - AccessAuditLogs: mọi lần xem/xuất/sửa/ký/truy cập khẩn cấp dữ liệu nhạy cảm ghi người, vai trò, mục đích, thời gian, đối tượng, kết quả, nguồn truy cập. API đọc EMR của người không có quan hệ điều trị bị từ chối và ghi audit.
+
+3.2 Phạm vi xem dữ liệu theo Role (data visibility) - backend lọc ở tầng service/repository, không chỉ ẩn ở frontend
+- Admin: xem được toàn bộ dữ liệu của mọi module và mọi chi nhánh (chỉ đọc đối với nghiệp vụ lâm sàng/tài chính; ghi chỉ ở quản trị người dùng, phân quyền, cấu hình, danh mục). Mỗi lần xem EMR/dữ liệu nhạy cảm vẫn ghi audit.
+- Nhân viên tiếp nhận: xem/sửa hồ sơ hành chính bệnh nhân, lịch hẹn, lượt khám ở bước tiếp nhận, phiếu thu và ca thu ngân của chính mình. KHÔNG xem nội dung EMR (chẩn đoán, kế hoạch điều trị, đơn thuốc), chỉ thấy trạng thái lượt khám.
+- Bác sĩ: chỉ xem dữ liệu của bệnh nhân SAU KHI đã được tiếp nhận và được phân công khám cho mình. Điều kiện (kiểm tra ở API):
+  1. Có lượt khám (Visit) với DoctorId = bác sĩ đó, trạng thái từ REGISTERED trở đi (đã qua tiếp nhận); lượt chưa tiếp nhận/chưa phân công thì không thấy.
+  2. Hoặc có quan hệ điều trị còn hiệu lực (bảng TreatmentRelationships: bác sĩ, bệnh nhân, nguồn: phân công lượt khám/kế hoạch điều trị/tái khám, NgàyBắtĐầu, NgàyKếtThúc).
+  3. Xem được: thông tin hành chính tối thiểu của bệnh nhân, tiền sử/dị ứng, EMR, kế hoạch, đồng thuận, đơn thuốc, kết quả cận lâm sàng và vật tư của các lượt thuộc quan hệ điều trị của mình.
+  4. KHÔNG xem: hồ sơ bệnh nhân của bác sĩ khác không có quan hệ điều trị, tài chính (hóa đơn, công nợ, cọc, bút toán, hoa hồng), kho ngoài danh sách vật tư dùng cho ca của mình, ca thu ngân.
+  5. Cần xem ngoài phạm vi (ví dụ ca cấp cứu) thì dùng EmergencyAccessGrants (có lý do, thời hạn, hậu kiểm); nếu không API trả 403 và ghi audit.
+- Kế toán: xem hóa đơn, thanh toán, cọc, công nợ, BHTM, bút toán, hoa hồng, đối soát; với EMR chỉ xem dữ liệu tối thiểu cần cho chứng từ (dịch vụ đã hoàn thành, số lượng, giá), không xem chẩn đoán/đơn thuốc chi tiết.
+- Quản lý kho: xem/sửa kho, lô, serial, reserve, thu hồi lô, tiệt trùng, labo; thấy lượt/bệnh nhân chỉ ở mức mã tham chiếu khi cần truy vết lô (không xem EMR, không xem tài chính).
+- Ma trận tóm tắt (X = xem, S = thêm/sửa, D = xóa theo quy tắc nhóm A/B, - = không):
+  | Module                    | Admin | Tiếp nhận | Bác sĩ                         | Kế toán        | Quản lý kho |
+  | 1 Người dùng & Audit      | X,S   | -         | -                              | -              | -           |
+  | 2 Danh mục & cấu hình     | X,S,D | X         | X                              | X              | X           |
+  | 3 Bệnh nhân               | X     | X,S       | X (theo quan hệ điều trị)      | X (tối thiểu)  | -           |
+  | 4 Lịch hẹn & Lượt khám    | X     | X,S       | X (lượt được phân công)        | X (tối thiểu)  | -           |
+  | 5 EMR & Đồng thuận        | X     | -         | X,S (lượt của mình)            | -              | -           |
+  | 6 Thanh toán & Công nợ    | X     | X,S (thu) | -                              | X,S            | -           |
+  | 7 Kho                     | X     | -         | X (vật tư dùng cho ca mình)    | X (giá vốn)    | X,S         |
+  | 8 Thu ngân & Kế toán      | X     | X,S (ca)  | -                              | X,S            | -           |
+  | 9 BHTM                    | X     | X (xác minh) | -                           | X,S            | -           |
+  | 10 Tiệt trùng/Labo        | X     | -         | X,S (chỉ định labo ca mình)    | -              | X,S         |
+  | 11 Hoa hồng               | X     | -         | X (của mình)                   | X,S            | -           |
+  | 12 Tài sản & Đối soát     | X     | -         | -                              | X (đối soát)   | X,S (tài sản) |
+- Cài đặt kỹ thuật: middleware authorize(permission) kiểm tra quyền theo Role; hàm scopeByRole(user, query) thêm điều kiện lọc vào truy vấn (ví dụ bác sĩ: JOIN Visits/TreatmentRelationships theo DoctorId); danh sách và chi tiết đều áp cùng bộ lọc, truy cập trực tiếp theo ID ngoài phạm vi trả 403/404 và ghi audit.
 
 4. Quy trình phát triển từng bước (Step-by-Step Roadmap)
 Thực hiện theo 3 giai đoạn; trong mỗi giai đoạn làm theo thứ tự ưu tiên module ở mục 5 (Lõi trước, mở rộng sau).
@@ -191,4 +218,30 @@ Mỗi phần kèm hướng dẫn chạy (npm install, npm run dev) và cách ki�
 | AT-22 | Gói tiệt trùng lỗi/quá hạn hoặc thiết bị không đủ điều kiện | Chặn chọn/sử dụng, tạo sự cố; cấp cứu vẫn ghi được diễn biến |
 | AT-23 | Sửa ID, nội dung EMR đã ký, bút toán đã ghi sổ hoặc ca đã đối soát | API/CSDL từ chối; chỉ cho phụ lục/đảo/điều chỉnh có tham chiếu |
 | AT-24 | Ghi sổ lệch Nợ/Có, gọi lặp cùng sự kiện hoặc ghi vào kỳ khóa | Không tạo bút toán sai/trùng; kỳ khóa chỉ nhận điều chỉnh ở kỳ mở |
+9. Cấu trúc thư mục tổng thể (general) & quy ước nhánh Git
+- Toàn bộ dự án nằm trong MỘT repository, MỘT nhánh duy nhất là main. Không tạo nhánh phụ (feature/dev/release), không merge/PR; mỗi phần làm xong thì commit thẳng lên main với message ngắn gọn theo dạng "<module>: <việc đã làm>" (ví dụ "module1: tao bang Users va trigger soft-delete").
+- Cấu trúc thư mục gốc (chung, không phụ thuộc module):
+  GraduationProject/
+    database/
+      01_create_database.sql
+      02_tables/            (mỗi module một file: 02_m01_users.sql, 02_m02_catalog.sql, ...)
+      03_deleted_tables/    (bảng _Deleted nhóm A)
+      04_triggers/          (soft-delete nhóm A, chặn sửa/xóa nhóm B)
+      05_constraints_indexes.sql
+      06_seed.sql           (tùy chọn, nếu không dùng npm run seed)
+    backend/
+      src/                  (config, models, repositories, services, controllers, routes, middlewares, validators, utils, jobs, scripts)
+      tests/
+      .env.example
+      package.json
+    frontend/
+      src/                  (components, pages, services, routes, layouts, hooks, context, utils)
+      public/
+      vite.config.js
+      package.json
+    docs/                   (quy trình v14, sơ đồ ERD, hướng dẫn chạy local)
+    .gitignore              (node_modules, .env, dist, logs)
+    README.md               (mô tả dự án + các bước chạy local ở mục 7)
+- Quy ước chung: mỗi module thêm file mới vào đúng thư mục theo lớp (một module = một bộ model/repository/service/controller/route ở backend và một thư mục page ở frontend), không đổi cấu trúc gốc; tên file thống nhất (kebab-case hoặc camelCase, chọn một và giữ nguyên).
+
 - Lưu ý: tài liệu quy trình là đặc tả nghiệp vụ; các quy tắc thuộc thẩm quyền (chuyên môn, kế toán, pháp chế) là cấu hình tham số (ngưỡng giảm giá, MAX_ROUNDING_AMOUNT, CASH_OVER_SHORT_THRESHOLD, hạn vô trùng, hạn ký EMR...) lưu trong bảng cấu hình có phiên bản, KHÔNG hard-code trong mã.
