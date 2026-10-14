@@ -1,50 +1,73 @@
 import React, { useState, useEffect } from 'react';
+import {
+  Card,
+  Row,
+  Col,
+  Typography,
+  Tag,
+  Table,
+  Button,
+  Space,
+  Tabs,
+  Modal,
+  Form,
+  Input,
+  Select,
+  DatePicker,
+  Statistic,
+  Alert,
+  Badge,
+  Divider,
+  message,
+} from 'antd';
+import {
+  SyncOutlined,
+  SafetyCertificateOutlined,
+  ToolOutlined,
+  DollarOutlined,
+  FileSearchOutlined,
+  CheckCircleOutlined,
+  CloseCircleOutlined,
+  ExclamationCircleOutlined,
+  MedicineBoxOutlined,
+  ExperimentOutlined,
+  AuditOutlined,
+} from '@ant-design/icons';
+import dayjs from 'dayjs';
 import { reconciliationApi, operationsApi } from '../../services/api-client';
 import { useAuth } from '../../context/auth-context.jsx';
 
+const { Title, Text, Paragraph } = Typography;
+const { Option } = Select;
+const { TextArea } = Input;
+
 export default function ReconciliationPage() {
   const { user } = useAuth();
-  const [activeTab, setActiveTab] = useState('daily-report'); // 'daily-report' | 'items' | 'maintenance' | 'refund-at11' | 'integrity-at19'
+  const [activeTab, setActiveTab] = useState('daily-report');
 
-  // Data states
+  // Dữ liệu
   const [report, setReport] = useState(null);
   const [items, setItems] = useState([]);
   const [maintenanceLogs, setMaintenanceLogs] = useState([]);
   const [assets, setAssets] = useState([]);
   const [integrityData, setIntegrityData] = useState(null);
   const [loading, setLoading] = useState(false);
-  const [error, setError] = useState('');
-  const [success, setSuccess] = useState('');
 
-  // Filter & Form states
-  const [filterDate, setFilterDate] = useState(new Date().toISOString().slice(0, 10));
+  // Bộ lọc
+  const [filterDate, setFilterDate] = useState(dayjs());
   const [itemStatusFilter, setItemStatusFilter] = useState('');
-  
+
   // Modals
   const [showResolveModal, setShowResolveModal] = useState(false);
   const [selectedItem, setSelectedItem] = useState(null);
-  const [resolutionText, setResolutionText] = useState('');
-  const [resolveStatus, setResolveStatus] = useState('RESOLVED');
+  const [resolveForm] = Form.useForm();
 
   const [showMaintenanceModal, setShowMaintenanceModal] = useState(false);
-  const [maintenanceForm, setMaintenanceForm] = useState({
-    assetId: '',
-    maintenanceType: 'PERIODIC_INSPECTION',
-    performedAt: new Date().toISOString().slice(0, 16),
-    result: 'PASS',
-    nextDueAt: '',
-    details: '',
-    performedBy: user?.displayName || user?.username || 'Kỹ thuật viên',
-  });
+  const [maintenanceForm] = Form.useForm();
 
-  const [refundForm, setRefundForm] = useState({
-    paymentTransactionId: '',
-    refundAmount: '',
-    reason: '',
-    currentOpenPeriodId: '',
-  });
+  const [refundForm] = Form.useForm();
 
-  // Load initial data
+  // Tải dữ liệu ban đầu
   useEffect(() => {
     loadDailyReport();
     loadItems();
@@ -54,11 +77,12 @@ export default function ReconciliationPage() {
   const loadDailyReport = async () => {
     try {
       setLoading(true);
-      const res = await reconciliationApi.getDailyReport({ date: filterDate });
+      const dateStr = filterDate.format('YYYY-MM-DD');
+      const res = await reconciliationApi.getDailyReport({ date: dateStr });
       setReport(res);
     } catch (err) {
       console.error(err);
-      setError('Không thể tải báo cáo đối soát tổng hợp');
+      message.error('Không thể tải Báo cáo đối soát tổng hợp');
     } finally {
       setLoading(false);
     }
@@ -66,7 +90,9 @@ export default function ReconciliationPage() {
 
   const loadItems = async () => {
     try {
-      const res = await reconciliationApi.getReconciliationItems({ status: itemStatusFilter || undefined });
+      const res = await reconciliationApi.getReconciliationItems({
+        status: itemStatusFilter || undefined,
+      });
       setItems(res || []);
     } catch (err) {
       console.error(err);
@@ -94,71 +120,68 @@ export default function ReconciliationPage() {
   const handleRunReconciliation = async () => {
     try {
       setLoading(true);
-      setError('');
-      setSuccess('');
-      const res = await reconciliationApi.runDailyReconciliation({ date: filterDate });
-      setSuccess(`Chạy đối soát hoàn tất! Đã quét và phát hiện ${res.newAnomaliesCount} sai lệch bất thường cần xử lý.`);
+      const dateStr = filterDate.format('YYYY-MM-DD');
+      const res = await reconciliationApi.runDailyReconciliation({ date: dateStr });
+      message.success(`Đã chạy đối soát thành công! Quét và phát hiện ${res.newAnomaliesCount} sai lệch bất thường.`);
       loadDailyReport();
       loadItems();
     } catch (err) {
-      setError(err?.response?.data?.message || err.message || 'Lỗi khi chạy quy trình đối soát');
+      message.error(err?.response?.data?.message || err.message || 'Lỗi khi chạy đối soát');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleResolveItem = async (e) => {
-    e.preventDefault();
+  const handleResolveItem = async (values) => {
     if (!selectedItem) return;
     try {
       setLoading(true);
-      await reconciliationApi.resolveReconciliationItem(selectedItem.reconciliationItemId, {
-        status: resolveStatus,
-        resolution: resolutionText,
-      });
-      setSuccess('Đã cập nhật phân xử giải quyết sai lệch thành công');
+      await reconciliationApi.resolveReconciliationItem(selectedItem.reconciliationItemId, values);
+      message.success('Đã phân xử giải quyết sai lệch thành công!');
       setShowResolveModal(false);
       setSelectedItem(null);
-      setResolutionText('');
+      resolveForm.resetFields();
       loadItems();
       loadDailyReport();
     } catch (err) {
-      setError(err?.response?.data?.message || err.message || 'Lỗi khi phân xử mục đối soát');
+      message.error(err?.response?.data?.message || err.message || 'Lỗi khi cập nhật phân xử');
     } finally {
       setLoading(false);
     }
   };
 
-  const handleCreateMaintenance = async (e) => {
-    e.preventDefault();
+  const handleCreateMaintenance = async (values) => {
     try {
       setLoading(true);
-      await reconciliationApi.createMaintenanceLog(maintenanceForm);
-      setSuccess('Đã ghi nhận nhật ký bảo trì thiết bị thành công!');
+      const payload = {
+        ...values,
+        performedAt: values.performedAt ? values.performedAt.toISOString() : new Date().toISOString(),
+        nextDueAt: values.nextDueAt ? values.nextDueAt.toISOString() : null,
+      };
+      await reconciliationApi.createMaintenanceLog(payload);
+      message.success('Đã ghi nhận nhật ký bảo trì / kiểm định thiết bị thành công!');
       setShowMaintenanceModal(false);
+      maintenanceForm.resetFields();
       loadAssets();
-      if (maintenanceForm.assetId) {
-        loadMaintenanceLogs(maintenanceForm.assetId);
+      if (values.assetId) {
+        loadMaintenanceLogs(values.assetId);
       }
     } catch (err) {
-      setError(err?.response?.data?.message || err.message || 'Lỗi khi lưu nhật ký bảo trì');
+      message.error(err?.response?.data?.message || err.message || 'Lỗi khi lưu bảo trì');
     } finally {
       setLoading(false);
     }
   };
 
-  const handlePostClosingRefund = async (e) => {
-    e.preventDefault();
+  const handlePostClosingRefund = async (values) => {
     try {
       setLoading(true);
-      setError('');
-      setSuccess('');
-      const res = await reconciliationApi.processPostClosingRefund(refundForm);
-      setSuccess(`[AT-11] Hoàn tiền sau khóa sổ thành công! Mã hoàn tiền: ${res.refundId}, ghi nhận vào kỳ mở: ${res.appliedAccountingPeriod}`);
-      setRefundForm({ paymentTransactionId: '', refundAmount: '', reason: '', currentOpenPeriodId: '' });
+      const res = await reconciliationApi.processPostClosingRefund(values);
+      message.success(`[AT-11] Hoàn tiền sau khóa sổ thành công! Mã hoàn tiền: ${res.refundId}, áp dụng kỳ mở: ${res.appliedAccountingPeriod}`);
+      refundForm.resetFields();
       loadDailyReport();
     } catch (err) {
-      setError(err?.response?.data?.error?.message || err?.response?.data?.message || err.message || 'Lỗi khi hoàn tiền sau khóa sổ');
+      message.error(err?.response?.data?.error?.message || err?.response?.data?.message || err.message || 'Lỗi khi hoàn tiền');
     } finally {
       setLoading(false);
     }
@@ -167,675 +190,704 @@ export default function ReconciliationPage() {
   const handleVerifyIntegrity = async () => {
     try {
       setLoading(true);
-      setError('');
-      setSuccess('');
       const res = await reconciliationApi.verifySystemIntegrity();
       setIntegrityData(res);
       if (res.status === 'INTEGRITY_VERIFIED') {
-        setSuccess('[AT-19] Kiểm tra toàn vẹn CSDL & EMR hoàn tất: TẤT CẢ CHỮ KÝ VÀ KHÓA NGOẠI ĐỀU NGUYÊN VẸN 100%!');
+        message.success('[AT-19] Kiểm tra toàn vẹn CSDL: 100% Chữ ký số EMR & Khóa ngoại nguyên vẹn!');
       } else {
-        setError('[CẢNH BÁO AT-19] Phát hiện bất thường tính toàn vẹn cơ sở dữ liệu!');
+        message.warning('[Cảnh báo AT-19] Phát hiện sai lệch toàn vẹn dữ liệu!');
       }
     } catch (err) {
-      setError(err?.response?.data?.message || err.message || 'Lỗi khi kiểm tra toàn vẹn');
+      message.error(err?.response?.data?.message || err.message || 'Lỗi khi kiểm tra toàn vẹn');
     } finally {
       setLoading(false);
     }
   };
 
+  // Cấu hình bảng sai lệch
+  const itemColumns = [
+    {
+      title: 'Loại bất thường',
+      dataIndex: 'itemType',
+      key: 'itemType',
+      width: 220,
+      render: (type) => <Text strong>{type}</Text>,
+    },
+    {
+      title: 'Mức độ',
+      dataIndex: 'severity',
+      key: 'severity',
+      width: 120,
+      render: (sev) => {
+        const colorMap = {
+          CRITICAL: 'red',
+          HIGH: 'volcano',
+          MEDIUM: 'gold',
+          LOW: 'blue',
+        };
+        return <Tag color={colorMap[sev] || 'default'}>{sev}</Tag>;
+      },
+    },
+    {
+      title: 'Mô tả chi tiết',
+      dataIndex: 'description',
+      key: 'description',
+      ellipsis: false,
+    },
+    {
+      title: 'Người chịu trách nhiệm',
+      key: 'owner',
+      width: 200,
+      render: (_, record) => record.owner?.displayName || record.owner?.username || 'Chưa gán',
+    },
+    {
+      title: 'Trạng thái',
+      dataIndex: 'status',
+      key: 'status',
+      width: 130,
+      render: (st) => {
+        const colorMap = {
+          OPEN: 'error',
+          IN_PROGRESS: 'processing',
+          RESOLVED: 'success',
+          CLOSED: 'default',
+        };
+        return <Tag color={colorMap[st] || 'default'}>{st}</Tag>;
+      },
+    },
+    {
+      title: 'Thao tác',
+      key: 'action',
+      width: 110,
+      align: 'right',
+      render: (_, record) => (
+        record.status !== 'RESOLVED' && record.status !== 'CLOSED' ? (
+          <Button
+            type="primary"
+            size="small"
+            onClick={() => {
+              setSelectedItem(record);
+              resolveForm.setFieldsValue({ status: 'RESOLVED', resolution: '' });
+              setShowResolveModal(true);
+            }}
+          >
+            Phân xử
+          </Button>
+        ) : (
+          <Text type="secondary">—</Text>
+        )
+      ),
+    },
+  ];
+
+  const pendingItemsCount = items.filter((i) => i.status === 'OPEN').length;
+
   return (
-    <div className="p-6 space-y-6 max-w-7xl mx-auto">
-      {/* Header */}
-      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 bg-white p-6 rounded-xl border border-slate-200 shadow-sm">
-        <div>
-          <h1 className="text-2xl font-bold text-slate-800 flex items-center gap-3">
-            <span className="p-2.5 bg-blue-50 text-blue-600 rounded-lg">⚖️</span>
-            Đối soát Cuối ngày & Toàn vẹn Hệ thống
-          </h1>
-          <p className="text-slate-500 text-sm mt-1">
-            Quy trình đối soát 5 nguồn bất thường tự động, Tiêu chuẩn AT-11 (Hoàn tiền sau khóa sổ), AT-19 (Toàn vẹn EMR) & AT-24 (Báo cáo tổng hợp).
-          </p>
-        </div>
-        <div className="flex flex-wrap items-center gap-3">
-          <input
-            type="date"
-            value={filterDate}
-            onChange={(e) => setFilterDate(e.target.value)}
-            className="px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none focus:ring-2 focus:ring-blue-500"
-          />
-          <button
-            onClick={handleRunReconciliation}
-            disabled={loading}
-            className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700 transition flex items-center gap-2 shadow-sm disabled:opacity-50"
-          >
-            <span>🔄</span> Chạy Đối Soát Tự Động
-          </button>
-          <button
-            onClick={handleVerifyIntegrity}
-            disabled={loading}
-            className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-semibold hover:bg-emerald-700 transition flex items-center gap-2 shadow-sm disabled:opacity-50"
-          >
-            <span>🛡️</span> Kiểm Tra Toàn Vẹn AT-19
-          </button>
-        </div>
-      </div>
-
-      {/* Thông báo Alert */}
-      {error && (
-        <div className="p-4 bg-rose-50 border-l-4 border-rose-500 text-rose-800 rounded-lg text-sm flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span>⚠️</span>
-            <span>{error}</span>
-          </div>
-          <button onClick={() => setError('')} className="text-rose-500 hover:text-rose-700 font-bold">✕</button>
-        </div>
-      )}
-      {success && (
-        <div className="p-4 bg-emerald-50 border-l-4 border-emerald-500 text-emerald-800 rounded-lg text-sm flex items-center justify-between">
-          <div className="flex items-center gap-2">
-            <span>✅</span>
-            <span>{success}</span>
-          </div>
-          <button onClick={() => setSuccess('')} className="text-emerald-500 hover:text-emerald-700 font-bold">✕</button>
-        </div>
-      )}
-
-      {/* Tabs Bar */}
-      <div className="flex border-b border-slate-200 space-x-1 overflow-x-auto">
-        <button
-          onClick={() => setActiveTab('daily-report')}
-          className={`py-3 px-5 text-sm font-semibold border-b-2 transition whitespace-nowrap flex items-center gap-2 ${
-            activeTab === 'daily-report'
-              ? 'border-blue-600 text-blue-600'
-              : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-          }`}
-        >
-          <span>📊</span> Báo Cáo Cuối Ngày (AT-24)
-        </button>
-        <button
-          onClick={() => { setActiveTab('items'); loadItems(); }}
-          className={`py-3 px-5 text-sm font-semibold border-b-2 transition whitespace-nowrap flex items-center gap-2 ${
-            activeTab === 'items'
-              ? 'border-blue-600 text-blue-600'
-              : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-          }`}
-        >
-          <span>🔍</span> Sai Lệch Đối Soát
-          {items.filter(i => i.status === 'OPEN').length > 0 && (
-            <span className="px-2 py-0.5 text-xs bg-rose-500 text-white rounded-full">
-              {items.filter(i => i.status === 'OPEN').length}
-            </span>
-          )}
-        </button>
-        <button
-          onClick={() => { setActiveTab('maintenance'); loadAssets(); }}
-          className={`py-3 px-5 text-sm font-semibold border-b-2 transition whitespace-nowrap flex items-center gap-2 ${
-            activeTab === 'maintenance'
-              ? 'border-blue-600 text-blue-600'
-              : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-          }`}
-        >
-          <span>🛠️</span> Bảo Trì Thiết Bị Y Tế
-        </button>
-        <button
-          onClick={() => setActiveTab('refund-at11')}
-          className={`py-3 px-5 text-sm font-semibold border-b-2 transition whitespace-nowrap flex items-center gap-2 ${
-            activeTab === 'refund-at11'
-              ? 'border-blue-600 text-blue-600'
-              : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-          }`}
-        >
-          <span>💰</span> Hoàn Tiền Sau Khóa Sổ (AT-11)
-        </button>
-        <button
-          onClick={() => setActiveTab('integrity-at19')}
-          className={`py-3 px-5 text-sm font-semibold border-b-2 transition whitespace-nowrap flex items-center gap-2 ${
-            activeTab === 'integrity-at19'
-              ? 'border-blue-600 text-blue-600'
-              : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-          }`}
-        >
-          <span>🛡️</span> Toàn Vẹn EMR & CSDL (AT-19)
-        </button>
-      </div>
-
-      {/* TAB 1: BÁO CÁO ĐỐI SOÁT CUỐI NGÀY (AT-24) */}
-      {activeTab === 'daily-report' && report && (
-        <div className="space-y-6">
-          {/* KPI Dashboard */}
-          <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Tiền mặt thực thu</span>
-              <div className="text-2xl font-bold text-slate-800 mt-2">
-                {Number(report.cashAndBilling?.totalActualCash || 0).toLocaleString('vi-VN')} đ
-              </div>
-              <div className="text-xs text-slate-500 mt-1">
-                Kỳ vọng: {Number(report.cashAndBilling?.totalExpectedCash || 0).toLocaleString('vi-VN')} đ
-              </div>
-            </div>
-
-            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Chênh lệch tiền mặt</span>
-              <div className={`text-2xl font-bold mt-2 ${
-                Number(report.cashAndBilling?.totalDiscrepancy || 0) === 0 ? 'text-emerald-600' : 'text-rose-600'
-              }`}>
-                {Number(report.cashAndBilling?.totalDiscrepancy || 0).toLocaleString('vi-VN')} đ
-              </div>
-              <div className="text-xs text-slate-500 mt-1">
-                {Number(report.cashAndBilling?.totalDiscrepancy || 0) === 0 ? 'Khớp hoàn toàn' : 'Cần lập biên bản sai lệch'}
-              </div>
-            </div>
-
-            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Doanh thu hóa đơn</span>
-              <div className="text-2xl font-bold text-slate-800 mt-2">
-                {Number(report.cashAndBilling?.totalBilled || 0).toLocaleString('vi-VN')} đ
-              </div>
-              <div className="text-xs text-slate-500 mt-1">
-                Số lượng: {report.cashAndBilling?.invoiceCount || 0} hóa đơn phát hành
-              </div>
-            </div>
-
-            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm">
-              <span className="text-xs font-semibold text-slate-400 uppercase tracking-wider">Bất thường cần xử lý</span>
-              <div className={`text-2xl font-bold mt-2 ${
-                report.reconciliationSummary?.pendingAnomalies > 0 ? 'text-rose-600' : 'text-emerald-600'
-              }`}>
-                {report.reconciliationSummary?.pendingAnomalies || 0}
-              </div>
-              <div className="text-xs text-slate-500 mt-1">
-                Nghiêm trọng (Critical): {report.reconciliationSummary?.criticalAnomalies || 0}
-              </div>
-            </div>
-          </div>
-
-          {/* Chi tiết Vận hành & Tiệt trùng / Labo */}
-          <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
-              <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                <span>🧪</span> Tiệt Trùng & Kiểm Soát Nhiễm Khuẩn
-              </h3>
-              <div className="grid grid-cols-3 gap-4 text-center">
-                <div className="p-4 bg-slate-50 rounded-lg">
-                  <div className="text-xl font-bold text-slate-800">{report.operationsAndSterilization?.totalCycles || 0}</div>
-                  <div className="text-xs text-slate-500 mt-1">Tổng chu kỳ</div>
-                </div>
-                <div className="p-4 bg-emerald-50 rounded-lg">
-                  <div className="text-xl font-bold text-emerald-600">{report.operationsAndSterilization?.passedCycles || 0}</div>
-                  <div className="text-xs text-slate-500 mt-1">Đạt chuẩn (PASS)</div>
-                </div>
-                <div className="p-4 bg-rose-50 rounded-lg">
-                  <div className="text-xl font-bold text-rose-600">{report.operationsAndSterilization?.failedCycles || 0}</div>
-                  <div className="text-xs text-slate-500 mt-1">Không đạt (FAIL)</div>
-                </div>
-              </div>
-            </div>
-
-            <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm space-y-4">
-              <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                <span>🦷</span> Gia Công Răng Sứ & Khí Cụ Labo
-              </h3>
-              <div className="grid grid-cols-3 gap-4 text-center">
-                <div className="p-4 bg-slate-50 rounded-lg">
-                  <div className="text-xl font-bold text-slate-800">{report.operationsAndSterilization?.totalLabOrders || 0}</div>
-                  <div className="text-xs text-slate-500 mt-1">Tổng đơn trong ngày</div>
-                </div>
-                <div className="p-4 bg-blue-50 rounded-lg">
-                  <div className="text-xl font-bold text-blue-600">{report.operationsAndSterilization?.deliveredOrders || 0}</div>
-                  <div className="text-xs text-slate-500 mt-1">Đã nhận hàng</div>
-                </div>
-                <div className="p-4 bg-amber-50 rounded-lg">
-                  <div className="text-xl font-bold text-amber-600">{report.operationsAndSterilization?.reworkOrders || 0}</div>
-                  <div className="text-xs text-slate-500 mt-1">QC không đạt (Rework)</div>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      )}
-
-      {/* TAB 2: DANH SÁCH SAI LỆCH ĐỐI SOÁT (RECONCILIATION ITEMS) */}
-      {activeTab === 'items' && (
-        <div className="bg-white rounded-xl border border-slate-200 shadow-sm overflow-hidden">
-          <div className="p-4 border-b border-slate-200 flex flex-wrap items-center justify-between gap-3">
-            <h3 className="text-base font-bold text-slate-800">Các Bất Thường Hệ Thống Tự Động Quét Được</h3>
-            <select
-              value={itemStatusFilter}
-              onChange={(e) => setItemStatusFilter(e.target.value)}
-              className="px-3 py-1.5 border border-slate-300 rounded-lg text-sm bg-white focus:outline-none"
+    <div style={{ display: 'flex', flexDirection: 'column', gap: 20 }}>
+      {/* Header Panel */}
+      <Card
+        style={{
+          borderRadius: 8,
+          background: 'linear-gradient(90deg, #f6ffed 0%, #ffffff 100%)',
+          boxShadow: '0 1px 2px rgba(0,0,0,0.03)',
+        }}
+      >
+        <Row align="middle" justify="space-between" gutter={[16, 16]}>
+          <Col xs={24} md={14}>
+            <Title level={3} style={{ margin: 0, display: 'flex', alignItems: 'center', gap: 8 }}>
+              <AuditOutlined style={{ color: '#52c41a' }} />
+              Đối soát Cuối ngày & Toàn vẹn Hệ thống
+            </Title>
+            <Paragraph type="secondary" style={{ margin: '6px 0 0' }}>
+              Quy trình đối soát tự động 5 nguồn bất thường, Tiêu chuẩn AT-11 (Hoàn tiền sau khóa sổ), AT-19 (Toàn vẹn EMR & CSDL) và AT-24 (Báo cáo tổng hợp v14).
+            </Paragraph>
+          </Col>
+          <Col xs={24} md={10} style={{ display: 'flex', justifyContent: 'flex-end', gap: 10, flexWrap: 'wrap' }}>
+            <DatePicker
+              value={filterDate}
+              onChange={(d) => d && setFilterDate(d)}
+              format="YYYY-MM-DD"
+              allowClear={false}
+              style={{ width: 140 }}
+            />
+            <Button
+              type="primary"
+              icon={<SyncOutlined spin={loading} />}
+              onClick={handleRunReconciliation}
+              loading={loading}
             >
-              <option value="">Tất cả trạng thái</option>
-              <option value="OPEN">Chờ xử lý (OPEN)</option>
-              <option value="IN_PROGRESS">Đang xử lý (IN_PROGRESS)</option>
-              <option value="RESOLVED">Đã giải quyết (RESOLVED)</option>
-              <option value="CLOSED">Đã đóng (CLOSED)</option>
-            </select>
-          </div>
+              Chạy Đối Soát Tự Động
+            </Button>
+            <Button
+              style={{ backgroundColor: '#52c41a', color: '#fff', borderColor: '#52c41a' }}
+              icon={<SafetyCertificateOutlined />}
+              onClick={handleVerifyIntegrity}
+              loading={loading}
+            >
+              Kiểm Tra Toàn Vẹn AT-19
+            </Button>
+          </Col>
+        </Row>
+      </Card>
 
-          <div className="overflow-x-auto">
-            <table className="w-full text-left border-collapse text-sm">
-              <thead>
-                <tr className="bg-slate-50 text-slate-600 font-semibold border-b border-slate-200">
-                  <th className="p-3">Loại bất thường</th>
-                  <th className="p-3">Mức độ</th>
-                  <th className="p-3">Mô tả chi tiết</th>
-                  <th className="p-3">Người chịu trách nhiệm</th>
-                  <th className="p-3">Trạng thái</th>
-                  <th className="p-3 text-right">Thao tác</th>
-                </tr>
-              </thead>
-              <tbody className="divide-y divide-slate-100">
-                {items.length === 0 ? (
-                  <tr>
-                    <td colSpan="6" className="p-8 text-center text-slate-400">
-                      Không có sai lệch đối soát nào trong hệ thống!
-                    </td>
-                  </tr>
-                ) : (
-                  items.map((item) => (
-                    <tr key={item.reconciliationItemId} className="hover:bg-slate-50">
-                      <td className="p-3 font-semibold text-slate-800">{item.itemType}</td>
-                      <td className="p-3">
-                        <span className={`px-2 py-1 text-xs font-bold rounded-full ${
-                          item.severity === 'CRITICAL' ? 'bg-rose-100 text-rose-700' :
-                          item.severity === 'HIGH' ? 'bg-orange-100 text-orange-700' :
-                          item.severity === 'MEDIUM' ? 'bg-amber-100 text-amber-700' : 'bg-slate-100 text-slate-700'
-                        }`}>
-                          {item.severity}
-                        </span>
-                      </td>
-                      <td className="p-3 text-slate-700 max-w-md">{item.description}</td>
-                      <td className="p-3 text-slate-600">{item.owner?.displayName || item.owner?.username || 'Chưa gán'}</td>
-                      <td className="p-3">
-                        <span className={`px-2 py-0.5 text-xs font-semibold rounded-full ${
-                          item.status === 'RESOLVED' || item.status === 'CLOSED' ? 'bg-emerald-100 text-emerald-700' :
-                          item.status === 'IN_PROGRESS' ? 'bg-blue-100 text-blue-700' : 'bg-rose-100 text-rose-700'
-                        }`}>
-                          {item.status}
-                        </span>
-                      </td>
-                      <td className="p-3 text-right">
-                        {item.status !== 'RESOLVED' && item.status !== 'CLOSED' && (
-                          <button
-                            onClick={() => { setSelectedItem(item); setShowResolveModal(true); }}
-                            className="px-3 py-1 bg-blue-600 text-white rounded text-xs font-semibold hover:bg-blue-700"
-                          >
-                            Phân xử
-                          </button>
-                        )}
-                      </td>
-                    </tr>
-                  ))
-                )}
-              </tbody>
-            </table>
-          </div>
-        </div>
+      {/* Tabs Menu */}
+      <Card bodyStyle={{ padding: '8px 16px' }}>
+        <Tabs
+          activeKey={activeTab}
+          onChange={(k) => {
+            setActiveTab(k);
+            if (k === 'items') loadItems();
+            if (k === 'maintenance') loadAssets();
+          }}
+          items={[
+            {
+              key: 'daily-report',
+              label: (
+                <span>
+                  <FileSearchOutlined /> Báo Cáo Cuối Ngày (AT-24)
+                </span>
+              ),
+            },
+            {
+              key: 'items',
+              label: (
+                <span>
+                  <ExclamationCircleOutlined /> Sai Lệch Đối Soát{' '}
+                  <Badge count={pendingItemsCount} style={{ backgroundColor: '#ff4d4f' }} />
+                </span>
+              ),
+            },
+            {
+              key: 'maintenance',
+              label: (
+                <span>
+                  <ToolOutlined /> Bảo Trì Thiết Bị Y Tế
+                </span>
+              ),
+            },
+            {
+              key: 'refund-at11',
+              label: (
+                <span>
+                  <DollarOutlined /> Hoàn Tiền Sau Khóa Sổ (AT-11)
+                </span>
+              ),
+            },
+            {
+              key: 'integrity-at19',
+              label: (
+                <span>
+                  <SafetyCertificateOutlined /> Toàn Vẹn EMR & CSDL (AT-19)
+                </span>
+              ),
+            },
+          ]}
+        />
+      </Card>
+
+      {/* TAB 1: BÁO CÁO CUỐI NGÀY */}
+      {activeTab === 'daily-report' && report && (
+        <Space direction="vertical" size="large" style={{ width: '100%' }}>
+          {/* Dashboard KPIs */}
+          <Row gutter={[16, 16]}>
+            <Col xs={24} sm={12} lg={6}>
+              <Card>
+                <Statistic
+                  title="Tiền mặt thực thu"
+                  value={Number(report.cashAndBilling?.totalActualCash || 0)}
+                  precision={0}
+                  suffix="đ"
+                  valueStyle={{ color: '#1890ff', fontWeight: 600 }}
+                />
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  Kỳ vọng: {Number(report.cashAndBilling?.totalExpectedCash || 0).toLocaleString('vi-VN')} đ
+                </Text>
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} lg={6}>
+              <Card>
+                <Statistic
+                  title="Chênh lệch ca thu ngân"
+                  value={Number(report.cashAndBilling?.totalDiscrepancy || 0)}
+                  precision={0}
+                  suffix="đ"
+                  valueStyle={{
+                    color: Number(report.cashAndBilling?.totalDiscrepancy || 0) === 0 ? '#52c41a' : '#ff4d4f',
+                    fontWeight: 600,
+                  }}
+                />
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  {Number(report.cashAndBilling?.totalDiscrepancy || 0) === 0
+                    ? 'Khớp hoàn toàn'
+                    : 'Cần phân xử biên bản lệch tiền'}
+                </Text>
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} lg={6}>
+              <Card>
+                <Statistic
+                  title="Doanh thu hóa đơn"
+                  value={Number(report.cashAndBilling?.totalBilled || 0)}
+                  precision={0}
+                  suffix="đ"
+                  valueStyle={{ color: '#722ed1', fontWeight: 600 }}
+                />
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  Số lượng: {report.cashAndBilling?.invoiceCount || 0} hóa đơn
+                </Text>
+              </Card>
+            </Col>
+            <Col xs={24} sm={12} lg={6}>
+              <Card>
+                <Statistic
+                  title="Sai lệch chờ xử lý"
+                  value={report.reconciliationSummary?.pendingAnomalies || 0}
+                  valueStyle={{
+                    color: (report.reconciliationSummary?.pendingAnomalies || 0) > 0 ? '#ff4d4f' : '#52c41a',
+                    fontWeight: 600,
+                  }}
+                  prefix={<ExclamationCircleOutlined />}
+                />
+                <Text type="secondary" style={{ fontSize: 12 }}>
+                  Mức độ nghiêm trọng (Critical): {report.reconciliationSummary?.criticalAnomalies || 0}
+                </Text>
+              </Card>
+            </Col>
+          </Row>
+
+          {/* Vận hành & Tiệt trùng / Labo */}
+          <Row gutter={[16, 16]}>
+            <Col xs={24} md={12}>
+              <Card title={<Space><ExperimentOutlined style={{ color: '#13c2c2' }} /> Tiệt Trùng & Kiểm Soát Nhiễm Khuẩn</Space>}>
+                <Row gutter={16} style={{ textAlign: 'center' }}>
+                  <Col span={8}>
+                    <Statistic title="Tổng chu kỳ" value={report.operationsAndSterilization?.totalCycles || 0} />
+                  </Col>
+                  <Col span={8}>
+                    <Statistic
+                      title="Đạt chuẩn (PASS)"
+                      value={report.operationsAndSterilization?.passedCycles || 0}
+                      valueStyle={{ color: '#52c41a' }}
+                    />
+                  </Col>
+                  <Col span={8}>
+                    <Statistic
+                      title="Lỗi (FAIL)"
+                      value={report.operationsAndSterilization?.failedCycles || 0}
+                      valueStyle={{ color: '#ff4d4f' }}
+                    />
+                  </Col>
+                </Row>
+              </Card>
+            </Col>
+            <Col xs={24} md={12}>
+              <Card title={<Space><MedicineBoxOutlined style={{ color: '#fa8c16' }} /> Gia Công Răng Sứ & Khí Cụ Labo</Space>}>
+                <Row gutter={16} style={{ textAlign: 'center' }}>
+                  <Col span={8}>
+                    <Statistic title="Tổng đơn Labo" value={report.operationsAndSterilization?.totalLabOrders || 0} />
+                  </Col>
+                  <Col span={8}>
+                    <Statistic
+                      title="Đã nhận hàng"
+                      value={report.operationsAndSterilization?.deliveredOrders || 0}
+                      valueStyle={{ color: '#1890ff' }}
+                    />
+                  </Col>
+                  <Col span={8}>
+                    <Statistic
+                      title="Làm lại (Rework)"
+                      value={report.operationsAndSterilization?.reworkOrders || 0}
+                      valueStyle={{ color: '#faad14' }}
+                    />
+                  </Col>
+                </Row>
+              </Card>
+            </Col>
+          </Row>
+        </Space>
+      )}
+
+      {/* TAB 2: DANH SÁCH SAI LỆCH CẦN PHÂN XỬ */}
+      {activeTab === 'items' && (
+        <Card
+          title="Các Bất Thường Hệ Thống Tự Động Quét Được"
+          extra={
+            <Select
+              value={itemStatusFilter}
+              onChange={(val) => {
+                setItemStatusFilter(val);
+                reconciliationApi.getReconciliationItems({ status: val || undefined }).then(setItems);
+              }}
+              style={{ width: 180 }}
+            >
+              <Option value="">Tất cả trạng thái</Option>
+              <Option value="OPEN">Chờ xử lý (OPEN)</Option>
+              <Option value="IN_PROGRESS">Đang xử lý (IN_PROGRESS)</Option>
+              <Option value="RESOLVED">Đã giải quyết (RESOLVED)</Option>
+              <Option value="CLOSED">Đã đóng (CLOSED)</Option>
+            </Select>
+          }
+        >
+          <Table
+            columns={itemColumns}
+            dataSource={items}
+            rowKey="reconciliationItemId"
+            pagination={{ pageSize: 10, showTotal: (total) => `Tổng số ${total} mục đối soát` }}
+            loading={loading}
+          />
+        </Card>
       )}
 
       {/* TAB 3: BẢO TRÌ & HIỆU CHUẨN THIẾT BỊ Y TẾ */}
       {activeTab === 'maintenance' && (
-        <div className="space-y-6">
-          <div className="flex justify-between items-center">
-            <h3 className="text-base font-bold text-slate-800">Danh Sách Thiết Bị Y Tế & Trạng Thái Vận Hành</h3>
-            <button
-              onClick={() => setShowMaintenanceModal(true)}
-              className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700"
+        <Space direction="vertical" size="large" style={{ width: '100%' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+            <Title level={4} style={{ margin: 0 }}>Danh Sách Thiết Bị Y Tế & Trạng Thái Vận Hành</Title>
+            <Button
+              type="primary"
+              icon={<ToolOutlined />}
+              onClick={() => {
+                maintenanceForm.resetFields();
+                maintenanceForm.setFieldsValue({
+                  maintenanceType: 'PERIODIC_INSPECTION',
+                  result: 'PASS',
+                  performedAt: dayjs(),
+                  performedBy: user?.displayName || user?.username || 'Kỹ thuật viên',
+                });
+                setShowMaintenanceModal(true);
+              }}
             >
               + Ghi Nhận Bảo Trì / Kiểm Định
-            </button>
+            </Button>
           </div>
 
-          <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          <Row gutter={[16, 16]}>
             {assets.map((asset) => (
-              <div key={asset.assetId} className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-3">
-                <div className="flex justify-between items-start">
-                  <div>
-                    <h4 className="font-bold text-slate-800">{asset.name}</h4>
-                    <span className="text-xs text-slate-400">{asset.assetCode} - {asset.assetType}</span>
-                  </div>
-                  <span className={`px-2 py-0.5 text-xs font-bold rounded-full ${
-                    asset.status === 'ACTIVE' ? 'bg-emerald-100 text-emerald-700' :
-                    asset.status === 'MAINTENANCE' ? 'bg-amber-100 text-amber-700' : 'bg-rose-100 text-rose-700'
-                  }`}>
-                    {asset.status}
-                  </span>
-                </div>
-                <div className="text-xs text-slate-500 space-y-1">
-                  <div>Kiểm định hiệu chuẩn: {asset.calibrationExpiresAt ? new Date(asset.calibrationExpiresAt).toLocaleDateString('vi-VN') : 'Chưa có'}</div>
-                  <div>Hạn bảo trì kế tiếp: {asset.nextMaintenanceDueAt ? new Date(asset.nextMaintenanceDueAt).toLocaleDateString('vi-VN') : 'Chưa có'}</div>
-                </div>
-                <button
-                  onClick={() => {
-                    setMaintenanceForm({ ...maintenanceForm, assetId: asset.assetId });
-                    loadMaintenanceLogs(asset.assetId);
-                  }}
-                  className="w-full mt-2 py-1.5 border border-slate-200 rounded text-xs font-semibold text-slate-600 hover:bg-slate-50"
+              <Col xs={24} sm={12} md={8} key={asset.assetId}>
+                <Card
+                  title={asset.name}
+                  extra={
+                    <Tag color={asset.status === 'ACTIVE' ? 'success' : asset.status === 'MAINTENANCE' ? 'warning' : 'error'}>
+                      {asset.status}
+                    </Tag>
+                  }
+                  actions={[
+                    <Button
+                      type="link"
+                      onClick={() => {
+                        maintenanceForm.setFieldsValue({ assetId: asset.assetId });
+                        loadMaintenanceLogs(asset.assetId);
+                      }}
+                    >
+                      Xem lịch sử bảo trì
+                    </Button>,
+                  ]}
                 >
-                  Xem Nhật Ký Bảo Trì
-                </button>
-              </div>
+                  <Paragraph style={{ margin: 0, fontSize: 13 }}>
+                    <Text type="secondary">Mã thiết bị:</Text> {asset.assetCode} ({asset.assetType})
+                  </Paragraph>
+                  <Paragraph style={{ margin: '4px 0 0', fontSize: 13 }}>
+                    <Text type="secondary">Hạn hiệu chuẩn:</Text>{' '}
+                    {asset.calibrationExpiresAt ? dayjs(asset.calibrationExpiresAt).format('DD/MM/YYYY') : 'Chưa có'}
+                  </Paragraph>
+                  <Paragraph style={{ margin: '4px 0 0', fontSize: 13 }}>
+                    <Text type="secondary">Bảo trì định kỳ kế tiếp:</Text>{' '}
+                    {asset.nextMaintenanceDueAt ? dayjs(asset.nextMaintenanceDueAt).format('DD/MM/YYYY') : 'Chưa có'}
+                  </Paragraph>
+                </Card>
+              </Col>
             ))}
-          </div>
+          </Row>
 
           {maintenanceLogs.length > 0 && (
-            <div className="bg-white p-5 rounded-xl border border-slate-200 shadow-sm space-y-3">
-              <h4 className="font-bold text-slate-800">Lịch Sử Kiểm Định & Bảo Trì Thiết Bị Đã Chọn</h4>
-              <div className="divide-y divide-slate-100">
-                {maintenanceLogs.map((log) => (
-                  <div key={log.maintenanceLogId} className="py-2.5 flex justify-between items-center text-sm">
-                    <div>
-                      <span className="font-semibold text-slate-700">{log.maintenanceType}</span> - <span className="text-slate-500">{new Date(log.performedAt).toLocaleString('vi-VN')}</span>
-                      <div className="text-xs text-slate-500">{log.details} - Thực hiện: {log.performedBy}</div>
-                    </div>
-                    <span className={`px-2 py-0.5 text-xs font-bold rounded ${
-                      log.result === 'PASS' ? 'bg-emerald-100 text-emerald-700' : 'bg-rose-100 text-rose-700'
-                    }`}>
-                      {log.result}
-                    </span>
-                  </div>
-                ))}
-              </div>
-            </div>
+            <Card title="Lịch Sử Kiểm Định & Bảo Trì Thiết Bị Đã Chọn">
+              <Table
+                dataSource={maintenanceLogs}
+                rowKey="maintenanceLogId"
+                pagination={{ pageSize: 5 }}
+                columns={[
+                  {
+                    title: 'Loại bảo trì',
+                    dataIndex: 'maintenanceType',
+                    key: 'maintenanceType',
+                    render: (t) => <Text strong>{t}</Text>,
+                  },
+                  {
+                    title: 'Thời gian',
+                    dataIndex: 'performedAt',
+                    key: 'performedAt',
+                    render: (d) => dayjs(d).format('DD/MM/YYYY HH:mm'),
+                  },
+                  {
+                    title: 'Kết quả',
+                    dataIndex: 'result',
+                    key: 'result',
+                    render: (r) => <Tag color={r === 'PASS' ? 'green' : 'red'}>{r}</Tag>,
+                  },
+                  {
+                    title: 'Người thực hiện',
+                    dataIndex: 'performedBy',
+                    key: 'performedBy',
+                  },
+                  {
+                    title: 'Nội dung chi tiết',
+                    dataIndex: 'details',
+                    key: 'details',
+                  },
+                ]}
+              />
+            </Card>
           )}
-        </div>
+        </Space>
       )}
 
       {/* TAB 4: HOÀN TIỀN SAU KHÓA SỔ (AT-11) */}
       {activeTab === 'refund-at11' && (
-        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm max-w-2xl mx-auto space-y-5">
-          <div className="border-b border-slate-100 pb-4">
-            <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-              <span>💰</span> Quy Trình Hoàn Tiền Sau Khóa Sổ Kế Toán (AT-11)
-            </h3>
-            <p className="text-xs text-slate-500 mt-1">
-              Nguyên tắc kế toán chuẩn: Khi kỳ kế toán trước đã đóng (CLOSED), không được sửa đè chứng từ cũ.
-              Giao dịch hoàn tiền bắt buộc ghi nhận điều chỉnh vào kỳ kế toán đang MỞ (OPEN) hiện tại, lưu vết liên kết chứng từ thanh toán gốc.
-            </p>
-          </div>
-
-          <form onSubmit={handlePostClosingRefund} className="space-y-4">
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">
-                Mã Giao Dịch Thanh Toán Gốc (PaymentTransactionId)
-              </label>
-              <input
-                type="text"
-                required
-                placeholder="UUID giao dịch đã thu trong kỳ cũ..."
-                value={refundForm.paymentTransactionId}
-                onChange={(e) => setRefundForm({ ...refundForm, paymentTransactionId: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+        <Row justify="center">
+          <Col xs={24} md={16} lg={12}>
+            <Card title={<Space><DollarOutlined style={{ color: '#1890ff' }} /> Quy Trình Hoàn Tiền Sau Khóa Sổ Kế Toán (AT-11)</Space>}>
+              <Alert
+                message="Quy tắc kế toán bất biến"
+                description="Khi kỳ kế toán trước đã đóng (CLOSED), không được sửa đè chứng từ cũ. Khoản hoàn tiền bắt buộc ghi nhận điều chỉnh vào kỳ kế toán đang MỞ (OPEN) hiện tại, lưu vết liên kết chứng từ thanh toán gốc."
+                type="info"
+                showIcon
+                style={{ marginBottom: 20 }}
               />
-            </div>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">
-                Số Tiền Hoàn (VNĐ)
-              </label>
-              <input
-                type="number"
-                step="0.01"
-                required
-                placeholder="Ví dụ: 300000"
-                value={refundForm.refundAmount}
-                onChange={(e) => setRefundForm({ ...refundForm, refundAmount: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
+              <Form form={refundForm} layout="vertical" onFinish={handlePostClosingRefund}>
+                <Form.Item
+                  label="Mã Giao Dịch Thanh Toán Gốc (PaymentTransactionId)"
+                  name="paymentTransactionId"
+                  rules={[{ required: true, message: 'Vui lòng nhập ID giao dịch gốc' }]}
+                >
+                  <Input placeholder="Nhập UUID thanh toán thuộc kỳ cũ..." />
+                </Form.Item>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">
-                Mã Kỳ Kế Toán Đang Mở (Current Open AccountingPeriodId)
-              </label>
-              <input
-                type="text"
-                required
-                placeholder="UUID kỳ kế toán trạng thái OPEN..."
-                value={refundForm.currentOpenPeriodId}
-                onChange={(e) => setRefundForm({ ...refundForm, currentOpenPeriodId: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              />
-            </div>
+                <Form.Item
+                  label="Số Tiền Hoàn (VNĐ)"
+                  name="refundAmount"
+                  rules={[{ required: true, message: 'Vui lòng nhập số tiền hoàn' }]}
+                >
+                  <Input type="number" step="0.01" placeholder="Ví dụ: 300000" suffix="VNĐ" />
+                </Form.Item>
 
-            <div>
-              <label className="block text-xs font-semibold text-slate-600 uppercase mb-1">
-                Lý Do Hoàn Tiền Điều Chỉnh
-              </label>
-              <textarea
-                rows="3"
-                required
-                placeholder="Giải thích lý do hoàn sau khóa sổ..."
-                value={refundForm.reason}
-                onChange={(e) => setRefundForm({ ...refundForm, reason: e.target.value })}
-                className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-              ></textarea>
-            </div>
+                <Form.Item
+                  label="Mã Kỳ Kế Toán Đang Mở (Current Open AccountingPeriodId)"
+                  name="currentOpenPeriodId"
+                  rules={[{ required: true, message: 'Vui lòng nhập ID kỳ kế toán OPEN' }]}
+                >
+                  <Input placeholder="Nhập UUID kỳ kế toán đang MỞ hiện tại..." />
+                </Form.Item>
 
-            <button
-              type="submit"
-              disabled={loading}
-              className="w-full py-2.5 bg-blue-600 text-white font-semibold rounded-lg hover:bg-blue-700 transition disabled:opacity-50"
-            >
-              Phê Duyệt & Ghi Nhận Hoàn Tiền Vào Kỳ Mở
-            </button>
-          </form>
-        </div>
+                <Form.Item
+                  label="Lý Do Hoàn Tiền Điều Chỉnh"
+                  name="reason"
+                  rules={[{ required: true, message: 'Vui lòng nhập lý do hoàn tiền' }]}
+                >
+                  <TextArea rows={3} placeholder="Ghi rõ lý do hoàn tiền sau khi kỳ trước đã đóng..." />
+                </Form.Item>
+
+                <Form.Item>
+                  <Button type="primary" htmlType="submit" block loading={loading}>
+                    Phê Duyệt & Ghi Nhận Hoàn Tiền Vào Kỳ Mở
+                  </Button>
+                </Form.Item>
+              </Form>
+            </Card>
+          </Col>
+        </Row>
       )}
 
       {/* TAB 5: KIỂM TRA TOÀN VẸN EMR & CSDL (AT-19) */}
       {activeTab === 'integrity-at19' && (
-        <div className="bg-white p-6 rounded-xl border border-slate-200 shadow-sm max-w-3xl mx-auto space-y-5">
-          <div className="border-b border-slate-100 pb-4 flex justify-between items-center">
-            <div>
-              <h3 className="text-lg font-bold text-slate-800 flex items-center gap-2">
-                <span>🛡️</span> Kiểm Tra Toàn Vẹn Cơ Sở Dữ Liệu & Audit (AT-19)
-              </h3>
-              <p className="text-xs text-slate-500 mt-1">
-                Xác thực mã băm chữ ký số EMR SHA-256 và tính toàn vẹn tham chiếu khóa ngoại giữa các bảng nghiệp vụ.
-              </p>
-            </div>
-            <button
-              onClick={handleVerifyIntegrity}
-              disabled={loading}
-              className="px-4 py-2 bg-emerald-600 text-white rounded-lg text-sm font-semibold hover:bg-emerald-700"
+        <Row justify="center">
+          <Col xs={24} md={18} lg={14}>
+            <Card
+              title={<Space><SafetyCertificateOutlined style={{ color: '#52c41a' }} /> Kiểm Tra Toàn Vẹn Cơ Sở Dữ Liệu & Audit (AT-19)</Space>}
+              extra={
+                <Button type="primary" icon={<SyncOutlined />} onClick={handleVerifyIntegrity} loading={loading}>
+                  Quét Toàn Vẹn Ngay
+                </Button>
+              }
             >
-              Quét Ngay
-            </button>
-          </div>
+              <Paragraph type="secondary">
+                Xác thực định dạng mã băm chữ ký số EMR SHA-256 (64 ký tự hex) trên toàn bộ hồ sơ bệnh án đã ký và kiểm tra toàn vẹn tham chiếu khóa ngoại giữa các bảng nghiệp vụ cốt lõi.
+              </Paragraph>
 
-          {integrityData && (
-            <div className="space-y-4">
-              <div className={`p-4 rounded-xl border ${
-                integrityData.status === 'INTEGRITY_VERIFIED'
-                  ? 'bg-emerald-50 border-emerald-200 text-emerald-800'
-                  : 'bg-rose-50 border-rose-200 text-rose-800'
-              }`}>
-                <div className="font-bold text-base flex items-center gap-2">
-                  <span>{integrityData.status === 'INTEGRITY_VERIFIED' ? '✅' : '❌'}</span>
-                  <span>Trạng thái: {integrityData.status}</span>
-                </div>
-                <div className="text-xs mt-1">Thời điểm kiểm tra: {new Date(integrityData.timestamp).toLocaleString('vi-VN')}</div>
-              </div>
+              {integrityData && (
+                <Space direction="vertical" size="middle" style={{ width: '100%', marginTop: 10 }}>
+                  <Alert
+                    message={`Trạng thái: ${integrityData.status}`}
+                    description={`Thời điểm kiểm tra: ${dayjs(integrityData.timestamp).format('DD/MM/YYYY HH:mm:ss')}`}
+                    type={integrityData.status === 'INTEGRITY_VERIFIED' ? 'success' : 'error'}
+                    showIcon
+                  />
 
-              <div className="grid grid-cols-2 gap-4">
-                <div className="p-4 bg-slate-50 rounded-lg space-y-2">
-                  <div className="font-bold text-slate-800">Chữ Ký Số EMR (SHA-256)</div>
-                  <div className="text-xs text-slate-600">Số lượng đã kiểm tra: {integrityData.emrSignatures.checkedCount}</div>
-                  <div className="text-xs text-slate-600">Số bản ghi sai lệch: {integrityData.emrSignatures.corruptedCount}</div>
-                  <div className={`text-xs font-bold ${integrityData.emrSignatures.valid ? 'text-emerald-600' : 'text-rose-600'}`}>
-                    Kết luận: {integrityData.emrSignatures.valid ? 'ĐẠT CHUẨN TOÀN VẸN' : 'CÓ NGUY CƠ BỊ SỬA ĐỔI'}
-                  </div>
-                </div>
-
-                <div className="p-4 bg-slate-50 rounded-lg space-y-2">
-                  <div className="font-bold text-slate-800">Ràng Buộc Khóa Ngoại (Foreign Keys)</div>
-                  <div className="text-xs text-slate-600">Lượt khám mồ côi (Orphan Visits): {integrityData.foreignKeyIntegrity.orphanVisits}</div>
-                  <div className={`text-xs font-bold ${integrityData.foreignKeyIntegrity.valid ? 'text-emerald-600' : 'text-rose-600'}`}>
-                    Kết luận: {integrityData.foreignKeyIntegrity.valid ? 'TOÀN VẸN KHÓA NGOẠI 100%' : 'CÓ DỮ LIỆU MỒ CÔI'}
-                  </div>
-                </div>
-              </div>
-            </div>
-          )}
-        </div>
+                  <Row gutter={16}>
+                    <Col span={12}>
+                      <Card size="small" title="Chữ Ký Số EMR (SHA-256)">
+                        <Paragraph style={{ margin: 0 }}>
+                          Số lượng đã kiểm tra: <Text strong>{integrityData.emrSignatures?.checkedCount || 0}</Text>
+                        </Paragraph>
+                        <Paragraph style={{ margin: '4px 0 0' }}>
+                          Số bản ghi sai lệch: <Text strong type="danger">{integrityData.emrSignatures?.corruptedCount || 0}</Text>
+                        </Paragraph>
+                        <Divider style={{ margin: '8px 0' }} />
+                        <Tag color={integrityData.emrSignatures?.valid ? 'green' : 'red'}>
+                          {integrityData.emrSignatures?.valid ? 'ĐẠT CHUẨN TOÀN VẸN 100%' : 'CÓ NGUY CƠ BỊ SỬA ĐỔI'}
+                        </Tag>
+                      </Card>
+                    </Col>
+                    <Col span={12}>
+                      <Card size="small" title="Ràng Buộc Khóa Ngoại (Foreign Keys)">
+                        <Paragraph style={{ margin: 0 }}>
+                          Lượt khám mồ côi (Orphan Visits): <Text strong>{integrityData.foreignKeyIntegrity?.orphanVisits || 0}</Text>
+                        </Paragraph>
+                        <Paragraph style={{ margin: '4px 0 0' }}>
+                          Hóa đơn mồ côi (Orphan Invoices): <Text strong>{integrityData.foreignKeyIntegrity?.orphanInvoices || 0}</Text>
+                        </Paragraph>
+                        <Divider style={{ margin: '8px 0' }} />
+                        <Tag color={integrityData.foreignKeyIntegrity?.valid ? 'green' : 'red'}>
+                          {integrityData.foreignKeyIntegrity?.valid ? 'TOÀN VẸN KHÓA NGOẠI 100%' : 'CÓ DỮ LIỆU MỒ CÔI'}
+                        </Tag>
+                      </Card>
+                    </Col>
+                  </Row>
+                </Space>
+              )}
+            </Card>
+          </Col>
+        </Row>
       )}
 
       {/* Modal Phân xử sai lệch đối soát */}
-      {showResolveModal && selectedItem && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 space-y-4">
-            <h3 className="font-bold text-lg text-slate-800">Phân Xử Sai Lệch Đối Soát</h3>
-            <p className="text-xs text-slate-600 bg-slate-50 p-3 rounded-lg border border-slate-200">
-              {selectedItem.description}
-            </p>
+      <Modal
+        title="Phân Xử Sai Lệch Đối Soát"
+        open={showResolveModal}
+        onCancel={() => setShowResolveModal(false)}
+        footer={null}
+        destroyOnClose
+      >
+        {selectedItem && (
+          <Space direction="vertical" size="middle" style={{ width: '100%' }}>
+            <Alert
+              message={`Bất thường: [${selectedItem.itemType}] - Mức độ: ${selectedItem.severity}`}
+              description={selectedItem.description}
+              type="warning"
+              showIcon
+            />
 
-            <form onSubmit={handleResolveItem} className="space-y-3">
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Trạng Thái Xử Lý</label>
-                <select
-                  value={resolveStatus}
-                  onChange={(e) => setResolveStatus(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"
-                >
-                  <option value="IN_PROGRESS">Đang xử lý (IN_PROGRESS)</option>
-                  <option value="RESOLVED">Đã giải quyết (RESOLVED)</option>
-                  <option value="CLOSED">Đóng vấn đề (CLOSED)</option>
-                </select>
-              </div>
+            <Form form={resolveForm} layout="vertical" onFinish={handleResolveItem}>
+              <Form.Item
+                label="Trạng Thái Xử Lý"
+                name="status"
+                rules={[{ required: true }]}
+              >
+                <Select>
+                  <Option value="IN_PROGRESS">Đang xử lý (IN_PROGRESS)</Option>
+                  <Option value="RESOLVED">Đã giải quyết (RESOLVED)</Option>
+                  <Option value="CLOSED">Đóng vấn đề (CLOSED)</Option>
+                </Select>
+              </Form.Item>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Biên Bản & Hướng Giải Quyết</label>
-                <textarea
-                  rows="3"
-                  required
-                  placeholder="Ghi rõ biện pháp đã thực hiện..."
-                  value={resolutionText}
-                  onChange={(e) => setResolutionText(e.target.value)}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
-                ></textarea>
-              </div>
+              <Form.Item
+                label="Biên Bản & Hướng Giải Quyết"
+                name="resolution"
+                rules={[{ required: true, message: 'Vui lòng nhập phương án xử lý' }]}
+              >
+                <TextArea rows={3} placeholder="Ghi rõ biện pháp đã thực hiện để khắc phục sai lệch..." />
+              </Form.Item>
 
-              <div className="flex justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowResolveModal(false)}
-                  className="px-4 py-2 border border-slate-300 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-50"
-                >
-                  Hủy
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700"
-                >
-                  Xác Nhận Giải Quyết
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+              <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
+                <Space>
+                  <Button onClick={() => setShowResolveModal(false)}>Hủy</Button>
+                  <Button type="primary" htmlType="submit" loading={loading}>
+                    Xác Nhận Giải Quyết
+                  </Button>
+                </Space>
+              </Form.Item>
+            </Form>
+          </Space>
+        )}
+      </Modal>
 
       {/* Modal Ghi nhận bảo trì thiết bị */}
-      {showMaintenanceModal && (
-        <div className="fixed inset-0 bg-slate-900/40 backdrop-blur-sm z-50 flex items-center justify-center p-4">
-          <div className="bg-white rounded-xl shadow-xl max-w-md w-full p-6 space-y-4">
-            <h3 className="font-bold text-lg text-slate-800">Ghi Nhận Bảo Trì / Kiểm Định Thiết Bị</h3>
+      <Modal
+        title="Ghi Nhận Bảo Trì / Kiểm Định Thiết Bị Y Tế"
+        open={showMaintenanceModal}
+        onCancel={() => setShowMaintenanceModal(false)}
+        footer={null}
+        destroyOnClose
+      >
+        <Form form={maintenanceForm} layout="vertical" onFinish={handleCreateMaintenance}>
+          <Form.Item
+            label="Thiết Bị Y Tế"
+            name="assetId"
+            rules={[{ required: true, message: 'Vui lòng chọn thiết bị' }]}
+          >
+            <Select placeholder="-- Chọn thiết bị y tế --">
+              {assets.map((a) => (
+                <Option key={a.assetId} value={a.assetId}>
+                  {a.name} ({a.assetCode})
+                </Option>
+              ))}
+            </Select>
+          </Form.Item>
 
-            <form onSubmit={handleCreateMaintenance} className="space-y-3">
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Thiết Bị Y Tế</label>
-                <select
-                  required
-                  value={maintenanceForm.assetId}
-                  onChange={(e) => setMaintenanceForm({ ...maintenanceForm, assetId: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"
-                >
-                  <option value="">-- Chọn thiết bị --</option>
-                  {assets.map((a) => (
-                    <option key={a.assetId} value={a.assetId}>{a.name} ({a.assetCode})</option>
-                  ))}
-                </select>
-              </div>
+          <Form.Item
+            label="Loại Nghiệp Vụ"
+            name="maintenanceType"
+            rules={[{ required: true }]}
+          >
+            <Select>
+              <Option value="PERIODIC_INSPECTION">Bảo trì định kỳ</Option>
+              <Option value="CALIBRATION">Hiệu chuẩn / Kiểm định</Option>
+              <Option value="REPAIR">Sửa chữa đột xuất</Option>
+            </Select>
+          </Form.Item>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Loại Nghiệp Vụ</label>
-                <select
-                  value={maintenanceForm.maintenanceType}
-                  onChange={(e) => setMaintenanceForm({ ...maintenanceForm, maintenanceType: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"
-                >
-                  <option value="PERIODIC_INSPECTION">Bảo trì định kỳ</option>
-                  <option value="CALIBRATION">Hiệu chuẩn / Kiểm định</option>
-                  <option value="REPAIR">Sửa chữa đột xuất</option>
-                </select>
-              </div>
+          <Form.Item
+            label="Kết Quả Đánh Giá"
+            name="result"
+            rules={[{ required: true }]}
+          >
+            <Select>
+              <Option value="PASS">Đạt chuẩn (PASS - Sẵn sàng vận hành)</Option>
+              <Option value="FAIL">Không đạt (FAIL - Tự động chuyển Bảo trì)</Option>
+              <Option value="LIMITED">Hạn chế sử dụng (LIMITED)</Option>
+            </Select>
+          </Form.Item>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Kết Quả Đánh Giá</label>
-                <select
-                  value={maintenanceForm.result}
-                  onChange={(e) => setMaintenanceForm({ ...maintenanceForm, result: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm bg-white"
-                >
-                  <option value="PASS">Đạt chuẩn (PASS - Sẵn sàng vận hành)</option>
-                  <option value="FAIL">Không đạt (FAIL - Tự động chuyển Bảo trì)</option>
-                  <option value="LIMITED">Hạn chế sử dụng (LIMITED)</option>
-                </select>
-              </div>
+          <Form.Item label="Thời Điểm Thực Hiện" name="performedAt">
+            <DatePicker showTime style={{ width: '100%' }} format="YYYY-MM-DD HH:mm" />
+          </Form.Item>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Hạn Kiểm Định Kế Tiếp</label>
-                <input
-                  type="date"
-                  value={maintenanceForm.nextDueAt}
-                  onChange={(e) => setMaintenanceForm({ ...maintenanceForm, nextDueAt: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
-                />
-              </div>
+          <Form.Item label="Hạn Kiểm Định Kế Tiếp" name="nextDueAt">
+            <DatePicker style={{ width: '100%' }} format="YYYY-MM-DD" />
+          </Form.Item>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Người / Đơn Vị Thực Hiện</label>
-                <input
-                  type="text"
-                  required
-                  value={maintenanceForm.performedBy}
-                  onChange={(e) => setMaintenanceForm({ ...maintenanceForm, performedBy: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
-                />
-              </div>
+          <Form.Item
+            label="Người / Đơn Vị Thực Hiện"
+            name="performedBy"
+            rules={[{ required: true, message: 'Vui lòng nhập người thực hiện' }]}
+          >
+            <Input placeholder="Tên kỹ sư / trung tâm kiểm định..." />
+          </Form.Item>
 
-              <div>
-                <label className="block text-xs font-semibold text-slate-600 mb-1">Chi Tiết Kỹ Thuật</label>
-                <textarea
-                  rows="2"
-                  value={maintenanceForm.details}
-                  onChange={(e) => setMaintenanceForm({ ...maintenanceForm, details: e.target.value })}
-                  className="w-full px-3 py-2 border border-slate-300 rounded-lg text-sm"
-                ></textarea>
-              </div>
+          <Form.Item label="Chi Tiết Kỹ Thuật" name="details">
+            <TextArea rows={2} placeholder="Nội dung kiểm tra, kết quả đo áp lực..." />
+          </Form.Item>
 
-              <div className="flex justify-end gap-2 pt-2">
-                <button
-                  type="button"
-                  onClick={() => setShowMaintenanceModal(false)}
-                  className="px-4 py-2 border border-slate-300 rounded-lg text-sm font-semibold text-slate-600 hover:bg-slate-50"
-                >
-                  Hủy
-                </button>
-                <button
-                  type="submit"
-                  disabled={loading}
-                  className="px-4 py-2 bg-blue-600 text-white rounded-lg text-sm font-semibold hover:bg-blue-700"
-                >
-                  Lưu Nhật Ký
-                </button>
-              </div>
-            </form>
-          </div>
-        </div>
-      )}
+          <Form.Item style={{ marginBottom: 0, textAlign: 'right' }}>
+            <Space>
+              <Button onClick={() => setShowMaintenanceModal(false)}>Hủy</Button>
+              <Button type="primary" htmlType="submit" loading={loading}>
+                Lưu Nhật Ký
+              </Button>
+            </Space>
+          </Form.Item>
+        </Form>
+      </Modal>
     </div>
   );
 }

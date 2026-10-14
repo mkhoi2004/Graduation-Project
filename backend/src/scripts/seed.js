@@ -26,14 +26,20 @@ try {
       EXEC @result = sys.sp_getapplock @Resource=N'dental-foundation-seed', @LockMode=N'Exclusive', @LockOwner=N'Transaction', @LockTimeout=10000;
       IF @result < 0 THROW 51010, 'Cannot acquire seed lock', 1;`);
     await query(`IF NOT EXISTS (SELECT 1 FROM dbo.Branches WHERE Code='LOCAL')
-      INSERT dbo.Branches(Code, Name, CreatedBy) VALUES ('LOCAL', N'Phòng khám local', 'seed');`);
+      INSERT dbo.Branches(Code, Name, CreatedBy) VALUES ('LOCAL', N'Phòng khám Nha khoa Local', 'seed')
+    ELSE
+      UPDATE dbo.Branches SET Name = N'Phòng khám Nha khoa Local' WHERE Code='LOCAL';`);
     for (const { account: [code, name, username, , approver], hash } of hashed) {
       await query(`IF NOT EXISTS (SELECT 1 FROM dbo.Roles WHERE Code=:code)
-        INSERT dbo.Roles(Code, Name, CreatedBy) VALUES (:code, :name, 'seed');`, { code, name });
+        INSERT dbo.Roles(Code, Name, CreatedBy) VALUES (:code, :name, 'seed')
+      ELSE
+        UPDATE dbo.Roles SET Name = :name WHERE Code = :code;`, { code, name });
       await query(`IF NOT EXISTS (SELECT 1 FROM dbo.Users WHERE Username=:username)
         INSERT dbo.Users(Username, DisplayName, PasswordHash, RoleId, BranchId, IsApprover, CreatedBy)
         SELECT :username, :name, :hash, r.RoleId, b.BranchId, :approver, 'seed'
-        FROM dbo.Roles r CROSS JOIN dbo.Branches b WHERE r.Code=:code AND b.Code='LOCAL';`,
+        FROM dbo.Roles r CROSS JOIN dbo.Branches b WHERE r.Code=:code AND b.Code='LOCAL'
+      ELSE
+        UPDATE dbo.Users SET DisplayName = :name WHERE Username = :username;`,
       { username, name, hash, approver: approver ? 1 : 0, code });
     }
   });
