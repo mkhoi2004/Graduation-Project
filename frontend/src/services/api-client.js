@@ -66,3 +66,20 @@ export const catalogApi = {
   deleteSupplier: (id) => apiClient.delete(`/catalog/suppliers/${id}`).then(res => res.data),
   getConfigs: () => apiClient.get('/catalog/configs').then(res => res.data),
 };
+
+export const patientApi = {
+  getPatients: (params) => apiClient.get('/patients', { params }).then(res => res.data),
+  getPatientById: (id) => apiClient.get(`/patients/${id}`).then(res => res.data),
+  createPatient: (data) => apiClient.post('/patients', data).then(res => res.data),
+  updatePatient: (id, data) => apiClient.put(`/patients/${id}`, data).then(res => res.data),
+  deletePatient: (id) => apiClient.delete(`/patients/${id}`).then(res => res.data),
+};
+
+export const visitApi = {
+  getAppointments: (params) => apiClient.get('/visits/appointments', { params }).then(res => res.data),
+  createAppointment: (data) => apiClient.post('/visits/appointments', data).then(res => res.data),
+  getVisits: (params) => apiClient.get('/visits', { params }).then(res => res.data),
+  getVisitById: (id) => apiClient.get(`/visits/${id}`).then(res => res.data),
+  createVisit: (data) => apiClient.post('/visits', data).then(res => res.data),
+  updateVisitStatus: (id, data) => apiClient.patch(`/visits/${id}/status`, data).then(res => res.data),
+};

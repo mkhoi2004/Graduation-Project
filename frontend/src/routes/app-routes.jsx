@@ -8,6 +8,8 @@ import { EnvironmentPage } from '../pages/environment/environment-page.jsx';
 
 import { ServicesPage } from '../pages/catalog/services-page.jsx';
 import { RoomsPage } from '../pages/catalog/rooms-page.jsx';
+import { PatientsPage } from '../pages/patients/patients-page.jsx';
+import { VisitsPage } from '../pages/visits/visits-page.jsx';
 
 export function AppRoutes() {
   return (
@@ -19,6 +21,8 @@ export function AppRoutes() {
         <Route element={<MainLayout />}>
           <Route path="/" element={<Navigate to="/dashboard" replace />} />
           <Route path="/dashboard" element={<DashboardPage />} />
+          <Route path="/patients" element={<PatientsPage />} />
+          <Route path="/visits" element={<VisitsPage />} />
           <Route path="/catalog/services" element={<ServicesPage />} />
           <Route path="/catalog/rooms" element={<RoomsPage />} />
           <Route path="/environment" element={<EnvironmentPage />} />

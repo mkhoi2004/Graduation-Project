@@ -52,6 +52,16 @@ export function MainLayout() {
       label: 'Bảng điều khiển',
     },
     {
+      key: '/patients',
+      icon: <TeamOutlined />,
+      label: 'Hồ sơ Bệnh nhân',
+    },
+    {
+      key: '/visits',
+      icon: <CalendarOutlined />,
+      label: 'Lượt khám & Tiếp nhận',
+    },
+    {
       key: '/catalog/services',
       icon: <MedicineBoxOutlined />,
       label: 'Dịch vụ & Bảng giá',

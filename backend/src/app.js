@@ -7,7 +7,7 @@ import { createHealthRoutes } from './routes/health-routes.js';
 import { requestLogger } from './middlewares/request-logger.js';
 import { errorHandler } from './middlewares/error-handler.js';
 
-export function createApp({ config, health, authRoutes, userRoutes, catalogRoutes }) {
+export function createApp({ config, health, authRoutes, userRoutes, catalogRoutes, patientRoutes, visitRoutes }) {
   const app = express();
   app.disable('x-powered-by');
   app.use(requestLogger(createLogger(config.logLevel)));
@@ -27,17 +27,11 @@ export function createApp({ config, health, authRoutes, userRoutes, catalogRoute
     next();
   }, createHealthRoutes(health));
 
-  if (authRoutes) {
-    app.use('/api/auth', authRoutes);
-  }
-
-  if (userRoutes) {
-    app.use('/api/users', userRoutes);
-  }
-
-  if (catalogRoutes) {
-    app.use('/api/catalog', catalogRoutes);
-  }
+  if (authRoutes) app.use('/api/auth', authRoutes);
+  if (userRoutes) app.use('/api/users', userRoutes);
+  if (catalogRoutes) app.use('/api/catalog', catalogRoutes);
+  if (patientRoutes) app.use('/api/patients', patientRoutes);
+  if (visitRoutes) app.use('/api/visits', visitRoutes);
 
   app.use((_req, res) => res.status(404).json({ error: { code: 'NOT_FOUND' } }));
   app.use(errorHandler);
