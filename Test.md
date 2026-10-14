@@ -88,14 +88,22 @@ Kết quả: **53/53 tests ĐẠT (100% Pass) - Thời gian: 5790ms**
   ✔ Subtest 8: Close Cashier Shift & Cash Reconciliation (57.3ms)
 ✔ Module 6 - Patient Billing: Invoices (AT-01), Cashier Race Prevention (AT-02), Deposit Applications (AT-15), Monetary Controls & Maker-Checker (AT-20) (4643.4ms)
 
+▶ Module 7 - Inventory: FEFO Expiry Control (AT-07), Lot Recall & Tracing (AT-08), Serial Implant Anti-Reuse (AT-12)
+  ✔ Setup: Login Admin, Create Warehouse User, Supplier, Warehouse & Items (1405.2ms)
+  ✔ Subtest 1: Goods Receipt (Nhập kho) with Lots & Serial Generation (148.5ms)
+  ✔ Subtest 2: AT-07 FEFO Expiry Rule & Expired Lot Dispense Prevention (122.2ms)
+  ✔ Subtest 3: AT-08 Lot Recall, Immediate Dispense Blocking & Patient Tracing (284.1ms)
+  ✔ Subtest 4: AT-12 Serial Implant Management & Anti-Reuse Enforcement (81.6ms)
+✔ Module 7 - Inventory: FEFO Expiry Control (AT-07), Lot Recall & Tracing (AT-08), Serial Implant Anti-Reuse (AT-12) (2664.0ms)
+
 ✔ password policy rejects missing character classes and bcrypt truncation (2.6ms)
-✔ bcrypt hashes verify and do not store the cleartext password (15.2ms)
-✔ request logging omits URL query, headers and clinical payload (2.7ms)
-✔ missing SQL credentials fail before opening any connection (525.8ms)
+✔ bcrypt hashes verify and do not store the cleartext password (14.1ms)
+✔ request logging omits URL query, headers and clinical payload (2.3ms)
+✔ missing SQL credentials fail before opening any connection (630.3ms)
 
 Tổng kết:
-- Tổng số test: 53
-- Số test pass: 53 (100%)
+- Tổng số test: 59
+- Số test pass: 59 (100%)
 - Số test fail: 0
 - Số test cancelled / skipped: 0
 ```
@@ -110,6 +118,9 @@ Tổng kết:
 | **AT-02** | Hai thu ngân cùng thu tiền cho một hóa đơn | Không thu vượt số tiền còn nợ của hóa đơn | Áp dụng khóa `WITH (UPDLOCK, HOLDLOCK)` trên SQL Server. Khi 2 thu ngân cùng gửi lệnh thu tiền mà tổng vượt quá số nợ còn lại, giao dịch thứ hai bị từ chối ngay với mã `409 Conflict` (`PAYMENT_EXCEEDS_OUTSTANDING`) | **ĐẠT (Passed)** |
 | **AT-05** | Hai bệnh nhân dùng chung số điện thoại | Cảnh báo trùng SĐT, vẫn tạo được hồ sơ riêng sau khi xác minh | Khi trùng SĐT, API trả mã cảnh báo `PHONE_DUPLICATE_WARNING` kèm danh sách bệnh nhân trùng. Khi gửi cờ `confirmDuplicatePhone: true`, hệ thống tạo hồ sơ riêng với mã bệnh nhân riêng biệt | **ĐẠT (Passed)** |
 | **AT-06** | Rút đồng thuận sau một phần thủ thuật | Giữ phần đã làm, dừng phần chưa làm, không xóa EMR | Khi bệnh nhân rút đồng thuận (`REVOKED`), các dịch vụ đã hoàn thành (`COMPLETED`) được giữ nguyên vẹn; các dịch vụ đang chờ (`PLANNED`) tự động chuyển thành `CANCELLED`. Bản ghi Consent chuyển trạng thái `REVOKED`, hồ sơ EMR không bị xóa | **ĐẠT (Passed)** |
+| **AT-07** | Xuất kho thuốc, vật tư theo nguyên tắc FEFO & Chặn xuất lô hết hạn | Xuất ưu tiên theo hạn dùng gần nhất (FEFO); chặn xuất lô quá hạn | Khi xuất kho mặt hàng thuốc/vật tư, hệ thống tự động ưu tiên xuất từ lô có `ExpiryDate` sớm nhất còn khả dụng (`Available > 0`). Cố tình chỉ định xuất từ lô đã hết hạn (`ExpiryDate < Today`) bị từ chối với mã lỗi `400 Bad Request` (`EXPIRED_LOT_CANNOT_DISPENSE`) | **ĐẠT (Passed)** |
+| **AT-08** | Thu hồi lô thuốc/vật tư khẩn cấp & Truy vết bệnh nhân đã dùng | Khóa ngay tồn kho còn lại; truy vết toàn bộ bệnh nhân đã sử dụng | Khi có quyết định thu hồi lô (`POST /api/inventory/lots/:id/recall`), trạng thái lô chuyển sang `RECALLED`, toàn bộ số lượng khả dụng còn lại bị khóa sang `Blocked` (`Available = 0`), chặn mọi hành vi xuất cấp tiếp theo (`409 Conflict` - `LOT_RECALLED_CANNOT_DISPENSE`). API `/api/inventory/lots/:id/trace` truy vết chính xác danh sách bệnh nhân, mã bệnh án, bác sĩ điều trị và ngày sử dụng từ `StockMovements` | **ĐẠT (Passed)** |
+| **AT-12** | Quản lý Trụ Implant theo Mã Serial & Chống tái sử dụng | Serial duy nhất trên toàn hệ thống; trụ đã cấy ghép không được dùng lại | Mỗi trụ Implant có mã Serial duy nhất (ràng buộc `UQ_StockSerials_Number`). Khi bác sĩ cấy ghép, Serial chuyển sang trạng thái `CONSUMED`. Cố tình cấy ghép lại Serial này lần thứ hai bị chặn ngay lập tức với mã lỗi `409 Conflict` (`SERIAL_ALREADY_IMPLANTED`) | **ĐẠT (Passed)** |
 | **AT-13** | Mất mạng khi ký EMR | Không giả chữ ký; nháp/chờ ký có audit và hạn xử lý | Khi mô phỏng mất kết nối (`simulateNetworkLoss: true`), hệ thống từ chối trả về chữ ký giả mạo (Status giữ `DRAFT`), đẩy yêu cầu vào bảng `SignQueue` với trạng thái `PENDING` kèm `DueAt = now() + 24h`. Khi mạng phục hồi, xử lý ký bù thành công và tạo chữ ký SHA-256 hợp lệ | **ĐẠT (Passed)** |
 | **AT-15** | Hai thu ngân cấn cọc đồng thời vượt số dư cọc | Không cấn cọc âm, chặn giao dịch vượt số dư | Sử dụng khóa `WITH (UPDLOCK, HOLDLOCK)` trên bảng `Deposits`. Khi 2 thu ngân cấn cọc đồng thời với tổng số tiền vượt quá số dư cọc hiện tại, một giao dịch thành công và giao dịch còn lại bị chặn với mã `409 Conflict` (`DEPOSIT_BALANCE_INSUFFICIENT`) | **ĐẠT (Passed)** |
 | **AT-16** | Đổi giá/thuế sau khi báo giá và hoàn thành | Giao dịch cũ giữ phiên bản giá; phiên bản mới áp dụng từ ngày hiệu lực | Phiên bản giá lưu theo dòng `ServicePriceVersions`, có `VersionNo`, `EffectiveFrom`, `EffectiveTo`, không sửa đè bản ghi cũ | **ĐẠT (Passed)** |
@@ -148,6 +159,21 @@ Tổng kết:
 | `/api/billing/discount-approvals/:id/approve` | POST | Thu ngân tự duyệt | Không | `403 Forbidden` | Chặn tự duyệt: `APPROVER_ROLE_REQUIRED` (Maker-Checker) |
 | `/api/billing/discount-approvals/:id/approve` | POST | Admin / Approver | Không | `200 OK` | Duyệt giảm giá thành công, cộng vào `approvedDiscount` |
 
+### Dữ liệu Kiểm thử Trực tiếp API Kho thuốc, Vật tư & Implant (Module 7 Live API Endpoints)
+
+| Endpoint | Method | Vai trò thực hiện | Payload / Tham số | HTTP Status | Kết quả thực tế |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `/api/inventory/receipts` | POST | Quản lý kho | Serial count mismatch (Số lượng 2 nhưng chỉ 1 serial) | `400 Bad Request` | Chặn mismatch serial: `SERIAL_COUNT_MISMATCH` |
+| `/api/inventory/receipts` | POST | Quản lý kho | Nhập thuốc theo Lô + Hạn dùng (LIDO-L01, LIDO-L02) | `201 Created` | Tạo `GoodsReceipts`, sinh `StockLots`, cộng tồn `StockBalances` |
+| `/api/inventory/receipts` | POST | Quản lý kho | Nhập trụ Implant có danh sách Serial duy nhất | `201 Created` | Tạo `StockSerials` trạng thái `AVAILABLE` (AT-12) |
+| `/api/inventory/dispense` | POST | Quản lý kho | Xuất không chỉ định lô (Auto-FEFO) | `200 OK` | Tự động chọn lô hết hạn gần nhất (AT-07), trừ tồn kho khả dụng |
+| `/api/inventory/dispense` | POST | Quản lý kho | Cố tình xuất Lô đã hết hạn (`EXPIRED`) | `400 Bad Request` | Chặn xuất lô hết hạn: `EXPIRED_LOT_CANNOT_DISPENSE` (AT-07) |
+| `/api/inventory/lots/:id/recall` | POST | Quản lý kho | Lý do thu hồi khẩn cấp | `201 Created` | Ban hành lệnh thu hồi: Lot `RECALLED`, khóa tồn `Blocked` (AT-08) |
+| `/api/inventory/dispense` | POST | Quản lý kho | Thử xuất từ Lô đang có lệnh thu hồi | `409 Conflict` | Chặn xuất lô thu hồi: `LOT_RECALLED_CANNOT_DISPENSE` (AT-08) |
+| `/api/inventory/lots/:id/trace` | GET | Bác sĩ / Quản lý | `stockLotId` | `200 OK` | Truy vết chính xác danh sách bệnh nhân đã dùng lô này (AT-08) |
+| `/api/inventory/serials/implant` | POST | Bác sĩ | `serialNumber: 'SN-IMP-...'`, `eventId` | `200 OK` | Cấy ghép thành công, chuyển serial sang `CONSUMED` (AT-12) |
+| `/api/inventory/serials/implant` | POST | Bác sĩ | Cố tình cấy ghép lại Serial đã `CONSUMED` | `409 Conflict` | Chặn tái sử dụng: `SERIAL_ALREADY_IMPLANTED` (AT-12) |
+
 ---
 
 ## 5. Danh sách Tài khoản Kiểm thử Đã Xác minh (Demo Credentials)
@@ -173,8 +199,8 @@ Tổng kết:
 | **4** | **Lịch hẹn & Lượt khám (Visits)** | Đã tạo | Đã xong (Appointments, Visits, State Machine) | Đã xong (Tiếp nhận, gán Bác sĩ, đổi trạng thái) | **HOÀN THÀNH (100%)** |
 | **5** | **EMR, Sơ đồ răng, Kế hoạch & Đồng thuận** | Đã tạo | Đã xong (EMR, ToothChart, Consents, Addenda) | Đã xong (Sơ đồ răng FDI, Ký số, Phụ lục, Hàng đợi ký) | **HOÀN THÀNH (100%)** |
 | **6** | **Thanh toán, Thu ngân & Công nợ** | Đã tạo | Đã xong (Shifts, Invoices, Deposits, Payments) | Đã xong (Trang Thu ngân, Cấn cọc, Đóng mở ca) | **HOÀN THÀNH (100%)** |
-| **7** | **Kho thuốc, Vật tư & Implant** | Đã tạo | Chờ triển khai | Chờ triển khai | Kế hoạch tiếp theo (AT-07, AT-08, AT-12) |
-| **8** | **Kế toán & Ca thu ngân** | Đã tạo | Chờ triển khai | Chờ triển khai | Chưa thực hiện |
+| **7** | **Kho thuốc, Vật tư & Implant** | Đã tạo | Đã xong (FEFO, Lot Recall, Implant Serial) | Đã xong (Tồn kho FEFO, Thu hồi Lô, Quản lý Serial) | **HOÀN THÀNH (100%)** |
+| **8** | **Kế toán & Ca thu ngân** | Đã tạo | Chờ triển khai | Chờ triển khai | Kế hoạch tiếp theo (AT-09, AT-10) |
 | **9** | **Bảo lãnh BHTM** | Đã tạo | Chờ triển khai | Chờ triển khai | Chưa thực hiện |
 | **10** | **Tiệt trùng, Labo & Bảo hành** | Đã tạo | Chờ triển khai | Chờ triển khai | Chưa thực hiện |
 | **11** | **Hoa hồng & Nhân sự** | Đã tạo | Chờ triển khai | Chờ triển khai | Chưa thực hiện |
@@ -184,6 +210,7 @@ Tổng kết:
 
 ## 7. Lịch sử Commit Git
 
+* `2f41a24`: `module6: trien khai hoa don AT-01, chan thu vuot no AT-02, can coc dong thoi AT-15, maker-checker AT-20`
 * `5c9dcf9`: `module5: trien khai EMR bat bien AT-23, so do rang FDI, rut dong thuan AT-06, hang doi ky so AT-13, chot dich vu AT-18`
 * `4d3dc81`: `module3-4: ho so benh nhan AT-05, tiep nhan luot kham, phan cong bac si AT-17 va bao cao Test.md`
 * `a1b0608`: `module2: trien khai danh muc dich vu, phong ghe, bang gia phien ban va bao cao test`

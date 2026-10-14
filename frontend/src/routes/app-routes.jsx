@@ -13,6 +13,7 @@ import { VisitsPage } from '../pages/visits/visits-page.jsx';
 import EmrDetailPage from '../pages/emr/emr-detail-page.jsx';
 import SignQueuePage from '../pages/emr/sign-queue-page.jsx';
 import { CashierPage } from '../pages/billing/cashier-page.jsx';
+import { InventoryPage } from '../pages/inventory/inventory-page.jsx';
 
 export function AppRoutes() {
   return (
@@ -29,6 +30,7 @@ export function AppRoutes() {
           <Route path="/visits/:visitId/emr" element={<EmrDetailPage />} />
           <Route path="/sign-queue" element={<SignQueuePage />} />
           <Route path="/billing" element={<CashierPage />} />
+          <Route path="/inventory" element={<InventoryPage />} />
           <Route path="/catalog/services" element={<ServicesPage />} />
           <Route path="/catalog/rooms" element={<RoomsPage />} />
           <Route path="/environment" element={<EnvironmentPage />} />

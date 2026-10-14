@@ -148,4 +148,21 @@ export const billingApi = {
   approveDiscount: (approvalId) => apiClient.post(`/billing/discount-approvals/${approvalId}/approve`).then(res => res.data),
 };
 
+export const inventoryApi = {
+  getWarehouses: () => apiClient.get('/inventory/warehouses').then(res => res.data),
+  createWarehouse: (data) => apiClient.post('/inventory/warehouses', data).then(res => res.data),
+  getSuppliers: () => apiClient.get('/inventory/suppliers').then(res => res.data),
+  createSupplier: (data) => apiClient.post('/inventory/suppliers', data).then(res => res.data),
+  getItems: () => apiClient.get('/inventory/items').then(res => res.data),
+  createItem: (data) => apiClient.post('/inventory/items', data).then(res => res.data),
+  createGoodsReceipt: (data) => apiClient.post('/inventory/receipts', data).then(res => res.data),
+  getLots: (itemId) => apiClient.get('/inventory/lots', { params: { itemId } }).then(res => res.data),
+  dispense: (data) => apiClient.post('/inventory/dispense', data).then(res => res.data),
+  recallLot: (stockLotId, data) => apiClient.post(`/inventory/lots/${stockLotId}/recall`, data).then(res => res.data),
+  traceLot: (stockLotId) => apiClient.get(`/inventory/lots/${stockLotId}/trace`).then(res => res.data),
+  getSerials: (itemId, status) => apiClient.get('/inventory/serials', { params: { itemId, status } }).then(res => res.data),
+  implantSerial: (data) => apiClient.post('/inventory/serials/implant', data).then(res => res.data),
+  getBalances: (warehouseId) => apiClient.get('/inventory/balances', { params: { warehouseId } }).then(res => res.data),
+};
+
 

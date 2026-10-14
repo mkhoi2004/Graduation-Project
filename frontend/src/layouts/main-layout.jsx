@@ -12,6 +12,7 @@ import {
   LogoutOutlined,
   CheckCircleOutlined,
   FileDoneOutlined,
+  InboxOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/auth-context.jsx';
@@ -77,6 +78,15 @@ export function MainLayout() {
             key: '/billing',
             icon: <DollarOutlined />,
             label: 'Thu ngân & Viện phí (AT-01/15)',
+          },
+        ]
+      : []),
+    ...(['ADMIN', 'WAREHOUSE', 'DOCTOR'].includes(user?.role)
+      ? [
+          {
+            key: '/inventory',
+            icon: <InboxOutlined />,
+            label: 'Kho Dược & Vật tư (AT-07/08/12)',
           },
         ]
       : []),

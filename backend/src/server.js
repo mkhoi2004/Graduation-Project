@@ -32,6 +32,11 @@ import { createBillingRepository } from './repositories/billing-repository.js';
 import { createBillingService } from './services/billing-service.js';
 import { createBillingController } from './controllers/billing-controller.js';
 import { createBillingRoutes } from './routes/billing-routes.js';
+import { initInventoryModels } from './models/inventory-models.js';
+import { createInventoryRepository } from './repositories/inventory-repository.js';
+import { createInventoryService } from './services/inventory-service.js';
+import { createInventoryController } from './controllers/inventory-controller.js';
+import { createInventoryRoutes } from './routes/inventory-routes.js';
 import { createApp } from './app.js';
 
 const logger = createLogger(env.logLevel);
@@ -90,6 +95,19 @@ const billingService = createBillingService({ billingRepo, userRepo });
 const billingController = createBillingController({ billingService });
 const billingRoutes = createBillingRoutes({ billingController, authMiddlewares });
 
+// Module 7: Inventory, Lot Tracking, FEFO, Recall & Serial Implants
+const inventoryModels = initInventoryModels(database.sequelize, userModels, patientVisitModels, clinicalModels);
+const inventoryRepo = createInventoryRepository({
+  sequelize: database.sequelize,
+  models: inventoryModels,
+  userModels,
+  patientVisitModels,
+  clinicalModels,
+});
+const inventoryService = createInventoryService({ inventoryRepo, userRepo });
+const inventoryController = createInventoryController({ inventoryService });
+const inventoryRoutes = createInventoryRoutes({ inventoryController, authMiddlewares });
+
 const app = createApp({
   config: env,
   health: createHealthService(database),
@@ -100,6 +118,7 @@ const app = createApp({
   visitRoutes,
   clinicalRoutes,
   billingRoutes,
+  inventoryRoutes,
 });
 
 const server = app.listen(env.port, '127.0.0.1', () => {
