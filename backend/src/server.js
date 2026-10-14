@@ -37,6 +37,11 @@ import { createInventoryRepository } from './repositories/inventory-repository.j
 import { createInventoryService } from './services/inventory-service.js';
 import { createInventoryController } from './controllers/inventory-controller.js';
 import { createInventoryRoutes } from './routes/inventory-routes.js';
+import { initAccountingModels } from './models/accounting-models.js';
+import { createAccountingRepository } from './repositories/accounting-repository.js';
+import { createAccountingService } from './services/accounting-service.js';
+import { createAccountingController } from './controllers/accounting-controller.js';
+import { createAccountingRoutes } from './routes/accounting-routes.js';
 import { createApp } from './app.js';
 
 const logger = createLogger(env.logLevel);
@@ -108,6 +113,24 @@ const inventoryService = createInventoryService({ inventoryRepo, userRepo });
 const inventoryController = createInventoryController({ inventoryService });
 const inventoryRoutes = createInventoryRoutes({ inventoryController, authMiddlewares });
 
+// Module 8: Accounting, Cash Reconciliation (AT-09), Accounting Periods & Period Closing (AT-10)
+const accountingModels = initAccountingModels(database.sequelize, {
+  userModels,
+  billingModels,
+  catalogModels,
+  branchModels: patientVisitModels,
+});
+const accountingRepo = createAccountingRepository({
+  sequelize: database.sequelize,
+  models: accountingModels,
+  billingModels,
+  userModels,
+  catalogModels,
+});
+const accountingService = createAccountingService({ accountingRepo, userRepo });
+const accountingController = createAccountingController({ accountingService });
+const accountingRoutes = createAccountingRoutes({ accountingController, authMiddlewares });
+
 const app = createApp({
   config: env,
   health: createHealthService(database),
@@ -119,6 +142,7 @@ const app = createApp({
   clinicalRoutes,
   billingRoutes,
   inventoryRoutes,
+  accountingRoutes,
 });
 
 const server = app.listen(env.port, '127.0.0.1', () => {

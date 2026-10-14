@@ -13,6 +13,7 @@ import {
   CheckCircleOutlined,
   FileDoneOutlined,
   InboxOutlined,
+  AuditOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/auth-context.jsx';
@@ -87,6 +88,15 @@ export function MainLayout() {
             key: '/inventory',
             icon: <InboxOutlined />,
             label: 'Kho Dược & Vật tư (AT-07/08/12)',
+          },
+        ]
+      : []),
+    ...(['ADMIN', 'ACCOUNTANT'].includes(user?.role) || user?.isApprover
+      ? [
+          {
+            key: '/accounting',
+            icon: <AuditOutlined />,
+            label: 'Kế toán & Khóa sổ (AT-09/10)',
           },
         ]
       : []),

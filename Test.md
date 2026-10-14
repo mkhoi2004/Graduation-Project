@@ -96,14 +96,21 @@ Kết quả: **53/53 tests ĐẠT (100% Pass) - Thời gian: 5790ms**
   ✔ Subtest 4: AT-12 Serial Implant Management & Anti-Reuse Enforcement (81.6ms)
 ✔ Module 7 - Inventory: FEFO Expiry Control (AT-07), Lot Recall & Tracing (AT-08), Serial Implant Anti-Reuse (AT-12) (2664.0ms)
 
+▶ Module 8 - Accounting: Cash Shift Discrepancies (AT-09), Accounting Period Closing (AT-10), Double-Entry Bookkeeping
+  ✔ Setup: Login Admin, Create Accountant, Cashier & Approver, Open Cash Shift (2324.5ms)
+  ✔ Subtest 1: AT-09 Cash Shift Discrepancies, Reconciliation & Maker-Checker Resolution (138.9ms)
+  ✔ Subtest 2: AT-10 Accounting Period Closing & Backdated Posting Prohibition (97.8ms)
+  ✔ Subtest 3: Double-Entry Balanced Enforcement & Maker-Checker on Journal Posting (133.7ms)
+✔ Module 8 - Accounting: Cash Shift Discrepancies (AT-09), Accounting Period Closing (AT-10), Double-Entry Bookkeeping (3288.5ms)
+
 ✔ password policy rejects missing character classes and bcrypt truncation (2.6ms)
 ✔ bcrypt hashes verify and do not store the cleartext password (14.1ms)
 ✔ request logging omits URL query, headers and clinical payload (2.3ms)
 ✔ missing SQL credentials fail before opening any connection (630.3ms)
 
 Tổng kết:
-- Tổng số test: 59
-- Số test pass: 59 (100%)
+- Tổng số test: 64
+- Số test pass: 64 (100%)
 - Số test fail: 0
 - Số test cancelled / skipped: 0
 ```
@@ -120,6 +127,8 @@ Tổng kết:
 | **AT-06** | Rút đồng thuận sau một phần thủ thuật | Giữ phần đã làm, dừng phần chưa làm, không xóa EMR | Khi bệnh nhân rút đồng thuận (`REVOKED`), các dịch vụ đã hoàn thành (`COMPLETED`) được giữ nguyên vẹn; các dịch vụ đang chờ (`PLANNED`) tự động chuyển thành `CANCELLED`. Bản ghi Consent chuyển trạng thái `REVOKED`, hồ sơ EMR không bị xóa | **ĐẠT (Passed)** |
 | **AT-07** | Xuất kho thuốc, vật tư theo nguyên tắc FEFO & Chặn xuất lô hết hạn | Xuất ưu tiên theo hạn dùng gần nhất (FEFO); chặn xuất lô quá hạn | Khi xuất kho mặt hàng thuốc/vật tư, hệ thống tự động ưu tiên xuất từ lô có `ExpiryDate` sớm nhất còn khả dụng (`Available > 0`). Cố tình chỉ định xuất từ lô đã hết hạn (`ExpiryDate < Today`) bị từ chối với mã lỗi `400 Bad Request` (`EXPIRED_LOT_CANNOT_DISPENSE`) | **ĐẠT (Passed)** |
 | **AT-08** | Thu hồi lô thuốc/vật tư khẩn cấp & Truy vết bệnh nhân đã dùng | Khóa ngay tồn kho còn lại; truy vết toàn bộ bệnh nhân đã sử dụng | Khi có quyết định thu hồi lô (`POST /api/inventory/lots/:id/recall`), trạng thái lô chuyển sang `RECALLED`, toàn bộ số lượng khả dụng còn lại bị khóa sang `Blocked` (`Available = 0`), chặn mọi hành vi xuất cấp tiếp theo (`409 Conflict` - `LOT_RECALLED_CANNOT_DISPENSE`). API `/api/inventory/lots/:id/trace` truy vết chính xác danh sách bệnh nhân, mã bệnh án, bác sĩ điều trị và ngày sử dụng từ `StockMovements` | **ĐẠT (Passed)** |
+| **AT-09** | Ca thu ngân lệch tiền mặt cuối ca & Maker-Checker phân xử | Bắt buộc giải trình chênh lệch; thu ngân không tự duyệt phân xử | Khi kiểm đếm tiền mặt phát hiện chênh lệch với số tiền lý thuyết, API yêu cầu bắt buộc nhập lý do giải trình (`DISCREPANCY_REASON_REQUIRED`). Hệ thống tạo bản ghi `CashDiscrepancies` ở trạng thái `PENDING`. Thu ngân lập biên bản tự phê duyệt bị chặn với `403 Forbidden` (`MAKER_CANNOT_APPROVE`); chỉ Kế toán trưởng (`isApprover = true`) mới được duyệt | **ĐẠT (Passed)** |
+| **AT-10** | Khóa sổ kế toán ngày / kỳ kế toán & Chặn ghi lùi ngày | Chặn tuyệt đối ghi lùi ngày hoặc sửa chứng từ thuộc kỳ đã đóng | Khi một kỳ kế toán chuyển sang trạng thái `CLOSED` (`POST /api/accounting/periods/:id/close`), mọi yêu cầu ghi sổ bút toán có `PostingDate` thuộc kỳ này bị từ chối với mã lỗi `400 Bad Request` (`PERIOD_ALREADY_CLOSED_CANNOT_POST`), đảm bảo tính bất biến của sổ sách kế toán | **ĐẠT (Passed)** |
 | **AT-12** | Quản lý Trụ Implant theo Mã Serial & Chống tái sử dụng | Serial duy nhất trên toàn hệ thống; trụ đã cấy ghép không được dùng lại | Mỗi trụ Implant có mã Serial duy nhất (ràng buộc `UQ_StockSerials_Number`). Khi bác sĩ cấy ghép, Serial chuyển sang trạng thái `CONSUMED`. Cố tình cấy ghép lại Serial này lần thứ hai bị chặn ngay lập tức với mã lỗi `409 Conflict` (`SERIAL_ALREADY_IMPLANTED`) | **ĐẠT (Passed)** |
 | **AT-13** | Mất mạng khi ký EMR | Không giả chữ ký; nháp/chờ ký có audit và hạn xử lý | Khi mô phỏng mất kết nối (`simulateNetworkLoss: true`), hệ thống từ chối trả về chữ ký giả mạo (Status giữ `DRAFT`), đẩy yêu cầu vào bảng `SignQueue` với trạng thái `PENDING` kèm `DueAt = now() + 24h`. Khi mạng phục hồi, xử lý ký bù thành công và tạo chữ ký SHA-256 hợp lệ | **ĐẠT (Passed)** |
 | **AT-15** | Hai thu ngân cấn cọc đồng thời vượt số dư cọc | Không cấn cọc âm, chặn giao dịch vượt số dư | Sử dụng khóa `WITH (UPDLOCK, HOLDLOCK)` trên bảng `Deposits`. Khi 2 thu ngân cấn cọc đồng thời với tổng số tiền vượt quá số dư cọc hiện tại, một giao dịch thành công và giao dịch còn lại bị chặn với mã `409 Conflict` (`DEPOSIT_BALANCE_INSUFFICIENT`) | **ĐẠT (Passed)** |
@@ -174,6 +183,23 @@ Tổng kết:
 | `/api/inventory/serials/implant` | POST | Bác sĩ | `serialNumber: 'SN-IMP-...'`, `eventId` | `200 OK` | Cấy ghép thành công, chuyển serial sang `CONSUMED` (AT-12) |
 | `/api/inventory/serials/implant` | POST | Bác sĩ | Cố tình cấy ghép lại Serial đã `CONSUMED` | `409 Conflict` | Chặn tái sử dụng: `SERIAL_ALREADY_IMPLANTED` (AT-12) |
 
+### Dữ liệu Kiểm thử Trực tiếp API Kế toán & Ca thu ngân (Module 8 Live API Endpoints)
+
+| Endpoint | Method | Vai trò thực hiện | Payload / Tham số | HTTP Status | Kết quả thực tế |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `/api/accounting/shifts/:id/reconcile` | POST | Thu ngân | Kiểm đếm lệch nhưng không nhập lý do | `400 Bad Request` | Chặn thiếu giải trình: `DISCREPANCY_REASON_REQUIRED` (AT-09) |
+| `/api/accounting/shifts/:id/reconcile` | POST | Thu ngân | Kiểm đếm từng mệnh giá + Lý do giải trình | `200 OK` | Lưu `CashCounts`, tạo `CashDiscrepancies` `PENDING` (AT-09) |
+| `/api/accounting/discrepancies/:id/resolve` | POST | Thu ngân tự duyệt | `status: 'APPROVED'` | `403 Forbidden` | Chặn người lập tự duyệt: `MAKER_CANNOT_APPROVE` (Maker-Checker AT-09) |
+| `/api/accounting/discrepancies/:id/resolve` | POST | Kế toán viên thường | `status: 'APPROVED'` | `403 Forbidden` | Chặn không đủ thẩm quyền: `APPROVER_ROLE_REQUIRED` |
+| `/api/accounting/discrepancies/:id/resolve` | POST | Kế toán trưởng | `status: 'APPROVED'`, ý kiến phê duyệt | `200 OK` | Phê duyệt phân xử chênh lệch thành công (AT-09) |
+| `/api/accounting/periods` | POST | Kế toán trưởng | `code: 'PER-...'`, `startsOn`, `endsOn` | `201 Created` | Mở kỳ kế toán mới, trạng thái `OPEN` |
+| `/api/accounting/periods/:id/close` | POST | Kế toán trưởng | Không | `200 OK` | Khóa sổ kỳ kế toán thành công, trạng thái `CLOSED` (AT-10) |
+| `/api/accounting/journal-entries` | POST | Kế toán | Ghi lùi ngày vào kỳ đã khóa sổ | `400 Bad Request` | Chặn ghi lùi ngày: `PERIOD_ALREADY_CLOSED_CANNOT_POST` (AT-10) |
+| `/api/accounting/journal-entries` | POST | Kế toán | Lập bút toán vào kỳ đang mở (Nợ = Có) | `201 Created` | Tạo bút toán `JournalEntries` và `JournalLines` ở `DRAFT` |
+| `/api/accounting/journal-entries/:id/post` | POST | Kế toán trưởng | Bút toán không cân bằng (Nợ != Có) | `500 Error` | Trigger `TR_JournalEntries_PostBalanced` chặn ghi sổ không cân bằng |
+| `/api/accounting/journal-entries/:id/post` | POST | Kế toán viên tự duyệt | Bút toán cân bằng của chính mình | `403 Forbidden` | Chặn tự duyệt: `MAKER_CANNOT_APPROVE` (Maker-Checker CSDL) |
+| `/api/accounting/journal-entries/:id/post` | POST | Kế toán trưởng duyệt | Bút toán cân bằng Nợ = Có | `200 OK` | Ghi sổ thành công, trạng thái chuyển `POSTED` |
+
 ---
 
 ## 5. Danh sách Tài khoản Kiểm thử Đã Xác minh (Demo Credentials)
@@ -181,10 +207,10 @@ Tổng kết:
 | Vai trò | Tên đăng nhập | Mật khẩu mẫu | IsApprover | Quyền hạn kiểm chứng |
 | :--- | :--- | :--- | :--- | :--- |
 | **Admin** | `admin` | `Admin1234@` | `false` | Xem toàn bộ, quản trị người dùng, phân quyền, xem audit log, quản trị danh mục, phê duyệt chứng từ |
-| **Tiếp nhận** | `receptionist` | `Receptionist1234@` | `false` | Đăng ký bệnh nhân, đặt lịch, tiếp nhận lượt khám, mở ca thu ngân, thu tiền, cấn cọc |
+| **Tiếp nhận** | `receptionist` | `Receptionist1234@` | `false` | Đăng ký bệnh nhân, đặt lịch, tiếp nhận lượt khám, mở ca thu ngân, thu tiền, cấn cọc, đối soát tiền |
 | **Bác sĩ** | `doctor` | `Doctor1234@` | `false` | Khám, EMR, sơ đồ răng, ký số, kê đơn, cận lâm sàng, chốt dịch vụ; kiểm soát quan hệ điều trị |
-| **Kế toán** | `accountant` | `Accountant1234@` | `false` | Lập hóa đơn, chứng từ, ca thu ngân, đối soát; xem danh mục giá dịch vụ |
-| **Kế toán duyệt** | `approver` | `Approver1234@` | `true` | Phê duyệt phiên bản giá dịch vụ (Maker-Checker), duyệt hoàn tiền, duyệt giảm giá |
+| **Kế toán** | `accountant` | `Accountant1234@` | `false` | Lập hóa đơn, chứng từ, ca thu ngân, đối soát, lập bút toán sổ cái, xem danh mục tài khoản |
+| **Kế toán duyệt** | `approver` | `Approver1234@` | `true` | Phê duyệt phiên bản giá, duyệt hoàn tiền/giảm giá, phân xử lệch tiền (AT-09), khóa sổ kỳ (AT-10), duyệt sổ cái |
 | **Quản lý kho** | `warehouse` | `WarehouseManager1234@` | `false` | Nhập xuất tồn, lô, hạn dùng, tiệt trùng, labo; xem danh mục |
 
 ---
@@ -200,8 +226,8 @@ Tổng kết:
 | **5** | **EMR, Sơ đồ răng, Kế hoạch & Đồng thuận** | Đã tạo | Đã xong (EMR, ToothChart, Consents, Addenda) | Đã xong (Sơ đồ răng FDI, Ký số, Phụ lục, Hàng đợi ký) | **HOÀN THÀNH (100%)** |
 | **6** | **Thanh toán, Thu ngân & Công nợ** | Đã tạo | Đã xong (Shifts, Invoices, Deposits, Payments) | Đã xong (Trang Thu ngân, Cấn cọc, Đóng mở ca) | **HOÀN THÀNH (100%)** |
 | **7** | **Kho thuốc, Vật tư & Implant** | Đã tạo | Đã xong (FEFO, Lot Recall, Implant Serial) | Đã xong (Tồn kho FEFO, Thu hồi Lô, Quản lý Serial) | **HOÀN THÀNH (100%)** |
-| **8** | **Kế toán & Ca thu ngân** | Đã tạo | Chờ triển khai | Chờ triển khai | Kế hoạch tiếp theo (AT-09, AT-10) |
-| **9** | **Bảo lãnh BHTM** | Đã tạo | Chờ triển khai | Chờ triển khai | Chưa thực hiện |
+| **8** | **Kế toán & Ca thu ngân** | Đã tạo | Đã xong (Đối soát ca, Khóa sổ, Hạch toán kép) | Đã xong (Kiểm đếm ca, Phân xử lệch, Khóa sổ kỳ, Sổ cái) | **HOÀN THÀNH (100%)** |
+| **9** | **Bảo lãnh BHTM** | Đã tạo | Chờ triển khai | Chờ triển khai | Kế hoạch tiếp theo (AT-11, AT-19) |
 | **10** | **Tiệt trùng, Labo & Bảo hành** | Đã tạo | Chờ triển khai | Chờ triển khai | Chưa thực hiện |
 | **11** | **Hoa hồng & Nhân sự** | Đã tạo | Chờ triển khai | Chờ triển khai | Chưa thực hiện |
 | **12** | **Tài sản & Đối soát cuối ngày** | Đã tạo | Chờ triển khai | Chờ triển khai | Chưa thực hiện |
@@ -210,6 +236,7 @@ Tổng kết:
 
 ## 7. Lịch sử Commit Git
 
+* `ac4c603`: `module7: trien khai kho FEFO AT-07, thu hoi lo AT-08, serial implant AT-12`
 * `2f41a24`: `module6: trien khai hoa don AT-01, chan thu vuot no AT-02, can coc dong thoi AT-15, maker-checker AT-20`
 * `5c9dcf9`: `module5: trien khai EMR bat bien AT-23, so do rang FDI, rut dong thuan AT-06, hang doi ky so AT-13, chot dich vu AT-18`
 * `4d3dc81`: `module3-4: ho so benh nhan AT-05, tiep nhan luot kham, phan cong bac si AT-17 va bao cao Test.md`

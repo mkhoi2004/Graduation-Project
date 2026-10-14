@@ -165,4 +165,18 @@ export const inventoryApi = {
   getBalances: (warehouseId) => apiClient.get('/inventory/balances', { params: { warehouseId } }).then(res => res.data),
 };
 
+export const accountingApi = {
+  reconcileShift: (shiftId, data) => apiClient.post(`/accounting/shifts/${shiftId}/reconcile`, data).then(res => res.data),
+  getDiscrepancies: (params) => apiClient.get('/accounting/discrepancies', { params }).then(res => res.data),
+  resolveDiscrepancy: (id, data) => apiClient.post(`/accounting/discrepancies/${id}/resolve`, data).then(res => res.data),
+  getPeriods: () => apiClient.get('/accounting/periods').then(res => res.data),
+  createPeriod: (data) => apiClient.post('/accounting/periods', data).then(res => res.data),
+  closePeriod: (id) => apiClient.post(`/accounting/periods/${id}/close`).then(res => res.data),
+  getAccounts: () => apiClient.get('/accounting/accounts').then(res => res.data),
+  createAccount: (data) => apiClient.post('/accounting/accounts', data).then(res => res.data),
+  getJournalEntries: (params) => apiClient.get('/accounting/journal-entries', { params }).then(res => res.data),
+  createJournalEntry: (data) => apiClient.post('/accounting/journal-entries', data).then(res => res.data),
+  postJournalEntry: (id) => apiClient.post(`/accounting/journal-entries/${id}/post`).then(res => res.data),
+};
+
 
