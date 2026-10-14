@@ -120,3 +120,32 @@ export const clinicalApi = {
   retrySignQueue: (queueId) => apiClient.post(`/sign-queue/${queueId}/retry`).then(res => res.data),
 };
 
+export const billingApi = {
+  // Cash Shifts
+  getCurrentShift: () => apiClient.get('/billing/shifts/current').then(res => res.data),
+  openShift: (data) => apiClient.post('/billing/shifts/open', data).then(res => res.data),
+  closeShift: (shiftId, data) => apiClient.post(`/billing/shifts/${shiftId}/close`, data).then(res => res.data),
+
+  // Deposits
+  createDeposit: (data) => apiClient.post('/billing/deposits', data).then(res => res.data),
+  getPatientDeposits: (patientId) => apiClient.get(`/billing/patients/${patientId}/deposits`).then(res => res.data),
+  applyDeposit: (invoiceId, data) => apiClient.post(`/billing/invoices/${invoiceId}/apply-deposit`, data).then(res => res.data),
+
+  // Invoices
+  createInvoice: (visitId, data) => apiClient.post(`/billing/visits/${visitId}/invoices`, data).then(res => res.data),
+  getInvoicesByVisit: (visitId) => apiClient.get(`/billing/visits/${visitId}/invoices`).then(res => res.data),
+  getInvoiceById: (invoiceId) => apiClient.get(`/billing/invoices/${invoiceId}`).then(res => res.data),
+
+  // Payments
+  payInvoice: (invoiceId, data) => apiClient.post(`/billing/invoices/${invoiceId}/pay`, data).then(res => res.data),
+
+  // Refunds
+  requestRefund: (txnId, data) => apiClient.post(`/billing/payments/${txnId}/refunds`, data).then(res => res.data),
+  approveRefund: (refundId) => apiClient.post(`/billing/refunds/${refundId}/approve`).then(res => res.data),
+
+  // Discounts
+  requestDiscount: (invoiceId, data) => apiClient.post(`/billing/invoices/${invoiceId}/discount-approvals`, data).then(res => res.data),
+  approveDiscount: (approvalId) => apiClient.post(`/billing/discount-approvals/${approvalId}/approve`).then(res => res.data),
+};
+
+

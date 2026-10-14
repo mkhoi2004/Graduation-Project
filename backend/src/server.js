@@ -27,6 +27,11 @@ import { createClinicalRepository } from './repositories/clinical-repository.js'
 import { createClinicalService } from './services/clinical-service.js';
 import { createClinicalController } from './controllers/clinical-controller.js';
 import { createClinicalRoutes } from './routes/clinical-routes.js';
+import { initBillingModels } from './models/billing-models.js';
+import { createBillingRepository } from './repositories/billing-repository.js';
+import { createBillingService } from './services/billing-service.js';
+import { createBillingController } from './controllers/billing-controller.js';
+import { createBillingRoutes } from './routes/billing-routes.js';
 import { createApp } from './app.js';
 
 const logger = createLogger(env.logLevel);
@@ -71,6 +76,20 @@ const clinicalService = createClinicalService({ clinicalRepo, patientVisitRepo, 
 const clinicalController = createClinicalController({ clinicalService });
 const clinicalRoutes = createClinicalRoutes({ clinicalController, authMiddlewares });
 
+// Module 6: Patient Billing, Cashier Shifts, Deposits & Receivables
+const billingModels = initBillingModels(database.sequelize, userModels, catalogModels, patientVisitModels, clinicalModels);
+const billingRepo = createBillingRepository({
+  sequelize: database.sequelize,
+  models: billingModels,
+  userModels,
+  catalogModels,
+  patientVisitModels,
+  clinicalModels,
+});
+const billingService = createBillingService({ billingRepo, userRepo });
+const billingController = createBillingController({ billingService });
+const billingRoutes = createBillingRoutes({ billingController, authMiddlewares });
+
 const app = createApp({
   config: env,
   health: createHealthService(database),
@@ -80,6 +99,7 @@ const app = createApp({
   patientRoutes,
   visitRoutes,
   clinicalRoutes,
+  billingRoutes,
 });
 
 const server = app.listen(env.port, '127.0.0.1', () => {

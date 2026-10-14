@@ -71,6 +71,15 @@ export function MainLayout() {
           },
         ]
       : []),
+    ...(['ADMIN', 'RECEPTIONIST', 'ACCOUNTANT'].includes(user?.role)
+      ? [
+          {
+            key: '/billing',
+            icon: <DollarOutlined />,
+            label: 'Thu ngân & Viện phí (AT-01/15)',
+          },
+        ]
+      : []),
     {
       key: '/catalog/services',
       icon: <MedicineBoxOutlined />,
