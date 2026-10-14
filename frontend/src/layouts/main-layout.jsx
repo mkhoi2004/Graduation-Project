@@ -17,6 +17,7 @@ import {
   SafetyCertificateOutlined,
   ExperimentOutlined,
   PayCircleOutlined,
+  ReconciliationOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/auth-context.jsx';
@@ -123,6 +124,15 @@ export function MainLayout() {
             key: '/hr/payroll',
             icon: <PayCircleOutlined />,
             label: 'Hoa hồng & Lương',
+          },
+        ]
+      : []),
+    ...(['ADMIN', 'ACCOUNTANT'].includes(user?.role) || user?.isApprover
+      ? [
+          {
+            key: '/reconciliation',
+            icon: <ReconciliationOutlined />,
+            label: 'Đối soát & Toàn vẹn (M12)',
           },
         ]
       : []),

@@ -57,6 +57,11 @@ import { createHrRepository } from './repositories/hr-repository.js';
 import { createHrService } from './services/hr-service.js';
 import { createHrController } from './controllers/hr-controller.js';
 import { createHrRoutes } from './routes/hr-routes.js';
+import { initReconciliationModels } from './models/reconciliation-models.js';
+import { createReconciliationRepository } from './repositories/reconciliation-repository.js';
+import { createReconciliationService } from './services/reconciliation-service.js';
+import { createReconciliationController } from './controllers/reconciliation-controller.js';
+import { createReconciliationRoutes } from './routes/reconciliation-routes.js';
 import { createApp } from './app.js';
 
 const logger = createLogger(env.logLevel);
@@ -184,6 +189,17 @@ const hrService = createHrService({ hrRepo });
 const hrController = createHrController({ hrService });
 const hrRoutes = createHrRoutes({ hrController, authMiddlewares });
 
+// Module 12: Assets Maintenance & Daily Reconciliation
+const reconciliationModels = initReconciliationModels(database.sequelize, {
+  userModels,
+  patientVisitModels,
+  operationsModels,
+});
+const reconciliationRepo = createReconciliationRepository({ sequelize: database.sequelize, models: reconciliationModels });
+const reconciliationService = createReconciliationService({ reconciliationRepo });
+const reconciliationController = createReconciliationController({ reconciliationService });
+const reconciliationRoutes = createReconciliationRoutes({ reconciliationController, authMiddlewares });
+
 const app = createApp({
   config: env,
   health: createHealthService(database),
@@ -199,6 +215,7 @@ const app = createApp({
   insuranceRoutes,
   operationsRoutes,
   hrRoutes,
+  reconciliationRoutes,
 });
 
 const server = app.listen(env.port, '127.0.0.1', () => {

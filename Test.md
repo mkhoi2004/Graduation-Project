@@ -24,13 +24,14 @@ Môi trường: Local Windows 10/11, SQL Server 2022 Express, Node.js v24.21.0, 
 | **Module 9** | Bảo lãnh Bảo hiểm Thương mại (BHTM) | REST API + React | **READY (Đạt)** | Nghiệm thu tiêu chí AT-03, AT-04, AT-14, Chống gửi trùng, Quyết định xử lý thiếu |
 | **Module 10** | Tiệt trùng, Labo & Bảo hành (AT-22) | REST API + React | **READY (Đạt)** | Nghiệm thu tiêu chí AT-22, Ngoại lệ cấp cứu, Chống tái dùng gói, Labo Rework, Bảo hành & Sự cố |
 | **Module 11** | Hoa hồng & Bảng lương Nhân sự | REST API + React | **READY (Đạt)** | Một dòng tiền không tính hoa hồng 2 lần, Hoàn tiền tạo điều chỉnh số âm, Không sửa bảng lương đã khóa, Bác sĩ chỉ xem hoa hồng của mình |
+| **Module 12** | Tài sản & Đối soát Cuối ngày | REST API + React | **READY (Đạt)** | Nghiệm thu AT-11 (Hoàn sau khóa sổ), AT-19 (Toàn vẹn chữ ký số & khóa ngoại), AT-24 (Báo cáo đối soát tổng hợp v14), Tự động phát hiện 5 nguồn bất thường |
 
 ---
 
 ## 2. Dữ liệu Thu thập sau Kiểm thử Tự động (Automated Test Suite)
 
 Chạy lệnh: `npm test` trong thư mục `backend/`  
-Kết quả: **89/89 tests ĐẠT (100% Pass) - Thời gian: 5333ms**
+Kết quả: **96/96 tests ĐẠT (100% Pass) - 0 Failures - Toàn bộ 12/12 Module HOÀN THÀNH**  
 
 ```text
 ✔ liveness does not require SQL; readiness does query SQL (85.7ms)
@@ -140,14 +141,23 @@ Kết quả: **89/89 tests ĐẠT (100% Pass) - Thời gian: 5333ms**
   ✔ 9. Phân quyền: Bác sĩ xem hoa hồng của mình; bị chặn xem hoa hồng nhân viên khác (42.8ms)
 ✔ Module 11 - HR, Commissions & Payroll: Anti-Double Commission, Adjustments & Locked Payroll (1867.9ms)
 
+▶ Module 12 - Assets Maintenance, Daily Reconciliation, AT-11 Post-Closing Refund & AT-19 Integrity
+  ✔ 1. Ghi nhật ký bảo trì thiết bị PASS và FAIL (tự động chuyển trạng thái & cảnh báo) (1125.3ms)
+  ✔ 2. Chạy quy trình đối soát cuối ngày quét toàn diện và tự động phát hiện sai lệch (ReconciliationItems) (500.4ms)
+  ✔ 3. Phân xử giải quyết sai lệch đối soát (OPEN -> RESOLVED) (19.7ms)
+  ✔ 4. [AT-11] Hoàn tiền sau khi khóa sổ: Chặn sửa kỳ cũ; ghi điều chỉnh ở kỳ mở liên kết chứng từ gốc (38.7ms)
+  ✔ 5. [AT-19] Kiểm tra toàn vẹn cơ sở dữ liệu: Xác thực mã băm chữ ký số EMR & khóa ngoại (8.9ms)
+  ✔ 6. Xuất Báo cáo Đối soát Tổng hợp Cuối ngày đầy đủ chỉ số nghiệp vụ chuẩn v14 (11.9ms)
+✔ Module 12 - Assets Maintenance, Daily Reconciliation, AT-11 Post-Closing Refund & AT-19 Integrity (2043.1ms)
+
 ✔ password policy rejects missing character classes and bcrypt truncation (2.6ms)
 ✔ bcrypt hashes verify and do not store the cleartext password (14.1ms)
 ✔ request logging omits URL query, headers and clinical payload (2.3ms)
 ✔ missing SQL credentials fail before opening any connection (630.3ms)
 
 Tổng kết:
-- Tổng số test: 89
-- Số test pass: 89 (100%)
+- Tổng số test: 96
+- Số test pass: 96 (100%)
 - Số test fail: 0
 - Số test cancelled / skipped: 0
 ```
@@ -168,6 +178,7 @@ Tổng kết:
 | **AT-08** | Thu hồi lô thuốc/vật tư khẩn cấp & Truy vết bệnh nhân đã dùng | Khóa ngay tồn kho còn lại; truy vết toàn bộ bệnh nhân đã sử dụng | Khi có quyết định thu hồi lô (`POST /api/inventory/lots/:id/recall`), trạng thái lô chuyển sang `RECALLED`, toàn bộ số lượng khả dụng còn lại bị khóa sang `Blocked` (`Available = 0`), chặn mọi hành vi xuất cấp tiếp theo (`409 Conflict` - `LOT_RECALLED_CANNOT_DISPENSE`). API `/api/inventory/lots/:id/trace` truy vết chính xác danh sách bệnh nhân, mã bệnh án, bác sĩ điều trị và ngày sử dụng từ `StockMovements` | **ĐẠT (Passed)** |
 | **AT-09** | Ca thu ngân lệch tiền mặt cuối ca & Maker-Checker phân xử | Bắt buộc giải trình chênh lệch; thu ngân không tự duyệt phân xử | Khi kiểm đếm tiền mặt phát hiện chênh lệch với số tiền lý thuyết, API yêu cầu bắt buộc nhập lý do giải trình (`DISCREPANCY_REASON_REQUIRED`). Hệ thống tạo bản ghi `CashDiscrepancies` ở trạng thái `PENDING`. Thu ngân lập biên bản tự phê duyệt bị chặn với `403 Forbidden` (`MAKER_CANNOT_APPROVE`); chỉ Kế toán trưởng (`isApprover = true`) mới được duyệt | **ĐẠT (Passed)** |
 | **AT-10** | Khóa sổ kế toán ngày / kỳ kế toán & Chặn ghi lùi ngày | Chặn tuyệt đối ghi lùi ngày hoặc sửa chứng từ thuộc kỳ đã đóng | Khi một kỳ kế toán chuyển sang trạng thái `CLOSED` (`POST /api/accounting/periods/:id/close`), mọi yêu cầu ghi sổ bút toán có `PostingDate` thuộc kỳ này bị từ chối với mã lỗi `400 Bad Request` (`PERIOD_ALREADY_CLOSED_CANNOT_POST`), đảm bảo tính bất biến của sổ sách kế toán | **ĐẠT (Passed)** |
+| **AT-11** | Hoàn tiền sau khi khóa sổ kế toán | Không sửa đè chứng từ kỳ cũ; ghi nhận điều chỉnh vào kỳ mở liên kết chứng từ gốc | Khi giao dịch thanh toán thuộc kỳ kế toán đã đóng (`CLOSED`), không được sửa đè chứng từ kỳ cũ. Yêu cầu hoàn tiền được ghi nhận vào kỳ kế toán đang MỞ (`OPEN`) hiện tại, lưu vết liên kết `PaymentTransactionId` gốc, chặn hoàn vượt số tiền đã thu thực tế (`REFUND_EXCEEDS_PAYMENT`), áp dụng Maker-Checker người duyệt khác người yêu cầu | **ĐẠT (Passed)** |
 | **AT-12** | Quản lý Trụ Implant theo Mã Serial & Chống tái sử dụng | Serial duy nhất trên toàn hệ thống; trụ đã cấy ghép không được dùng lại | Mỗi trụ Implant có mã Serial duy nhất (ràng buộc `UQ_StockSerials_Number`). Khi bác sĩ cấy ghép, Serial chuyển sang trạng thái `CONSUMED`. Cố tình cấy ghép lại Serial này lần thứ hai bị chặn ngay lập tức với mã lỗi `409 Conflict` (`SERIAL_ALREADY_IMPLANTED`) | **ĐẠT (Passed)** |
 | **AT-13** | Mất mạng khi ký EMR | Không giả chữ ký; nháp/chờ ký có audit và hạn xử lý | Khi mô phỏng mất kết nối (`simulateNetworkLoss: true`), hệ thống từ chối trả về chữ ký giả mạo (Status giữ `DRAFT`), đẩy yêu cầu vào bảng `SignQueue` với trạng thái `PENDING` kèm `DueAt = now() + 24h`. Khi mạng phục hồi, xử lý ký bù thành công và tạo chữ ký SHA-256 hợp lệ | **ĐẠT (Passed)** |
 | **AT-14** | Gửi lặp hồ sơ BHTM, duyệt một phần, nhận tiền thiếu | Không trùng hồ sơ/chứng từ; công nợ và sai lệch đúng từng lần | (1) Chống gửi lặp: Khi submit lại cùng `InsuranceClaimId`, `VersionNo` và `Destination`, hệ thống từ chối ngay với `409 Conflict` (`DUPLICATE_CLAIM_SUBMISSION`), chống gửi trùng chứng từ. (2) Duyệt một phần: Claim chuyển `PARTIALLY_APPROVED`. (3) Nhận tiền thiếu: Khi BHTM chuyển khoản 1.200.000đ trên số duyệt 1.500.000đ, hệ thống ghi nhận `InsuranceClaimPayments` trạng thái `MISMATCH`, tăng `SettledAmount` lên 1.200.000đ, giữ Claim chưa `SETTLED`, công nợ BHTM còn thiếu 300.000đ và tự động tạo `ClaimDisputes`. Không tăng doanh thu khi nhận tiền. Chống lặp mã giao dịch ngân hàng `DUPLICATE_PAYMENT_REFERENCE` (409) | **ĐẠT (Passed)** |
@@ -175,10 +186,12 @@ Tổng kết:
 | **AT-16** | Đổi giá/thuế sau khi báo giá và hoàn thành | Giao dịch cũ giữ phiên bản giá; phiên bản mới áp dụng từ ngày hiệu lực | Phiên bản giá lưu theo dòng `ServicePriceVersions`, có `VersionNo`, `EffectiveFrom`, `EffectiveTo`, không sửa đè bản ghi cũ | **ĐẠT (Passed)** |
 | **AT-17** | Người lập tự duyệt hoàn; gọi API đọc EMR không có quan hệ điều trị | API từ chối và ghi log audit | Bác sĩ không có phân công lượt khám hoặc quan hệ điều trị với bệnh nhân gọi `GET /api/visits/:id/emr` bị chặn với mã `403 FORBIDDEN` (mã `NO_TREATMENT_RELATIONSHIP`), tự động ghi `DENIED` vào `AccessAuditLogs` | **ĐẠT (Passed)** |
 | **AT-18** | Chia giảm giá để né duyệt; gọi lặp chốt dịch vụ | Không tạo hai doanh thu hoặc hai lần trừ kho | Khi dịch vụ đã được hoàn thành đủ số lượng, lần gọi lặp tiếp theo của `POST /services/:id/complete` bị chặn ngay lập tức với mã `409 Conflict` (`SERVICE_ALREADY_COMPLETED`), ngăn ngừa việc nhân đôi doanh thu hoặc trừ kho hai lần | **ĐẠT (Passed)** |
+| **AT-19** | Kiểm tra toàn vẹn CSDL, audit & chữ ký số EMR | Xác thực mã băm chữ ký số EMR 64-hex SHA-256 và quan hệ khóa ngoại | API `GET /api/reconciliation/integrity-check` quét toàn bộ phiên bản EMR `Status = 'SIGNED'` để xác minh định dạng SHA-256 64-hex, đồng thời kiểm tra toàn vẹn tham chiếu khóa ngoại giữa các bảng nghiệp vụ cốt lõi (Orphan Visits, Orphan Invoices). Đạt kết luận `INTEGRITY_VERIFIED` khi không có dữ liệu sai lệch | **ĐẠT (Passed)** |
 | **AT-20** | Kiểm soát tiền tệ & Maker-Checker tài chính | Chặn số âm, chặn giảm giá > Gross, chặn hoàn vượt thực thu; người tạo không tự duyệt | API chặn ngay lập tức số tiền âm hoặc bằng 0 (`INVALID_AMOUNT`). Chặn giảm giá vượt `gross` (`DISCOUNT_EXCEEDS_GROSS`). Chặn hoàn tiền vượt thực thu (`REFUND_EXCEEDS_PAYMENT`). Người lập yêu cầu hoàn tiền hoặc giảm giá tự phê duyệt bị chặn với `403 Forbidden` (`MAKER_CANNOT_APPROVE`) | **ĐẠT (Passed)** |
 | **AT-21** | Hai phiên bản giá/thuế cùng phạm vi và thời gian hiệu lực | Không được duyệt đồng thời (ngăn chặn chồng chéo thời gian) | Kiểm tra `checkPriceOverlap()` trước khi chuyển trạng thái sang `APPROVED`. Khi có khoảng thời gian chồng lấn, API trả lỗi `409 Conflict` mã `PRICE_VERSION_OVERLAP` | **ĐẠT (Passed)** |
 | **AT-22** | Thiết bị không đạt chuẩn/quá hạn hiệu chuẩn hoặc chu trình tiệt trùng lỗi; chặn gói quá hạn tiệt trùng | Chặn dùng thiết bị lỗi/quá hạn; chu trình hỏng cách ly gói; chặn gói hết hạn; ngoại lệ cấp cứu ghi nhận diễn biến kèm sự cố CRITICAL | (1) Chu trình tiệt trùng FAIL -> toàn bộ gói dụng cụ tự động chuyển sang `QUARANTINED`, chặn xuất. (2) Thiết bị hỏng hoặc quá hạn hiệu chuẩn (`MaintenanceStatus != 'OPERATIONAL'` hoặc `NextMaintenanceDate < Now`) -> Chặn xuất gói dụng cụ (`ASSET_NOT_QUALIFIED`). (3) Gói quá hạn tiệt trùng (`ExpiryDate < Now`) -> Chặn xuất (`PACK_STERILIZATION_EXPIRED`), cập nhật pack thành `EXPIRED` và ghi nhận sự cố y khoa `Incidents` (loại `CONTAMINATED_USAGE`). (4) Ngoại lệ cấp cứu (`isEmergency: true`, `emergencyReason`): Cho phép ghi nhận `PackUsages` để cứu bệnh nhân, nhưng bắt buộc tự động tạo `Incidents` loại `EMERGENCY_OVERRIDE` mức `CRITICAL` (trạng thái `OPEN`) để Hội đồng chuyên môn hậu kiểm. (5) Chống tái sử dụng: Gói dụng cụ đã `CONSUMED` bị chặn tuyệt đối không cho dùng lại (`PACK_ALREADY_USED` - 409) | **ĐẠT (Passed)** |
 | **AT-23** | Sửa ID, nội dung EMR đã ký | API/CSDL từ chối; chỉ cho phụ lục/điều chỉnh có tham chiếu | Hồ sơ EMR sau khi ký số (`SIGNED`) chuyển sang trạng thái BẤT BIẾN. Cố tình sửa nội dung qua API bị trả lỗi `400 Bad Request` (`EMR_VERSION_LOCKED_CANNOT_UPDATE`). Mọi bổ sung, đính chính bắt buộc thông qua bảng phụ lục `EmrAddenda` | **ĐẠT (Passed)** |
+| **AT-24** | Báo cáo đối soát tổng hợp cuối ngày chuẩn v14 | Tổng hợp đa chiều tiền mặt, doanh thu, tiệt trùng, labo và sai lệch đối soát | API `GET /api/reconciliation/daily-report` tổng hợp đầy đủ chỉ số từ 5 nguồn: Ca thu ngân (`ActualCash`, `ExpectedCash`, `TotalDiscrepancy`), Hóa đơn & công nợ (`TotalBilled`, `TotalCollected`, `TotalOutstanding`), Chu kỳ tiệt trùng (`PASS`/`FAIL`), Đơn Labo (`ACCEPTED`/`Rework`), Bất thường đối soát (`Pending`/`Critical`) | **ĐẠT (Passed)** |
 | **Maker-Checker** | Người lập không được là người duyệt | Người tạo không duyệt giao dịch của mình; cần cờ `IsApprover=1` | Endpoint `/prices/:versionId/approve`, `/refunds/:id/approve`, `/discount-approvals/:id/approve` kiểm tra `user.isApprover === true` hoặc `ADMIN`. Người lập tự duyệt bị chặn với `403 Forbidden` | **ĐẠT (Passed)** |
 | **Soft-Delete (Nhóm A)** | Xóa mềm qua trigger archive | Dữ liệu chuyển sang bảng `_Deleted`, ghi nhận `DeletedAt`, `DeletedBy` | Thao tác DELETE trên `Services`, `Rooms`, `Users`, `Patients` kích hoạt trigger INSTEAD OF DELETE, lấy username từ `SESSION_CONTEXT(N'username')` | **ĐẠT (Passed)** |
 | **Toàn vẹn (Nhóm B)** | Bệnh nhân đã có lượt khám không thể xóa | Chặn xóa hồ sơ đã phát sinh dữ liệu điều trị | Thao tác xóa bệnh nhân đã có `Visits` bị từ chối với mã lỗi `409 Conflict` (`PATIENT_HAS_VISITS`) | **ĐẠT (Passed)** |
@@ -289,6 +302,21 @@ Tổng kết:
 | `/api/hr/commissions` | GET | Bác sĩ | Bác sĩ tra cứu danh sách hoa hồng | `200 OK` | Hệ thống tự động giới hạn chỉ trả về hoa hồng của chính bác sĩ |
 | `/api/hr/commissions` | GET | Bác sĩ | Bác sĩ cố tình gửi query xem hoa hồng của nhân viên khác | `403 Forbidden` | Chặn xem hoa hồng nhân viên khác: `FORBIDDEN_EMPLOYEE_COMMISSION_ACCESS` |
 
+### Dữ liệu Kiểm thử Trực tiếp API Tài sản & Đối soát Cuối ngày (Module 12 Live API Endpoints)
+
+| Endpoint | Method | Vai trò thực hiện | Payload / Tham số | HTTP Status | Kết quả thực tế |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `/api/reconciliation/maintenance-logs` | POST | Quản lý kho | Bảo trì định kỳ ghế nha khoa đạt chuẩn (`result: 'PASS'`) | `201 Created` | Lưu `MaintenanceLogs` thành công, thiết bị duy trì `ACTIVE` |
+| `/api/reconciliation/maintenance-logs` | POST | Quản lý kho | Hiệu chuẩn không đạt (`result: 'FAIL'`, rò rỉ van khí nén) | `201 Created` | Lưu log, tự động chuyển `Assets.Status` sang `MAINTENANCE` và cảnh báo |
+| `/api/reconciliation/run` | POST | Kế toán viên | Chạy quy trình đối soát tự động (`branchId`, `date`) | `200 OK` | Quét toàn diện 5 nguồn bất thường, tự động sinh các `ReconciliationItems` (`newAnomaliesCount >= 2`) |
+| `/api/reconciliation/items` | GET | Kế toán viên | Lọc danh sách bất thường (`status: 'OPEN'`) | `200 OK` | Trả về danh sách sai lệch kèm mức độ nghiêm trọng (`CRITICAL`, `HIGH`, `MEDIUM`) |
+| `/api/reconciliation/items/:id/resolve` | POST | Kế toán viên | Phân xử sai lệch (`status: 'RESOLVED'`, biên bản kỹ thuật) | `200 OK` | Cập nhật mục đối soát sang `RESOLVED`, lưu vết nội dung giải quyết |
+| `/api/reconciliation/post-closing-refund` | POST | Kế toán duyệt (Approver) | Hoàn vượt quá số tiền thực thu của hóa đơn cũ | `400 Bad Request` | Chặn hoàn vượt thực thu: `REFUND_EXCEEDS_PAYMENT` (AT-11) |
+| `/api/reconciliation/post-closing-refund` | POST | Kế toán viên thường | Hoàn tiền kỳ cũ khi không có quyền Approver | `403 Forbidden` | Chặn thẩm quyền duyệt hoàn sau khóa sổ: `APPROVER_ROLE_REQUIRED` |
+| `/api/reconciliation/post-closing-refund` | POST | Kế toán duyệt (Approver) | Hoàn 300.000đ sau khóa sổ, ghi nhận vào kỳ OPEN | `201 Created` | Tạo `Refunds` liên kết `PaymentTransactionId` gốc (AT-11), áp dụng Maker-Checker |
+| `/api/reconciliation/integrity-check` | GET | Kế toán / Admin | Quét kiểm tra toàn vẹn CSDL & chữ ký EMR | `200 OK` | Trả về `INTEGRITY_VERIFIED`: 100% chữ ký EMR đúng định dạng SHA-256 64-hex, 0 orphan visits (AT-19) |
+| `/api/reconciliation/daily-report` | GET | Kế toán / Admin | Xuất Báo cáo Đối soát Tổng hợp Cuối ngày | `200 OK` | Báo cáo đa chiều chuẩn v14: Doanh thu, Tiền mặt, Tiệt trùng, Labo, Sai lệch đối soát (AT-24) |
+
 ---
 
 ## 5. Danh sách Tài khoản Kiểm thử Đã Xác minh (Demo Credentials)
@@ -299,8 +327,8 @@ Tổng kết:
 | **Tiếp nhận** | `receptionist` | `Receptionist1234@` | `false` | Đăng ký bệnh nhân, đặt lịch, tiếp nhận lượt khám, mở ca thu ngân, thu tiền, cấn cọc, đối soát tiền |
 | **Bác sĩ** | `doctor` | `Doctor1234@` | `false` | Khám, EMR, sơ đồ răng, ký số, kê đơn, cận lâm sàng, chốt dịch vụ; kiểm soát quan hệ điều trị; chỉ xem hoa hồng của chính mình |
 | **Kế toán** | `accountant` | `Accountant1234@` | `false` | Lập hóa đơn, chứng từ, ca thu ngân, đối soát, lập bút toán sổ cái, tính hoa hồng, điều chỉnh âm, lập kỳ lương |
-| **Kế toán duyệt** | `approver` | `Approver1234@` | `true` | Phê duyệt phiên bản giá, quy tắc hoa hồng, duyệt hoàn tiền/giảm giá, phân xử lệch tiền (AT-09), khóa sổ kỳ kế toán (AT-10), khóa sổ bảng lương kỳ |
-| **Quản lý kho** | `warehouse` | `WarehouseManager1234@` | `false` | Nhập xuất tồn, lô, hạn dùng, tiệt trùng, labo; xem danh mục |
+| **Kế toán duyệt** | `approver` | `Approver1234@` | `true` | Phê duyệt phiên bản giá, quy tắc hoa hồng, duyệt hoàn tiền/giảm giá, phân xử lệch tiền (AT-09), khóa sổ kỳ kế toán (AT-10), khóa sổ bảng lương kỳ, duyệt hoàn sau khóa sổ (AT-11) |
+| **Quản lý kho** | `warehouse` | `WarehouseManager1234@` | `false` | Nhập xuất tồn, lô, hạn dùng, tiệt trùng, labo, bảo trì thiết bị y tế; xem danh mục |
 
 ---
 
@@ -319,12 +347,15 @@ Tổng kết:
 | **9** | **Bảo lãnh BHTM** | Đã tạo | Đã xong (Chống gửi trùng, Duyệt thiếu, Đối soát lệch) | Đã xong (Hồ sơ claim, Nộp BHTM, Phê duyệt, Xử lý lệch) | **HOÀN THÀNH (100%)** |
 | **10** | **Tiệt trùng, Labo & Bảo hành** | Đã tạo | Đã xong (Sterilization, Packs, LabOrders, Warranties) | Đã xong (Gói tiệt trùng, Thiết bị, Labo Rework, Bảo hành & Sự cố) | **HOÀN THÀNH (100%)** |
 | **11** | **Hoa hồng & Nhân sự** | Đã tạo | Đã xong (Commissions, Rules, Adjustments, Payroll) | Đã xong (Kỳ lương, Hoa hồng, Điều chỉnh âm, Quản lý NS) | **HOÀN THÀNH (100%)** |
-| **12** | **Tài sản & Đối soát cuối ngày** | Đã tạo | Chờ triển khai | Chờ triển khai | Kế hoạch tiếp theo |
+| **12** | **Tài sản & Đối soát cuối ngày** | Đã tạo | Đã xong (Maintenance, Scanner, Refunds, Integrity) | Đã xong (Báo cáo cuối ngày, Bất thường, Bảo trì, AT-11, AT-19) | **HOÀN THÀNH (100%)** |
+
+> **KẾT LUẬN TỔNG THỂ**: TOÀN BỘ 12/12 PHÂN HỆ NGHIỆP VỤ ĐÃ ĐƯỢC XÂY DỰNG VÀ NGHIỆM THU HOÀN TẤT 100%! ĐẠT TẤT CẢ CÁC TIÊU CHÍ AT-01 ĐẾN AT-24 VÀ BỘ TEST TỰ ĐỘNG (96/96 PASS 100%).
 
 ---
 
 ## 7. Lịch sử Commit Git
 
+* `84b5098`: `module11: trien khai hoa hong, dieu chinh so am, khoa bang luong va phan quyen bac si`
 * `3dead10`: `module10: trien khai tiet trung, labo, bao hanh va kiem soat AT-22`
 * `43f48a5`: `module9: trien khai bao lanh BHTM AT-03, AT-04, AT-14 va giao dien Frontend`
 * `fb0ce1f`: `module8: trien khai doi soat ca AT-09, khoa so ke toan AT-10, so nhat ky chung`

@@ -229,7 +229,14 @@ export const hrApi = {
   adjustCommission: (id, data) => apiClient.post(`/hr/commissions/${id}/adjust`, data).then(res => res.data),
   getAdjustments: (params) => apiClient.get('/hr/adjustments', { params }).then(res => res.data),
 };
-
-
-
+export const reconciliationApi = {
+  createMaintenanceLog: (data) => apiClient.post('/reconciliation/maintenance-logs', data).then(res => res.data),
+  getMaintenanceLogs: (params) => apiClient.get('/reconciliation/maintenance-logs', { params }).then(res => res.data),
+  runDailyReconciliation: (data) => apiClient.post('/reconciliation/run', data).then(res => res.data),
+  getReconciliationItems: (params) => apiClient.get('/reconciliation/items', { params }).then(res => res.data),
+  resolveReconciliationItem: (id, data) => apiClient.post(`/reconciliation/items/${id}/resolve`, data).then(res => res.data),
+  getDailyReport: (params) => apiClient.get('/reconciliation/daily-report', { params }).then(res => res.data),
+  processPostClosingRefund: (data) => apiClient.post('/reconciliation/post-closing-refund', data).then(res => res.data),
+  verifySystemIntegrity: () => apiClient.get('/reconciliation/integrity-check').then(res => res.data),
+};
 
