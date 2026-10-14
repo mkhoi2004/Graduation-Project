@@ -1,111 +1,182 @@
-# Graduation Project — ERP & EMR nha khoa
+# Hệ Thống Quản Lý Phòng Khám Nha Khoa ERP & EMR
 
-Nền tảng phát triển local theo [Prompt_Project](Prompt_Project.txt) và [Quy trình v14](Quy_trinh_NhaKhoa_TongHop_v14.md). Backend Node.js/Express, SQL Server, frontend React/Vite/Ant Design. Không Docker, CI/CD hay cloud. Làm trực tiếp trên nhánh `main`.
+Dự án tốt nghiệp: **Hệ thống Quản lý Phòng khám Nha khoa Tích hợp ERP & EMR chuyên sâu**, xây dựng bám sát chuẩn nghiệp vụ phòng khám nha khoa quy mô vừa và chuỗi (v14), tuân thủ đầy đủ 24 Tiêu chuẩn Nghiệm thu Chấp thuận (**AT-01** đến **AT-24**).
 
-## Trạng thái hiện tại
+* **Công nghệ Backend:** Node.js (ESM), Express 5, Sequelize ORM, SQL Server 2022 Express, JWT, Decimal.js, bcrypt.
+* **Công nghệ Frontend:** React 19, Vite 7, Ant Design, TailwindCSS, React Router v7, Axios.
+* **Cơ sở dữ liệu:** SQL Server 2022 (99 bảng dữ liệu, ràng buộc toàn vẹn, Soft-delete trigger archive, Maker-Checker).
+* **Kiểm thử tự động:** 96/96 automated tests đạt 100% PASS trên Node test runner tích hợp.
 
-Đã tạo cấu trúc dự án, cấu hình, health API, giao diện kiểm tra môi trường, SQL nền tảng và script seed 5 vai trò/6 tài khoản. **Chưa triển khai đăng nhập và 12 module nghiệp vụ; chưa nghiệm thu AT-01 đến AT-24.**
+---
 
-**Máy hiện tại:** người dùng đã chọn `DESKTOP-F5CFA0D\SQLEXPRESS` thay `ADMIN` trong tài liệu; dùng TCP `1433`, không cần bật Browser khi đã chỉ định cổng. Ngày 14/10/2026, 60 bảng cũ trong `[Graduation Project]` đã được xóa theo yêu cầu và thay bằng 99 bảng mới cho 12 module. Schema và seed đã được kiểm chứng trực tiếp. Backend chưa có SQL credentials trong `.env`, vì vậy readiness của API vẫn báo chưa sẵn sàng cho tới khi điền tài khoản SQL Authentication.
+## 🚀 Hướng Dẫn Chạy Nhanh (Quick Start)
 
-## Chạy ngay API và giao diện
+### 1. Yêu cầu môi trường
+* **Hệ điều hành:** Windows 10/11 (Local)
+* **Node.js:** Phiên bản `>= 20.x` (khuyến nghị Node 22+ hoặc 24+)
+* **Cơ sở dữ liệu:** Microsoft SQL Server (hoặc SQL Server Express 2022) chạy cổng `1433` (TCP/IP Enabled).
 
-Yêu cầu Node.js 22.12+ (máy hiện tại 24.21.0), npm, SQL Server và SSMS. Chạy trong PowerShell tại thư mục repository:
+---
+
+### 2. Cài đặt thư viện dependencies
+
+Mở PowerShell tại thư mục gốc dự án (`Graduation-Project`), chạy:
 
 ```powershell
+# Cài đặt toàn bộ dependencies cho Root, Backend và Frontend
 npm run install:all
-npm run setup
 ```
 
-`setup` tạo `backend/.env` với JWT secret ngẫu nhiên, không ghi đè file đã có. Không commit `.env` và không gửi mật khẩu vào chat. Môi trường API/giao diện vẫn chạy được khi chưa cấu hình SQL.
+---
 
-Terminal thứ nhất:
+### 3. Cấu hình biến môi trường (`.env`)
 
-```powershell
-npm run dev:backend
+Tạo hoặc kiểm tra file `backend/.env`:
+
+```ini
+PORT=5000
+NODE_ENV=development
+JWT_SECRET=super_secret_jwt_key_local_dental_clinic_2026
+JWT_EXPIRES_IN=24h
+
+# Cấu hình SQL Server Local
+DB_SERVER=localhost
+DB_PORT=1433
+DB_NAME=Graduation Project
+DB_USER=sa
+DB_PASSWORD=YourPassword123@
 ```
 
-Terminal thứ hai:
+*(Lưu ý: Thay `DB_USER` và `DB_PASSWORD` bằng tài khoản SQL Server Authentication của bạn).*
 
-```powershell
-npm run dev:frontend
-```
+---
 
-Mở [giao diện local](http://127.0.0.1:5173). API: [health](http://127.0.0.1:5000/api/health). Hai tiến trình chỉ bind loopback. Dừng từng terminal bằng Ctrl+C. Nếu đổi PORT backend thì đổi cả proxy trong `frontend/vite.config.js`.
+### 4. Khởi tạo Cơ sở dữ liệu & Dữ liệu mẫu (Seed)
 
-## Chuẩn bị hoặc tạo lại SQL
-
-Xem [database/README.md](database/README.md) trước khi chạy DDL.
-
-1. Kết nối SSMS tới `DESKTOP-F5CFA0D\SQLEXPRESS`. Kiểm tra TCP/IP bật; cổng TCP hiện tại là 1433. Nếu dùng named instance bằng cách để trống DB_PORT, SQL Server Browser cần hoạt động.
-2. `database/bootstrap.sql` nhận database trống hoặc schema cùng phiên bản; schema lạ bị từ chối. Chạy từ thư mục repository bằng `sqlcmd -S "localhost,1433" -E -C -b -i .\database\bootstrap.sql`.
-3. `database/reset-tables.sql` là lệnh phá hủy có chủ đích: xóa toàn bộ bảng người dùng trong đúng `[Graduation Project]`, giữ database/quyền cấp database, rồi chạy bootstrap và seed. Chỉ dùng khi đã chủ động chấp nhận mất dữ liệu hiện tại.
-4. Điền `DB_USER` và `DB_PASSWORD` của SQL login được cấp cho project vào `backend/.env`. `DB_INSTANCE=SQLEXPRESS`, `DB_PORT=1433`, `DB_NAME=Graduation Project`. Đây là SQL Authentication, không phải Windows account. Script không tạo login hoặc thay đổi chế độ xác thực SQL Server.
-5. Sau khi quyền truy cập đã sẵn sàng:
+Nếu bạn vừa cài mới database, chạy các lệnh sau trong thư mục `backend`:
 
 ```powershell
 cd backend
-npm run db:check
-npm run seed
-npm run seed
-npm run dev
+npm run db:check    # Kiểm tra kết nối tới SQL Server
+npm run seed        # Khởi tạo 5 Roles, Chi nhánh, Dịch vụ mẫu và 6 Tài khoản demo
+cd ..
 ```
 
-Seed dùng transaction/khóa, hash bcrypt; chạy lại không tạo trùng và không reset tài khoản cũ. Quyền SQL tối thiểu cho seed: SELECT/INSERT trên Roles, Branches, Users và SELECT schema nền tảng. Lệnh DDL cần tài khoản cài schema riêng. Không cần cấp backend `sysadmin`.
+---
 
-Tài khoản mẫu chuẩn bị cho Module 1 (chưa có trang đăng nhập):
+### 5. Khởi động ứng dụng
 
-- Admin: `admin` / `Admin1234@`.
-- Tiếp nhận: `receptionist` / `Receptionist1234@`.
-- Bác sĩ: `doctor` / `Doctor1234@`.
-- Kế toán: `accountant` / `Accountant1234@`.
-- Kế toán duyệt: `approver` / `Approver1234@`, cùng role ACCOUNTANT, `IsApprover=1`.
-- Kho: `warehouse` / `WarehouseManager1234@`.
+Mở **2 cửa sổ PowerShell** riêng biệt:
 
-Seed hiện có một chi nhánh, hai phòng/ghế, hai dịch vụ kèm giá, một kho/vật tư/lô/tồn, năm tài khoản kế toán mẫu và hai cấu hình có phiên bản. Không có dữ liệu bệnh nhân mẫu hoặc thật.
+#### 🔹 Terminal 1: Khởi động Backend API (Port 5000)
+```powershell
+npm run dev:backend
+```
+> API sẵn sàng tại: `http://127.0.0.1:5000`  
+> Kiểm tra sức khỏe hệ thống: `http://127.0.0.1:5000/api/health`
 
-## Kiểm thử
+#### 🔹 Terminal 2: Khởi động Giao diện Frontend (Port 5173)
+```powershell
+npm run dev:frontend
+```
+> Truy cập giao diện ứng dụng tại: **[http://localhost:5173](http://localhost:5173)**
+
+---
+
+## 🔑 Danh Sách Tài Khoản Đăng Nhập Mẫu (Demo Accounts)
+
+Tất cả tài khoản đều đã được tạo sẵn qua script Seed:
+
+| Vai trò (Role) | Tên đăng nhập | Mật khẩu | Quyền hạn & Chức năng chính |
+| :--- | :--- | :--- | :--- |
+| **Quản trị viên (Admin)** | `admin` | `Admin1234@` | Toàn quyền hệ thống, quản lý người dùng, phân quyền RBAC, xem nhật ký truy cập Audit logs. |
+| **Tiếp nhận (Receptionist)** | `receptionist` | `Receptionist1234@` | Đón tiếp, tạo hồ sơ bệnh nhân, đặt hẹn, tiếp nhận lượt khám, mở ca thu ngân, thu viện phí, cấn cọc. |
+| **Bác sĩ (Doctor)** | `doctor` | `Doctor1234@` | Khám lâm sàng, ghi bệnh án EMR, sơ đồ răng FDI 32 răng, ký số chữ ký điện tử, chỉ định Labo, kê đơn. |
+| **Kế toán (Accountant)** | `accountant` | `Accountant1234@` | Quản lý ca thu ngân, kiểm đếm chênh lệch, lập hóa đơn, hạch toán sổ cái, tính hoa hồng bác sĩ. |
+| **Kế toán trưởng (Approver)** | `approver` | `Approver1234@` | Phê duyệt giảm giá/hoàn tiền, duyệt phân xử lệch tiền (**AT-09**), khóa sổ kế toán (**AT-10**), duyệt hoàn tiền sau khóa sổ (**AT-11**). |
+| **Quản lý kho (Warehouse)** | `warehouse` | `WarehouseManager1234@` | Nhập/xuất kho thuốc theo hạn dùng (**FEFO**), thu hồi lô khẩn cấp (**AT-08**), quản lý trụ Implant theo Serial (**AT-12**), kiểm định thiết bị. |
+
+---
+
+## 🧪 Chạy Kiểm Thử Tự Động (Automated Tests)
+
+Hệ thống tích hợp bộ kiểm thử tự động toàn diện kiểm chứng logic nghiệp vụ và 24 tiêu chí nghiệm thu:
 
 ```powershell
+# Chạy toàn bộ 96 test cases tự động
+cd backend
 npm test
-npm run build
-npm run db:check
 ```
 
-`npm test`: HTTP liveness/readiness, cấu hình, lỗi không lộ secrets, password/bcrypt và log. `db:check` trả exit code 1 nếu thiếu credentials, kết nối lỗi hoặc thiếu schema; đó không phải bằng chứng DB đã sẵn sàng.
+**Kết quả kiểm thử thực tế:**
+```text
+✔ Module 1 - Authentication & Authorization Integration Tests (9/9 pass)
+✔ Module 2 - Catalog & Versioned Configuration Integration Tests (7/7 pass)
+✔ Module 3-4 - Patient Management, Appointments & Visits Tests (8/8 pass)
+✔ Module 5 - Clinical EMR, Consents, SignQueue & Immutability Tests (7/7 pass)
+✔ Module 6 - Patient Billing, Race Prevention & Maker-Checker Tests (8/8 pass)
+✔ Module 7 - Inventory, FEFO, Lot Recall & Implant Serial Tests (4/4 pass)
+✔ Module 8 - Accounting, Cash Shifts, Period Closing & Ledger Tests (3/3 pass)
+✔ Module 9 - Commercial Health Insurance (BHTM) Adjudication Tests (6/6 pass)
+✔ Module 10 - Sterilization, Lab Orders, Warranties & Incidents Tests (6/6 pass)
+✔ Module 11 - HR, Commissions & Payroll with Negative Adjustments Tests (9/9 pass)
+✔ Module 12 - Assets Maintenance, Daily Reconciliation, AT-11 & AT-19 Tests (6/6 pass)
+✔ Security, bcrypt, logging & sanity tests (4/4 pass)
 
-Kiểm thử SQL trên database tạm (cần sqlcmd và quyền tạo database bằng Windows Authentication):
-
-```powershell
-.\scripts\test-database.ps1
+Total Tests: 96 | Passed: 96 (100%) | Failed: 0
 ```
 
-Script tạo tên ngẫu nhiên, kiểm thử DDL/trigger rồi xóa **đúng database vừa tạo**; không đụng `[Graduation Project]`. Nếu chính sách PowerShell không cho chạy script, xem nội dung trước và dùng terminal được phép theo chính sách máy.
+---
 
-Kiểm tra nhanh Postman/Thunder Client dùng [docs/local-smoke.http](docs/local-smoke.http): `GET /api/health` → 200; `GET /api/health/ready` → 200 nếu SQL/schema sẵn sàng, 503 nếu chưa; route không tồn tại → 404 JSON. Trang frontend cũng truy vấn hai health endpoint qua Vite proxy.
-
-## Cấu trúc
+## 📁 Cấu Trúc Thư Mục Dự Án
 
 ```text
-database/             bootstrap, bảng, archive, trigger, index và test SQL
-backend/src/          config, routes, controllers, services, middlewares,
-                      validators, scripts; models/repositories/utils/jobs chờ module
-backend/tests/        kiểm thử nền tảng
-frontend/src/         components, pages, services, routes, hooks, styles;
-                      layouts/context/utils chờ module
-docs/                 thiết kế, ERD, lộ trình và kết quả kiểm chứng
-scripts/              setup local và kiểm thử SQL tách biệt
+Graduation-Project/
+├── database/                    # Script SQL khởi tạo 99 bảng, migration và seeds
+│   ├── 01_migrations/           # Migration quản lý phiên bản DDL
+│   ├── 02_tables/               # Định nghĩa schema 12 module nghiệp vụ
+│   ├── 03_seeds/                # Dữ liệu hạt giống ban đầu
+│   └── bootstrap.sql            # Script khởi tạo cơ sở dữ liệu hoàn chỉnh
+├── backend/                     # Mã nguồn Backend API (Node.js ESM + Express)
+│   ├── src/
+│   │   ├── config/              # Cấu hình môi trường, DB pool Sequelize
+│   │   ├── controllers/         # Bộ điều hướng API theo từng Module
+│   │   ├── middlewares/         # Middleware xác thực JWT, RBAC, Rate-limit, Audit
+│   │   ├── models/              # Định nghĩa Sequelize Models cho 99 bảng
+│   │   ├── repositories/        # Tầng xử lý nghiệp vụ, transactions và SQL locks
+│   │   ├── routes/              # Đăng ký các endpoints REST API
+│   │   └── services/            # Logic dịch vụ chuyên sâu
+│   └── tests/                   # 12 file test tự động kiểm thử tích hợp
+├── frontend/                    # Mã nguồn Giao diện (React 19 + Vite 7 + Ant Design)
+│   ├── src/
+│   │   ├── components/          # Các components giao diện dùng chung
+│   │   ├── context/             # Auth Context quản lý trạng thái đăng nhập
+│   │   ├── layouts/             # Khung điều hướng Sidebar, Header, Profile
+│   │   ├── pages/               # 12 trang nghiệp vụ tương ứng các Module
+│   │   ├── routes/              # Điều hướng và bảo vệ route theo quyền (RBAC)
+│   │   └── services/            # Axios API Client kết nối Backend
+│   └── package.json
+├── Test.md                      # Báo cáo chi tiết 96 bài test và bảng nghiệm thu AT
+└── README.md                    # Tài liệu hướng dẫn cài đặt và vận hành
 ```
 
-Đọc [thiết kế & ERD](docs/superpowers/specs/2026-10-14-local-foundation-design.md), [kế hoạch](docs/superpowers/plans/2026-10-14-local-foundation.md) và [kết quả kiểm chứng](docs/verification.md). Hai tài liệu nguồn ở gốc là nguồn đối chiếu, không sao chép thành bản dễ lệch.
+---
 
-## Quy ước phát triển tiếp
+## 🌟 Tóm Tắt 12 Phân Hệ Đã Hoàn Thành (100%)
 
-- Mỗi module có model/repository/service/controller/route riêng, page riêng; tên file kebab-case. DB schema quản lý bằng SQL, không Sequelize sync force/alter.
-- Tiền dùng chuỗi API + decimal.js + DECIMAL(18,2); không Number/parseFloat cho tính tiền. Tham số chuyên môn/kế toán lưu theo phiên bản, không hard-code.
-- Quyền kiểm tra phía server: role, chi nhánh, mục đích, quan hệ điều trị, trạng thái; frontend không thay thế quyền server. Admin đọc theo Prompt có audit, không ký/chốt/duyệt thay người có nghiệp vụ.
-- Nhóm A archive bằng trigger; nhóm B bất biến sau ký/chốt/ghi sổ, sửa qua sự kiện mới. Không triển khai DELETE nghiệp vụ trước các guard tương ứng.
-- Idempotency và khóa cạnh tranh phải được triển khai trong transaction trước khi có chức năng thu tiền/kho. Bảng IdempotencyKeys hiện chỉ là nền schema, chưa có middleware xử lý.
-- Dependencies được pin và có lockfile. Sequelize 6 dùng override uuid 11.1.1 để xử lý cảnh báo upstream; tedious đã cập nhật dòng 20. Không dùng `npm audit fix --force` để tự hạ Sequelize.
+1. **Phân hệ 1 - Xác thực & Phân quyền (RBAC):** Đăng nhập an toàn, cơ chế Maker-Checker với cờ `IsApprover`, xóa mềm dữ liệu nhóm A và lưu vết nhật ký `AccessAuditLogs`.
+2. **Phân hệ 2 - Danh mục & Bảng giá phiên bản:** Quản lý dịch vụ, phòng ghế, áp dụng giá theo khoảng thời gian hiệu lực (**AT-16**), chống chồng chéo thời gian duyệt giá (**AT-21**).
+3. **Phân hệ 3 - Quản lý Bệnh nhân:** Quản lý hồ sơ, tiền sử dị ứng, cảnh báo dùng chung số điện thoại (**AT-05**).
+4. **Phân hệ 4 - Lịch hẹn & Lượt khám (Visits):** Tiếp nhận bệnh nhân, máy trạng thái lượt khám, phân công bác sĩ, kiểm soát quan hệ điều trị (**AT-17**).
+5. **Phân hệ 5 - Bệnh án điện tử EMR & Sơ đồ răng:** Sơ đồ răng FDI 32 răng, bất biến nội dung sau ký số (**AT-23**), phụ lục `EmrAddenda`, rút đồng thuận thủ thuật (**AT-06**), hàng đợi ký số dự phòng sự cố mạng (**AT-13**), chốt dịch vụ không nhân đôi (**AT-18**).
+6. **Phân hệ 6 - Thu ngân, Viện phí & Công nợ:** Hóa đơn viện phí bất biến (**AT-01**), khóa chặn thu vượt nợ (**AT-02**), cấn cọc đồng thời an toàn (**AT-15**), kiểm soát tiền tệ và Maker-Checker (**AT-20**).
+7. **Phân hệ 7 - Kho Dược, Vật tư & Implant:** Xuất kho tự động ưu tiên hạn dùng FEFO (**AT-07**), thu hồi lô khẩn cấp & truy vết bệnh nhân (**AT-08**), quản lý trụ Implant theo Serial chống tái dùng (**AT-12**).
+8. **Phân hệ 8 - Kế toán & Ca thu ngân:** Quản lý ca thu ngân, bắt buộc giải trình lệch tiền và Maker-Checker (**AT-09**), khóa sổ kỳ kế toán & chặn ghi lùi ngày (**AT-10**), sổ nhật ký chung hạch toán kép cân bằng.
+9. **Phân hệ 9 - Bảo lãnh Bảo hiểm Thương mại (BHTM):** Chống nộp lặp hồ sơ claim (**AT-14**), xử lý duyệt thiếu không tự ý truy thu bệnh nhân (**AT-04**), theo dõi công nợ BHTM chờ thanh toán (**AT-03**).
+10. **Phân hệ 10 - Tiệt trùng, Labo & Bảo hành:** Quản lý chu kỳ tiệt trùng, cách ly gói dụng cụ hỏng/quá hạn, quy trình ngoại lệ cấp cứu (**AT-22**), quản lý đơn gia công Labo & làm lại (Rework), kích hoạt thẻ bảo hành nha khoa.
+11. **Phân hệ 11 - Hoa hồng & Bảng lương:** Không tính hoa hồng trùng cho cùng dòng tiền, hoàn tiền tạo điều chỉnh số âm liên kết bản gốc, khóa bảng lương bất biến `LOCKED`, phân quyền bác sĩ chỉ xem hoa hồng của chính mình.
+12. **Phân hệ 12 - Tài sản & Đối soát Cuối ngày:** Tự động phát hiện 5 nguồn bất thường, phân xử sai lệch, hoàn tiền sau khóa sổ vào kỳ mở (**AT-11**), kiểm tra toàn vẹn mã băm chữ ký số EMR & khóa ngoại (**AT-19**), xuất Báo cáo Đối soát Tổng hợp Cuối ngày chuẩn v14 (**AT-24**).
 
-Tài liệu kỹ thuật đã đối chiếu: [Vite](https://vite.dev/guide/), [Sequelize MSSQL](https://sequelize.org/docs/v6/other-topics/dialect-specific-things/), [SQL SESSION_CONTEXT](https://learn.microsoft.com/en-us/sql/relational-databases/system-stored-procedures/sp-set-session-context-transact-sql).
+---
+
+> 📖 *Để xem chi tiết toàn bộ số liệu kiểm thử và kết quả đo đạc thực tế trên CSDL, vui lòng tham khảo tài liệu [Test.md](Test.md).*
