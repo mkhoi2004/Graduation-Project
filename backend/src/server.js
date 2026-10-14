@@ -52,6 +52,11 @@ import { OperationsRepository } from './repositories/operations-repository.js';
 import { createOperationsService } from './services/operations-service.js';
 import { createOperationsController } from './controllers/operations-controller.js';
 import { createOperationsRoutes } from './routes/operations-routes.js';
+import { initHrModels } from './models/hr-models.js';
+import { createHrRepository } from './repositories/hr-repository.js';
+import { createHrService } from './services/hr-service.js';
+import { createHrController } from './controllers/hr-controller.js';
+import { createHrRoutes } from './routes/hr-routes.js';
 import { createApp } from './app.js';
 
 const logger = createLogger(env.logLevel);
@@ -168,6 +173,17 @@ const operationsService = createOperationsService({ operationsRepo });
 const operationsController = createOperationsController({ operationsService });
 const operationsRoutes = createOperationsRoutes({ operationsController, authMiddlewares });
 
+// Module 11: HR, Commissions & Payroll
+const hrModels = initHrModels(database.sequelize, {
+  userModels,
+  catalogModels,
+  clinicalModels,
+});
+const hrRepo = createHrRepository({ sequelize: database.sequelize, models: hrModels });
+const hrService = createHrService({ hrRepo });
+const hrController = createHrController({ hrService });
+const hrRoutes = createHrRoutes({ hrController, authMiddlewares });
+
 const app = createApp({
   config: env,
   health: createHealthService(database),
@@ -182,6 +198,7 @@ const app = createApp({
   accountingRoutes,
   insuranceRoutes,
   operationsRoutes,
+  hrRoutes,
 });
 
 const server = app.listen(env.port, '127.0.0.1', () => {

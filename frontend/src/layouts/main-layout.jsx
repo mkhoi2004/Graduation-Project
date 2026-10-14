@@ -16,6 +16,7 @@ import {
   AuditOutlined,
   SafetyCertificateOutlined,
   ExperimentOutlined,
+  PayCircleOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/auth-context.jsx';
@@ -116,6 +117,15 @@ export function MainLayout() {
       icon: <ExperimentOutlined />,
       label: 'Tiệt trùng & Labo (AT-22)',
     },
+    ...(['ADMIN', 'ACCOUNTANT', 'DOCTOR'].includes(user?.role)
+      ? [
+          {
+            key: '/hr/payroll',
+            icon: <PayCircleOutlined />,
+            label: 'Hoa hồng & Lương',
+          },
+        ]
+      : []),
     {
       key: '/catalog/services',
       icon: <MedicineBoxOutlined />,

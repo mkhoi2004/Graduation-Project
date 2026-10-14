@@ -23,13 +23,14 @@ Môi trường: Local Windows 10/11, SQL Server 2022 Express, Node.js v24.21.0, 
 | **Module 8** | Kế toán, Ca thu ngân, Khóa sổ kỳ & Sổ cái | REST API + React | **READY (Đạt)** | Nghiệm thu tiêu chí AT-09, AT-10, Maker-Checker Kế toán trưởng |
 | **Module 9** | Bảo lãnh Bảo hiểm Thương mại (BHTM) | REST API + React | **READY (Đạt)** | Nghiệm thu tiêu chí AT-03, AT-04, AT-14, Chống gửi trùng, Quyết định xử lý thiếu |
 | **Module 10** | Tiệt trùng, Labo & Bảo hành (AT-22) | REST API + React | **READY (Đạt)** | Nghiệm thu tiêu chí AT-22, Ngoại lệ cấp cứu, Chống tái dùng gói, Labo Rework, Bảo hành & Sự cố |
+| **Module 11** | Hoa hồng & Bảng lương Nhân sự | REST API + React | **READY (Đạt)** | Một dòng tiền không tính hoa hồng 2 lần, Hoàn tiền tạo điều chỉnh số âm, Không sửa bảng lương đã khóa, Bác sĩ chỉ xem hoa hồng của mình |
 
 ---
 
 ## 2. Dữ liệu Thu thập sau Kiểm thử Tự động (Automated Test Suite)
 
 Chạy lệnh: `npm test` trong thư mục `backend/`  
-Kết quả: **53/53 tests ĐẠT (100% Pass) - Thời gian: 5790ms**
+Kết quả: **89/89 tests ĐẠT (100% Pass) - Thời gian: 5333ms**
 
 ```text
 ✔ liveness does not require SQL; readiness does query SQL (85.7ms)
@@ -127,14 +128,26 @@ Kết quả: **53/53 tests ĐẠT (100% Pass) - Thời gian: 5790ms**
   ✔ 8. Đăng ký Thẻ bảo hành nha khoa & Báo cáo sự cố y khoa (118.9ms)
 ✔ Module 10 - Operations: Sterilization, Instruments, Lab Orders, Warranties & Incidents (AT-22) (2890.3ms)
 
+▶ Module 11 - HR, Commissions & Payroll: Anti-Double Commission, Adjustments & Locked Payroll
+  ✔ 1. Tạo quy tắc hoa hồng và kiểm tra Maker-Checker khi phê duyệt (1238.4ms)
+  ✔ 2. Chặn chồng chéo phiên bản quy tắc hoa hồng cùng phạm vi (COMMISSION_RULE_OVERLAP) (35.9ms)
+  ✔ 3. Tạo kỳ lương mới ở trạng thái OPEN (18.9ms)
+  ✔ 4. Tính hoa hồng cho Bác sĩ theo sự kiện hoàn thành thủ thuật (32.4ms)
+  ✔ 5. [Quy tắc cốt lõi] Chặn tính hoa hồng lần 2 cho cùng dòng tiền/sự kiện (Anti-Double Commission) (13.3ms)
+  ✔ 6. [Quy tắc cốt lõi] Hoàn tiền thủ thuật tạo điều chỉnh số âm liên kết bản gốc (CommissionAdjustments) (46.6ms)
+  ✔ 7. Tổng hợp bảng lương kỳ tính đúng Net Pay = BaseSalary + Commissions + Adjustments (24.7ms)
+  ✔ 8. [Quy tắc cốt lõi] Khóa kỳ lương (LOCKED) và Chặn tính thêm hoặc điều chỉnh vào kỳ đã khóa (42.4ms)
+  ✔ 9. Phân quyền: Bác sĩ xem hoa hồng của mình; bị chặn xem hoa hồng nhân viên khác (42.8ms)
+✔ Module 11 - HR, Commissions & Payroll: Anti-Double Commission, Adjustments & Locked Payroll (1867.9ms)
+
 ✔ password policy rejects missing character classes and bcrypt truncation (2.6ms)
 ✔ bcrypt hashes verify and do not store the cleartext password (14.1ms)
 ✔ request logging omits URL query, headers and clinical payload (2.3ms)
 ✔ missing SQL credentials fail before opening any connection (630.3ms)
 
 Tổng kết:
-- Tổng số test: 79
-- Số test pass: 79 (100%)
+- Tổng số test: 89
+- Số test pass: 89 (100%)
 - Số test fail: 0
 - Số test cancelled / skipped: 0
 ```
@@ -257,6 +270,25 @@ Tổng kết:
 | `/api/operations/warranties` | POST | Bác sĩ / Thu ngân | Đăng ký thẻ bảo hành răng sứ 5 năm | `201 Created` | Tạo `Warranties` thành công, lưu thời hạn và điều kiện bảo hành |
 | `/api/operations/incidents` | POST | Bác sĩ / Nhân viên | Báo cáo sự cố y khoa | `201 Created` | Ghi nhận sự cố `Incidents` kèm mức độ nghiêm trọng và hành động khắc phục |
 
+### Dữ liệu Kiểm thử Trực tiếp API Hoa hồng & Bảng lương Nhân sự (Module 11 Live API Endpoints)
+
+| Endpoint | Method | Vai trò thực hiện | Payload / Tham số | HTTP Status | Kết quả thực tế |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `/api/hr/commission-rules` | POST | Kế toán viên | Tạo quy tắc hoa hồng nháp (10%, COMPLETION) | `201 Created` | Tạo quy tắc trạng thái `DRAFT`, sinh phiên bản `VersionNo = 1` |
+| `/api/hr/commission-rules/:id/approve` | POST | Người lập tự duyệt | Kế toán viên tự phê duyệt quy tắc của mình | `403 Forbidden` | Chặn tự duyệt quy tắc hoa hồng: `MAKER_CANNOT_APPROVE` (Maker-Checker) |
+| `/api/hr/commission-rules/:id/approve` | POST | Kế toán trưởng (Approver) | Phê duyệt quy tắc hợp lệ | `200 OK` | Phê duyệt thành công, chuyển sang `APPROVED`, gán `ApprovedBy` |
+| `/api/hr/commission-rules/:id/approve` | POST | Kế toán trưởng | Duyệt quy tắc thứ 2 trùng phạm vi và thời gian | `409 Conflict` | Chặn chồng chéo thời gian hiệu lực: `COMMISSION_RULE_OVERLAP` |
+| `/api/hr/payroll-periods` | POST | Kế toán viên | Tạo kỳ lương mới (`PR-2026-10`, StartsOn, EndsOn) | `201 Created` | Tạo kỳ lương thành công ở trạng thái `OPEN` |
+| `/api/hr/commissions/calculate` | POST | Kế toán viên | Tính hoa hồng cho bác sĩ từ sự kiện thủ thuật (2.5tr x 10%) | `201 Created` | Tính thành công hoa hồng 250.000đ, trạng thái `CALCULATED` |
+| `/api/hr/commissions/calculate` | POST | Kế toán viên | Tính lặp lại cho cùng sự kiện thủ thuật + bác sĩ + quy tắc | `409 Conflict` | Chặn tính 2 lần cho cùng một dòng tiền: `COMMISSION_ALREADY_CALCULATED` (Quy tắc cốt lõi) |
+| `/api/hr/commissions/:id/adjust` | POST | Kế toán viên | Hoàn tiền thủ thuật: `amount = -50000`, kèm lý do | `201 Created` | Tạo bản ghi `CommissionAdjustments` số âm (-50.000đ) liên kết hoa hồng gốc, không sửa đè bản ghi gốc |
+| `/api/hr/payroll-periods/:id/summary` | GET | Kế toán viên / Admin | Xem tổng hợp bảng lương kỳ | `200 OK` | Tính đúng `netPay` = BaseSalary (15tr) + Commissions (+250k) + Adjustments (-50k) = 15.200.000đ |
+| `/api/hr/payroll-periods/:id/lock` | POST | Kế toán trưởng (Approver) | Khóa sổ kỳ lương hiện tại | `200 OK` | Khóa kỳ lương thành công, trạng thái `LOCKED`, gán `lockedAt` |
+| `/api/hr/commissions/calculate` | POST | Kế toán viên | Cố tình tính thêm hoa hồng vào kỳ đã khóa (`LOCKED`) | `400 Bad Request` | Chặn sửa bảng lương đã khóa: `PERIOD_ALREADY_LOCKED` (Quy tắc cốt lõi) |
+| `/api/hr/commissions/:id/adjust` | POST | Kế toán viên | Cố tình tạo điều chỉnh vào kỳ đã khóa (`LOCKED`) | `400 Bad Request` | Chặn sửa bảng lương đã khóa: `PERIOD_ALREADY_LOCKED` (Quy tắc cốt lõi) |
+| `/api/hr/commissions` | GET | Bác sĩ | Bác sĩ tra cứu danh sách hoa hồng | `200 OK` | Hệ thống tự động giới hạn chỉ trả về hoa hồng của chính bác sĩ |
+| `/api/hr/commissions` | GET | Bác sĩ | Bác sĩ cố tình gửi query xem hoa hồng của nhân viên khác | `403 Forbidden` | Chặn xem hoa hồng nhân viên khác: `FORBIDDEN_EMPLOYEE_COMMISSION_ACCESS` |
+
 ---
 
 ## 5. Danh sách Tài khoản Kiểm thử Đã Xác minh (Demo Credentials)
@@ -265,9 +297,9 @@ Tổng kết:
 | :--- | :--- | :--- | :--- | :--- |
 | **Admin** | `admin` | `Admin1234@` | `false` | Xem toàn bộ, quản trị người dùng, phân quyền, xem audit log, quản trị danh mục, phê duyệt chứng từ |
 | **Tiếp nhận** | `receptionist` | `Receptionist1234@` | `false` | Đăng ký bệnh nhân, đặt lịch, tiếp nhận lượt khám, mở ca thu ngân, thu tiền, cấn cọc, đối soát tiền |
-| **Bác sĩ** | `doctor` | `Doctor1234@` | `false` | Khám, EMR, sơ đồ răng, ký số, kê đơn, cận lâm sàng, chốt dịch vụ; kiểm soát quan hệ điều trị |
-| **Kế toán** | `accountant` | `Accountant1234@` | `false` | Lập hóa đơn, chứng từ, ca thu ngân, đối soát, lập bút toán sổ cái, xem danh mục tài khoản |
-| **Kế toán duyệt** | `approver` | `Approver1234@` | `true` | Phê duyệt phiên bản giá, duyệt hoàn tiền/giảm giá, phân xử lệch tiền (AT-09), khóa sổ kỳ (AT-10), duyệt sổ cái |
+| **Bác sĩ** | `doctor` | `Doctor1234@` | `false` | Khám, EMR, sơ đồ răng, ký số, kê đơn, cận lâm sàng, chốt dịch vụ; kiểm soát quan hệ điều trị; chỉ xem hoa hồng của chính mình |
+| **Kế toán** | `accountant` | `Accountant1234@` | `false` | Lập hóa đơn, chứng từ, ca thu ngân, đối soát, lập bút toán sổ cái, tính hoa hồng, điều chỉnh âm, lập kỳ lương |
+| **Kế toán duyệt** | `approver` | `Approver1234@` | `true` | Phê duyệt phiên bản giá, quy tắc hoa hồng, duyệt hoàn tiền/giảm giá, phân xử lệch tiền (AT-09), khóa sổ kỳ kế toán (AT-10), khóa sổ bảng lương kỳ |
 | **Quản lý kho** | `warehouse` | `WarehouseManager1234@` | `false` | Nhập xuất tồn, lô, hạn dùng, tiệt trùng, labo; xem danh mục |
 
 ---
@@ -286,13 +318,14 @@ Tổng kết:
 | **8** | **Kế toán & Ca thu ngân** | Đã tạo | Đã xong (Đối soát ca, Khóa sổ, Hạch toán kép) | Đã xong (Kiểm đếm ca, Phân xử lệch, Khóa sổ kỳ, Sổ cái) | **HOÀN THÀNH (100%)** |
 | **9** | **Bảo lãnh BHTM** | Đã tạo | Đã xong (Chống gửi trùng, Duyệt thiếu, Đối soát lệch) | Đã xong (Hồ sơ claim, Nộp BHTM, Phê duyệt, Xử lý lệch) | **HOÀN THÀNH (100%)** |
 | **10** | **Tiệt trùng, Labo & Bảo hành** | Đã tạo | Đã xong (Sterilization, Packs, LabOrders, Warranties) | Đã xong (Gói tiệt trùng, Thiết bị, Labo Rework, Bảo hành & Sự cố) | **HOÀN THÀNH (100%)** |
-| **11** | **Hoa hồng & Nhân sự** | Đã tạo | Chờ triển khai | Chờ triển khai | Kế hoạch tiếp theo |
+| **11** | **Hoa hồng & Nhân sự** | Đã tạo | Đã xong (Commissions, Rules, Adjustments, Payroll) | Đã xong (Kỳ lương, Hoa hồng, Điều chỉnh âm, Quản lý NS) | **HOÀN THÀNH (100%)** |
 | **12** | **Tài sản & Đối soát cuối ngày** | Đã tạo | Chờ triển khai | Chờ triển khai | Kế hoạch tiếp theo |
 
 ---
 
 ## 7. Lịch sử Commit Git
 
+* `3dead10`: `module10: trien khai tiet trung, labo, bao hanh va kiem soat AT-22`
 * `43f48a5`: `module9: trien khai bao lanh BHTM AT-03, AT-04, AT-14 va giao dien Frontend`
 * `fb0ce1f`: `module8: trien khai doi soat ca AT-09, khoa so ke toan AT-10, so nhat ky chung`
 * `ac4c603`: `module7: trien khai kho FEFO AT-07, thu hoi lo AT-08, serial implant AT-12`

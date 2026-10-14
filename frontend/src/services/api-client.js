@@ -214,6 +214,22 @@ export const operationsApi = {
   resolveIncident: (id, data) => apiClient.post(`/operations/incidents/${id}/resolve`, data).then(res => res.data),
 };
 
+export const hrApi = {
+  getEmployees: (params) => apiClient.get('/hr/employees', { params }).then(res => res.data),
+  createEmployee: (data) => apiClient.post('/hr/employees', data).then(res => res.data),
+  getCommissionRules: (params) => apiClient.get('/hr/commission-rules', { params }).then(res => res.data),
+  createCommissionRule: (data) => apiClient.post('/hr/commission-rules', data).then(res => res.data),
+  approveCommissionRule: (id) => apiClient.post(`/hr/commission-rules/${id}/approve`).then(res => res.data),
+  getPayrollPeriods: () => apiClient.get('/hr/payroll-periods').then(res => res.data),
+  createPayrollPeriod: (data) => apiClient.post('/hr/payroll-periods', data).then(res => res.data),
+  lockPayrollPeriod: (id) => apiClient.post(`/hr/payroll-periods/${id}/lock`).then(res => res.data),
+  getPayrollSummary: (periodId) => apiClient.get(`/hr/payroll-periods/${periodId}/summary`).then(res => res.data),
+  getCommissions: (params) => apiClient.get('/hr/commissions', { params }).then(res => res.data),
+  calculateCommission: (data) => apiClient.post('/hr/commissions/calculate', data).then(res => res.data),
+  adjustCommission: (id, data) => apiClient.post(`/hr/commissions/${id}/adjust`, data).then(res => res.data),
+  getAdjustments: (params) => apiClient.get('/hr/adjustments', { params }).then(res => res.data),
+};
+
 
 
 
