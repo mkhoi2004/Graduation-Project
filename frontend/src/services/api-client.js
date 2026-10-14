@@ -192,5 +192,28 @@ export const insuranceApi = {
   resolveDispute: (id, data) => apiClient.post(`/insurance/disputes/${id}/resolve`, data).then(res => res.data),
 };
 
+export const operationsApi = {
+  getAssets: (params) => apiClient.get('/operations/assets', { params }).then(res => res.data),
+  createAsset: (data) => apiClient.post('/operations/assets', data).then(res => res.data),
+  getSterilizationCycles: (params) => apiClient.get('/operations/sterilization-cycles', { params }).then(res => res.data),
+  createSterilizationCycle: (data) => apiClient.post('/operations/sterilization-cycles', data).then(res => res.data),
+  completeSterilizationCycle: (id, data) => apiClient.post(`/operations/sterilization-cycles/${id}/complete`, data).then(res => res.data),
+  getPacks: (params) => apiClient.get('/operations/packs', { params }).then(res => res.data),
+  createPack: (data) => apiClient.post('/operations/packs', data).then(res => res.data),
+  releasePack: (id, data) => apiClient.post(`/operations/packs/${id}/release`, data).then(res => res.data),
+  usePack: (data) => apiClient.post('/operations/packs/use', data).then(res => res.data),
+  getLabOrders: (params) => apiClient.get('/operations/lab-orders', { params }).then(res => res.data),
+  createLabOrder: (data) => apiClient.post('/operations/lab-orders', data).then(res => res.data),
+  updateLabOrder: (id, data) => apiClient.patch(`/operations/lab-orders/${id}`, data).then(res => res.data),
+  requestLabRework: (id, data) => apiClient.post(`/operations/lab-orders/${id}/rework`, data).then(res => res.data),
+  approveLabRework: (id, data) => apiClient.post(`/operations/lab-reworks/${id}/approve`, data).then(res => res.data),
+  getWarranties: (params) => apiClient.get('/operations/warranties', { params }).then(res => res.data),
+  createWarranty: (data) => apiClient.post('/operations/warranties', data).then(res => res.data),
+  claimWarranty: (id, data) => apiClient.post(`/operations/warranties/${id}/claim`, data).then(res => res.data),
+  getIncidents: (params) => apiClient.get('/operations/incidents', { params }).then(res => res.data),
+  resolveIncident: (id, data) => apiClient.post(`/operations/incidents/${id}/resolve`, data).then(res => res.data),
+};
+
+
 
 

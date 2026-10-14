@@ -15,6 +15,7 @@ import {
   InboxOutlined,
   AuditOutlined,
   SafetyCertificateOutlined,
+  ExperimentOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/auth-context.jsx';
@@ -110,6 +111,11 @@ export function MainLayout() {
           },
         ]
       : []),
+    {
+      key: '/operations',
+      icon: <ExperimentOutlined />,
+      label: 'Tiệt trùng & Labo (AT-22)',
+    },
     {
       key: '/catalog/services',
       icon: <MedicineBoxOutlined />,

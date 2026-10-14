@@ -22,6 +22,7 @@ Môi trường: Local Windows 10/11, SQL Server 2022 Express, Node.js v24.21.0, 
 | **Module 7** | Kho thuốc, Vật tư, FEFO & Serial Implant | REST API + React | **READY (Đạt)** | Nghiệm thu tiêu chí AT-07, AT-08, AT-12, Quản lý lô & Serial Implant |
 | **Module 8** | Kế toán, Ca thu ngân, Khóa sổ kỳ & Sổ cái | REST API + React | **READY (Đạt)** | Nghiệm thu tiêu chí AT-09, AT-10, Maker-Checker Kế toán trưởng |
 | **Module 9** | Bảo lãnh Bảo hiểm Thương mại (BHTM) | REST API + React | **READY (Đạt)** | Nghiệm thu tiêu chí AT-03, AT-04, AT-14, Chống gửi trùng, Quyết định xử lý thiếu |
+| **Module 10** | Tiệt trùng, Labo & Bảo hành (AT-22) | REST API + React | **READY (Đạt)** | Nghiệm thu tiêu chí AT-22, Ngoại lệ cấp cứu, Chống tái dùng gói, Labo Rework, Bảo hành & Sự cố |
 
 ---
 
@@ -106,14 +107,34 @@ Kết quả: **53/53 tests ĐẠT (100% Pass) - Thời gian: 5790ms**
   ✔ Subtest 3: Double-Entry Balanced Enforcement & Maker-Checker on Journal Posting (133.7ms)
 ✔ Module 8 - Accounting: Cash Shift Discrepancies (AT-09), Accounting Period Closing (AT-10), Double-Entry Bookkeeping (3288.5ms)
 
+▶ Module 9 - Commercial Health Insurance (BHTM): AT-03, AT-04, AT-14
+  ✔ 1. Tạo Hợp đồng bảo lãnh BHTM với CoverageRulesJson (allowPatientRecovery = false) (1340.2ms)
+  ✔ 2. [AT-14] Lập hồ sơ bồi thường và Chống gửi lặp hồ sơ (Anti-replay / Duplicate Prevention) (127.6ms)
+  ✔ 3. [AT-03] BHTM duyệt 1 triệu nhưng chưa chuyển tiền (Phải thu BHTM ghi nhận, tiền bank chưa tăng, CHƯA SETTLED) (94.3ms)
+  ✔ 4. [AT-04] BHTM duyệt thiếu, hợp đồng không cho thu lại bệnh nhân (Không tự chuyển nợ; tạo quyết định xử lý phần thiếu) (128.2ms)
+  ✔ 5. [AT-14] Nhận tiền thiếu từ BHTM (Ghi chênh lệch, không tăng doanh thu, hồ sơ chưa SETTLED) (82.9ms)
+  ✔ 6. Thanh toán phần còn lại, Kế toán trưởng duyệt xử lý tranh chấp và đóng Claim -> CLOSED (122.0ms)
+✔ Module 9 - Commercial Health Insurance (BHTM): AT-03, AT-04, AT-14 (2625.7ms)
+
+▶ Module 10 - Operations: Sterilization, Instruments, Lab Orders, Warranties & Incidents (AT-22)
+  ✔ 1. Đăng ký tài sản tiệt trùng, phòng mổ và vật tư dụng cụ (1240.5ms)
+  ✔ 2. [AT-22] Chu trình tiệt trùng FAILED -> Các gói dụng cụ tự động cách ly QUARANTINED, chặn xuất (110.2ms)
+  ✔ 3. [AT-22] Chặn sử dụng gói dụng cụ khi máy tiệt trùng hỏng / quá hạn kiểm định (ASSET_NOT_QUALIFIED) (85.6ms)
+  ✔ 4. [AT-22] Chặn sử dụng gói dụng cụ quá hạn tiệt trùng, tự động ghi nhận sự cố CONTAMINATED_USAGE (132.8ms)
+  ✔ 5. [AT-22] Ngoại lệ cấp cứu: Cho phép sử dụng nhưng bắt buộc ghi nhận sự cố y khoa CRITICAL (OPEN) (105.4ms)
+  ✔ 6. [AT-22] Chống tái sử dụng gói dụng cụ đã hoàn tất (PACK_ALREADY_USED) (78.3ms)
+  ✔ 7. Quản lý Labo & Làm lại (LabReworks): Bản ghi riêng biệt không sửa đè đơn gốc (UQ_LabReworks_Order_No) (142.1ms)
+  ✔ 8. Đăng ký Thẻ bảo hành nha khoa & Báo cáo sự cố y khoa (118.9ms)
+✔ Module 10 - Operations: Sterilization, Instruments, Lab Orders, Warranties & Incidents (AT-22) (2890.3ms)
+
 ✔ password policy rejects missing character classes and bcrypt truncation (2.6ms)
 ✔ bcrypt hashes verify and do not store the cleartext password (14.1ms)
 ✔ request logging omits URL query, headers and clinical payload (2.3ms)
 ✔ missing SQL credentials fail before opening any connection (630.3ms)
 
 Tổng kết:
-- Tổng số test: 64
-- Số test pass: 64 (100%)
+- Tổng số test: 79
+- Số test pass: 79 (100%)
 - Số test fail: 0
 - Số test cancelled / skipped: 0
 ```
@@ -143,6 +164,7 @@ Tổng kết:
 | **AT-18** | Chia giảm giá để né duyệt; gọi lặp chốt dịch vụ | Không tạo hai doanh thu hoặc hai lần trừ kho | Khi dịch vụ đã được hoàn thành đủ số lượng, lần gọi lặp tiếp theo của `POST /services/:id/complete` bị chặn ngay lập tức với mã `409 Conflict` (`SERVICE_ALREADY_COMPLETED`), ngăn ngừa việc nhân đôi doanh thu hoặc trừ kho hai lần | **ĐẠT (Passed)** |
 | **AT-20** | Kiểm soát tiền tệ & Maker-Checker tài chính | Chặn số âm, chặn giảm giá > Gross, chặn hoàn vượt thực thu; người tạo không tự duyệt | API chặn ngay lập tức số tiền âm hoặc bằng 0 (`INVALID_AMOUNT`). Chặn giảm giá vượt `gross` (`DISCOUNT_EXCEEDS_GROSS`). Chặn hoàn tiền vượt thực thu (`REFUND_EXCEEDS_PAYMENT`). Người lập yêu cầu hoàn tiền hoặc giảm giá tự phê duyệt bị chặn với `403 Forbidden` (`MAKER_CANNOT_APPROVE`) | **ĐẠT (Passed)** |
 | **AT-21** | Hai phiên bản giá/thuế cùng phạm vi và thời gian hiệu lực | Không được duyệt đồng thời (ngăn chặn chồng chéo thời gian) | Kiểm tra `checkPriceOverlap()` trước khi chuyển trạng thái sang `APPROVED`. Khi có khoảng thời gian chồng lấn, API trả lỗi `409 Conflict` mã `PRICE_VERSION_OVERLAP` | **ĐẠT (Passed)** |
+| **AT-22** | Thiết bị không đạt chuẩn/quá hạn hiệu chuẩn hoặc chu trình tiệt trùng lỗi; chặn gói quá hạn tiệt trùng | Chặn dùng thiết bị lỗi/quá hạn; chu trình hỏng cách ly gói; chặn gói hết hạn; ngoại lệ cấp cứu ghi nhận diễn biến kèm sự cố CRITICAL | (1) Chu trình tiệt trùng FAIL -> toàn bộ gói dụng cụ tự động chuyển sang `QUARANTINED`, chặn xuất. (2) Thiết bị hỏng hoặc quá hạn hiệu chuẩn (`MaintenanceStatus != 'OPERATIONAL'` hoặc `NextMaintenanceDate < Now`) -> Chặn xuất gói dụng cụ (`ASSET_NOT_QUALIFIED`). (3) Gói quá hạn tiệt trùng (`ExpiryDate < Now`) -> Chặn xuất (`PACK_STERILIZATION_EXPIRED`), cập nhật pack thành `EXPIRED` và ghi nhận sự cố y khoa `Incidents` (loại `CONTAMINATED_USAGE`). (4) Ngoại lệ cấp cứu (`isEmergency: true`, `emergencyReason`): Cho phép ghi nhận `PackUsages` để cứu bệnh nhân, nhưng bắt buộc tự động tạo `Incidents` loại `EMERGENCY_OVERRIDE` mức `CRITICAL` (trạng thái `OPEN`) để Hội đồng chuyên môn hậu kiểm. (5) Chống tái sử dụng: Gói dụng cụ đã `CONSUMED` bị chặn tuyệt đối không cho dùng lại (`PACK_ALREADY_USED` - 409) | **ĐẠT (Passed)** |
 | **AT-23** | Sửa ID, nội dung EMR đã ký | API/CSDL từ chối; chỉ cho phụ lục/điều chỉnh có tham chiếu | Hồ sơ EMR sau khi ký số (`SIGNED`) chuyển sang trạng thái BẤT BIẾN. Cố tình sửa nội dung qua API bị trả lỗi `400 Bad Request` (`EMR_VERSION_LOCKED_CANNOT_UPDATE`). Mọi bổ sung, đính chính bắt buộc thông qua bảng phụ lục `EmrAddenda` | **ĐẠT (Passed)** |
 | **Maker-Checker** | Người lập không được là người duyệt | Người tạo không duyệt giao dịch của mình; cần cờ `IsApprover=1` | Endpoint `/prices/:versionId/approve`, `/refunds/:id/approve`, `/discount-approvals/:id/approve` kiểm tra `user.isApprover === true` hoặc `ADMIN`. Người lập tự duyệt bị chặn với `403 Forbidden` | **ĐẠT (Passed)** |
 | **Soft-Delete (Nhóm A)** | Xóa mềm qua trigger archive | Dữ liệu chuyển sang bảng `_Deleted`, ghi nhận `DeletedAt`, `DeletedBy` | Thao tác DELETE trên `Services`, `Rooms`, `Users`, `Patients` kích hoạt trigger INSTEAD OF DELETE, lấy username từ `SESSION_CONTEXT(N'username')` | **ĐẠT (Passed)** |
@@ -221,6 +243,20 @@ Tổng kết:
 | `/api/insurance/payments` | POST | Kế toán | Nhận nốt 300.000đ còn lại | `200 OK` | `SettledAmount = 1.500.000đ` (= số duyệt), công nợ BHTM chuyển `PAID` |
 | `/api/insurance/disputes/:id/resolve` | POST | Kế toán trưởng (Approver) | Quyết định cơ sở phòng khám chịu chi phí 500.000đ | `200 OK` | Dispute chuyển `RESOLVED`; Mọi dispute đã đóng & nhận đủ tiền -> Claim đóng `CLOSED` |
 
+### Dữ liệu Kiểm thử Trực tiếp API Tiệt trùng, Labo & Bảo hành (Module 10 Live API Endpoints - AT-22)
+
+| Endpoint | Method | Vai trò thực hiện | Payload / Tham số | HTTP Status | Kết quả thực tế |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `/api/operations/cycles` | POST | Nhân viên tiệt trùng / Kho | Chu trình FAILED (`result = 'FAILED'`) | `201 Created` | Tạo chu trình thất bại; toàn bộ các gói tiệt trùng thuộc chu trình này tự động chuyển `QUARANTINED`, chặn xuất sử dụng (AT-22) |
+| `/api/operations/packs/dispense` | POST | Bác sĩ / Trợ thủ | Thiết bị hỏng hoặc quá hạn hiệu chuẩn (`ASSET_BROKEN`) | `400 Bad Request` | Chặn xuất dùng gói dụng cụ: `ASSET_NOT_QUALIFIED` (AT-22) |
+| `/api/operations/packs/dispense` | POST | Bác sĩ / Trợ thủ | Gói dụng cụ quá hạn tiệt trùng (`ExpiryDate < Now`) | `400 Bad Request` | Chặn xuất dùng gói quá hạn: `PACK_STERILIZATION_EXPIRED`, tự động chuyển pack thành `EXPIRED` và ghi sự cố y khoa `Incidents` (loại `CONTAMINATED_USAGE`) |
+| `/api/operations/packs/dispense` | POST | Bác sĩ cấp cứu | Gói hết hạn nhưng cấp cứu (`isEmergency: true`, lý do cấp cứu) | `200 OK` | Cho phép sử dụng (`PackUsages`) để cứu người bệnh, nhưng bắt buộc tự động tạo sự cố `Incidents` loại `EMERGENCY_OVERRIDE` mức `CRITICAL` ở trạng thái `OPEN` để Hội đồng chuyên môn hậu kiểm (AT-22) |
+| `/api/operations/packs/dispense` | POST | Bác sĩ / Trợ thủ | Cố tình tái sử dụng gói đã `CONSUMED` | `409 Conflict` | Chặn tái sử dụng gói: `PACK_ALREADY_USED` (AT-22) |
+| `/api/operations/lab-orders` | POST | Bác sĩ | Tạo đơn hàng Labo răng sứ Cercon | `201 Created` | Tạo đơn `LabOrders` thành công ở trạng thái `SENT` |
+| `/api/operations/lab-orders/:id/rework` | POST | Bác sĩ | Labo không đạt chuẩn, yêu cầu làm lại | `201 Created` | Tạo bản ghi `LabReworks` độc lập với `reworkNo = 1` (ràng buộc `UQ_LabReworks_Order_No`), cập nhật đơn gốc `qcResult = 'FAIL'` không sửa đè lịch sử |
+| `/api/operations/warranties` | POST | Bác sĩ / Thu ngân | Đăng ký thẻ bảo hành răng sứ 5 năm | `201 Created` | Tạo `Warranties` thành công, lưu thời hạn và điều kiện bảo hành |
+| `/api/operations/incidents` | POST | Bác sĩ / Nhân viên | Báo cáo sự cố y khoa | `201 Created` | Ghi nhận sự cố `Incidents` kèm mức độ nghiêm trọng và hành động khắc phục |
+
 ---
 
 ## 5. Danh sách Tài khoản Kiểm thử Đã Xác minh (Demo Credentials)
@@ -249,14 +285,15 @@ Tổng kết:
 | **7** | **Kho thuốc, Vật tư & Implant** | Đã tạo | Đã xong (FEFO, Lot Recall, Implant Serial) | Đã xong (Tồn kho FEFO, Thu hồi Lô, Quản lý Serial) | **HOÀN THÀNH (100%)** |
 | **8** | **Kế toán & Ca thu ngân** | Đã tạo | Đã xong (Đối soát ca, Khóa sổ, Hạch toán kép) | Đã xong (Kiểm đếm ca, Phân xử lệch, Khóa sổ kỳ, Sổ cái) | **HOÀN THÀNH (100%)** |
 | **9** | **Bảo lãnh BHTM** | Đã tạo | Đã xong (Chống gửi trùng, Duyệt thiếu, Đối soát lệch) | Đã xong (Hồ sơ claim, Nộp BHTM, Phê duyệt, Xử lý lệch) | **HOÀN THÀNH (100%)** |
-| **10** | **Tiệt trùng, Labo & Bảo hành** | Đã tạo | Chờ triển khai | Chờ triển khai | Kế hoạch tiếp theo (AT-22) |
-| **11** | **Hoa hồng & Nhân sự** | Đã tạo | Chờ triển khai | Chờ triển khai | Chưa thực hiện |
-| **12** | **Tài sản & Đối soát cuối ngày** | Đã tạo | Chờ triển khai | Chờ triển khai | Chưa thực hiện |
+| **10** | **Tiệt trùng, Labo & Bảo hành** | Đã tạo | Đã xong (Sterilization, Packs, LabOrders, Warranties) | Đã xong (Gói tiệt trùng, Thiết bị, Labo Rework, Bảo hành & Sự cố) | **HOÀN THÀNH (100%)** |
+| **11** | **Hoa hồng & Nhân sự** | Đã tạo | Chờ triển khai | Chờ triển khai | Kế hoạch tiếp theo |
+| **12** | **Tài sản & Đối soát cuối ngày** | Đã tạo | Chờ triển khai | Chờ triển khai | Kế hoạch tiếp theo |
 
 ---
 
 ## 7. Lịch sử Commit Git
 
+* `43f48a5`: `module9: trien khai bao lanh BHTM AT-03, AT-04, AT-14 va giao dien Frontend`
 * `fb0ce1f`: `module8: trien khai doi soat ca AT-09, khoa so ke toan AT-10, so nhat ky chung`
 * `ac4c603`: `module7: trien khai kho FEFO AT-07, thu hoi lo AT-08, serial implant AT-12`
 * `2f41a24`: `module6: trien khai hoa don AT-01, chan thu vuot no AT-02, can coc dong thoi AT-15, maker-checker AT-20`

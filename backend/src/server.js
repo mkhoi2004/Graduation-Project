@@ -47,6 +47,11 @@ import { InsuranceRepository } from './repositories/insurance-repository.js';
 import { createInsuranceService } from './services/insurance-service.js';
 import { createInsuranceController } from './controllers/insurance-controller.js';
 import { createInsuranceRoutes } from './routes/insurance-routes.js';
+import { initOperationsModels } from './models/operations-models.js';
+import { OperationsRepository } from './repositories/operations-repository.js';
+import { createOperationsService } from './services/operations-service.js';
+import { createOperationsController } from './controllers/operations-controller.js';
+import { createOperationsRoutes } from './routes/operations-routes.js';
 import { createApp } from './app.js';
 
 const logger = createLogger(env.logLevel);
@@ -151,6 +156,18 @@ const insuranceService = createInsuranceService({ insuranceRepo });
 const insuranceController = createInsuranceController({ insuranceService });
 const insuranceRoutes = createInsuranceRoutes({ insuranceController, authMiddlewares });
 
+// Module 10: Sterilization, Operations, Lab & Warranty - AT-22
+const operationsModels = initOperationsModels(database.sequelize, {
+  userModels,
+  patientVisitModels,
+  clinicalModels,
+  inventoryModels,
+});
+const operationsRepo = new OperationsRepository(database.sequelize, operationsModels);
+const operationsService = createOperationsService({ operationsRepo });
+const operationsController = createOperationsController({ operationsService });
+const operationsRoutes = createOperationsRoutes({ operationsController, authMiddlewares });
+
 const app = createApp({
   config: env,
   health: createHealthService(database),
@@ -164,6 +181,7 @@ const app = createApp({
   inventoryRoutes,
   accountingRoutes,
   insuranceRoutes,
+  operationsRoutes,
 });
 
 const server = app.listen(env.port, '127.0.0.1', () => {

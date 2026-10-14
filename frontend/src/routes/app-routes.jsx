@@ -16,6 +16,7 @@ import { CashierPage } from '../pages/billing/cashier-page.jsx';
 import { InventoryPage } from '../pages/inventory/inventory-page.jsx';
 import { AccountingPage } from '../pages/accounting/accounting-page.jsx';
 import InsurancePage from '../pages/insurance/insurance-page.jsx';
+import OperationsPage from '../pages/operations/operations-page.jsx';
 
 export function AppRoutes() {
   return (
@@ -35,6 +36,7 @@ export function AppRoutes() {
           <Route path="/inventory" element={<InventoryPage />} />
           <Route path="/accounting" element={<AccountingPage />} />
           <Route path="/insurance" element={<InsurancePage />} />
+          <Route path="/operations" element={<OperationsPage />} />
           <Route path="/catalog/services" element={<ServicesPage />} />
           <Route path="/catalog/rooms" element={<RoomsPage />} />
           <Route path="/environment" element={<EnvironmentPage />} />
