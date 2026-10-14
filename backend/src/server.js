@@ -22,6 +22,11 @@ import { createUserRoutes } from './routes/user-routes.js';
 import { createCatalogRoutes } from './routes/catalog-routes.js';
 import { createPatientRoutes } from './routes/patient-routes.js';
 import { createVisitRoutes } from './routes/visit-routes.js';
+import { initClinicalModels } from './models/clinical-models.js';
+import { createClinicalRepository } from './repositories/clinical-repository.js';
+import { createClinicalService } from './services/clinical-service.js';
+import { createClinicalController } from './controllers/clinical-controller.js';
+import { createClinicalRoutes } from './routes/clinical-routes.js';
 import { createApp } from './app.js';
 
 const logger = createLogger(env.logLevel);
@@ -53,6 +58,19 @@ const patientVisitController = createPatientVisitController({ patientVisitServic
 const patientRoutes = createPatientRoutes({ patientVisitController, authMiddlewares });
 const visitRoutes = createVisitRoutes({ patientVisitController, authMiddlewares });
 
+// Module 5: Clinical, EMR, Treatment Plans, Consents & Service Completion
+const clinicalModels = initClinicalModels(database.sequelize, userModels, catalogModels, patientVisitModels);
+const clinicalRepo = createClinicalRepository({
+  sequelize: database.sequelize,
+  models: clinicalModels,
+  userModels,
+  catalogModels,
+  patientVisitModels,
+});
+const clinicalService = createClinicalService({ clinicalRepo, patientVisitRepo, userRepo });
+const clinicalController = createClinicalController({ clinicalService });
+const clinicalRoutes = createClinicalRoutes({ clinicalController, authMiddlewares });
+
 const app = createApp({
   config: env,
   health: createHealthService(database),
@@ -61,6 +79,7 @@ const app = createApp({
   catalogRoutes,
   patientRoutes,
   visitRoutes,
+  clinicalRoutes,
 });
 
 const server = app.listen(env.port, '127.0.0.1', () => {

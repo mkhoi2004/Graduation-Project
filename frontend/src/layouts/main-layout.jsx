@@ -11,6 +11,7 @@ import {
   SettingOutlined,
   LogoutOutlined,
   CheckCircleOutlined,
+  FileDoneOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/auth-context.jsx';
@@ -61,6 +62,15 @@ export function MainLayout() {
       icon: <CalendarOutlined />,
       label: 'Lượt khám & Tiếp nhận',
     },
+    ...(user?.role === 'DOCTOR' || user?.role === 'ADMIN'
+      ? [
+          {
+            key: '/sign-queue',
+            icon: <FileDoneOutlined />,
+            label: 'Hàng đợi ký số (AT-13)',
+          },
+        ]
+      : []),
     {
       key: '/catalog/services',
       icon: <MedicineBoxOutlined />,

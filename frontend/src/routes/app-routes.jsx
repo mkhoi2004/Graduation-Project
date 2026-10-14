@@ -10,6 +10,8 @@ import { ServicesPage } from '../pages/catalog/services-page.jsx';
 import { RoomsPage } from '../pages/catalog/rooms-page.jsx';
 import { PatientsPage } from '../pages/patients/patients-page.jsx';
 import { VisitsPage } from '../pages/visits/visits-page.jsx';
+import EmrDetailPage from '../pages/emr/emr-detail-page.jsx';
+import SignQueuePage from '../pages/emr/sign-queue-page.jsx';
 
 export function AppRoutes() {
   return (
@@ -23,6 +25,8 @@ export function AppRoutes() {
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/patients" element={<PatientsPage />} />
           <Route path="/visits" element={<VisitsPage />} />
+          <Route path="/visits/:visitId/emr" element={<EmrDetailPage />} />
+          <Route path="/sign-queue" element={<SignQueuePage />} />
           <Route path="/catalog/services" element={<ServicesPage />} />
           <Route path="/catalog/rooms" element={<RoomsPage />} />
           <Route path="/environment" element={<EnvironmentPage />} />

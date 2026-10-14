@@ -83,3 +83,40 @@ export const visitApi = {
   createVisit: (data) => apiClient.post('/visits', data).then(res => res.data),
   updateVisitStatus: (id, data) => apiClient.patch(`/visits/${id}/status`, data).then(res => res.data),
 };
+
+export const clinicalApi = {
+  // EMR
+  getEmr: (visitId) => apiClient.get(`/visits/${visitId}/emr`).then(res => res.data),
+  updateDraftEmr: (visitId, versionId, data) => apiClient.put(`/visits/${visitId}/emr/${versionId}`, data).then(res => res.data),
+  signEmr: (visitId, versionId, data) => apiClient.post(`/visits/${visitId}/emr/${versionId}/sign`, data).then(res => res.data),
+  addEmrAddendum: (visitId, versionId, data) => apiClient.post(`/visits/${visitId}/emr/${versionId}/addenda`, data).then(res => res.data),
+
+  // Treatment Plans
+  getTreatmentPlans: (visitId) => apiClient.get(`/visits/${visitId}/treatment-plans`).then(res => res.data),
+  createTreatmentPlan: (visitId, data) => apiClient.post(`/visits/${visitId}/treatment-plans`, data).then(res => res.data),
+  updatePlanStatus: (visitId, planId, status) => apiClient.patch(`/visits/${visitId}/treatment-plans/${planId}/status`, { status }).then(res => res.data),
+
+  // Consents (AT-06)
+  getConsentTemplates: () => apiClient.get('/consent-templates').then(res => res.data),
+  getConsents: (visitId) => apiClient.get(`/visits/${visitId}/consents`).then(res => res.data),
+  createConsent: (visitId, data) => apiClient.post(`/visits/${visitId}/consents`, data).then(res => res.data),
+  signConsent: (visitId, consentId, data) => apiClient.post(`/visits/${visitId}/consents/${consentId}/sign`, data).then(res => res.data),
+  revokeConsent: (visitId, consentId, data) => apiClient.post(`/visits/${visitId}/consents/${consentId}/revoke`, data).then(res => res.data),
+
+  // Prescriptions & Orders
+  getPrescriptions: (visitId) => apiClient.get(`/visits/${visitId}/prescriptions`).then(res => res.data),
+  createPrescription: (visitId, data) => apiClient.post(`/visits/${visitId}/prescriptions`, data).then(res => res.data),
+  signPrescription: (visitId, id) => apiClient.post(`/visits/${visitId}/prescriptions/${id}/sign`).then(res => res.data),
+  getOrders: (visitId) => apiClient.get(`/visits/${visitId}/orders`).then(res => res.data),
+  createOrder: (visitId, data) => apiClient.post(`/visits/${visitId}/orders`, data).then(res => res.data),
+
+  // Services & Completion (AT-18)
+  getServices: (visitId) => apiClient.get(`/visits/${visitId}/services`).then(res => res.data),
+  addService: (visitId, data) => apiClient.post(`/visits/${visitId}/services`, data).then(res => res.data),
+  completeService: (visitId, serviceLineId, data) => apiClient.post(`/visits/${visitId}/services/${serviceLineId}/complete`, data).then(res => res.data),
+
+  // SignQueue (AT-13)
+  getSignQueue: () => apiClient.get('/sign-queue').then(res => res.data),
+  retrySignQueue: (queueId) => apiClient.post(`/sign-queue/${queueId}/retry`).then(res => res.data),
+};
+

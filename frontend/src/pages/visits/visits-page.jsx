@@ -1,4 +1,5 @@
 import { useState, useEffect } from 'react';
+import { useNavigate } from 'react-router-dom';
 import {
   Card,
   Table,
@@ -43,6 +44,7 @@ const statusLabelMap = {
 };
 
 export function VisitsPage() {
+  const navigate = useNavigate();
   const { user } = useAuth();
   const [visits, setVisits] = useState([]);
   const [patients, setPatients] = useState([]);
@@ -146,6 +148,15 @@ export function VisitsPage() {
       key: 'actions',
       render: (_, record) => (
         <Space size="small">
+          <Button
+            size="small"
+            type="primary"
+            onClick={() => navigate(`/visits/${record.visitId}/emr`)}
+            style={{ background: '#0958d9', borderColor: '#0958d9' }}
+          >
+            🩺 Bệnh án (EMR)
+          </Button>
+
           {record.status === 'REGISTERED' && (isDoctor || isReceptionistOrAdmin) && (
             <Button
               size="small"
