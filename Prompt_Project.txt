@@ -1,0 +1,194 @@
+SYSTEM PROMPT: FULL-STACK DEVELOPMENT BLUEPRINT (NODE.JS EDITION)
+Hệ thống quản lý phòng khám nha khoa tích hợp ERP & EMR (theo Quy_trinh_NhaKhoa_TongHop_v14.md)
+
+1. Tổng quan dự án & Mục tiêu
+- Tên Database: Graduation Project (có dấu cách, trong T-SQL luôn viết [Graduation Project])
+- SQL Server instance: DESKTOP-F5CFA0D\ADMIN
+- Nghiệp vụ: quản lý phòng khám nha khoa gồm tiếp nhận, lượt khám, EMR, đồng thuận, thanh toán bệnh nhân, bảo lãnh bảo hiểm thương mại (BHTM), kho, tiệt trùng, labo, thu ngân, kế toán, hoa hồng, tài sản, bảo mật và đối soát.
+- Ngoài phạm vi: KHÔNG làm tính quyền lợi, đồng chi trả, quyết toán, kết xuất dữ liệu BHYT.
+- Công nghệ cốt lõi:
+  - Database: SQL Server (đầy đủ Primary Key, Foreign Key, CHECK, DEFAULT, UNIQUE).
+  - Backend: Node.js (>= 20 LTS) + Express.js (REST API), JavaScript ESM hoặc TypeScript. ORM/driver: Sequelize + tedious (hoặc thư viện mssql khi cần gọi Stored Procedure/khóa hàng).
+  - Frontend: ReactJS chạy trên Node.js (Vite), Ant Design hoặc Tailwind CSS, Axios, TanStack Query, React Router.
+- Quy tắc xử lý tiền: DB dùng DECIMAL(18,2) (hoặc số nguyên đơn vị nhỏ nhất); Node.js dùng decimal.js hoặc chuỗi, KHÔNG dùng số thực dấu phẩy động.
+
+2. Nguyên tắc kiến trúc bắt buộc (rút từ quy trình v14)
+2.1 Soft Delete & Archive Strategy (chia 2 nhóm bảng)
+- Nhóm A - Danh mục, hồ sơ hành chính và bản nháp: dùng Soft-Delete. Mỗi bảng TableA có bảng TableA_Deleted cùng cấu trúc cột (không IDENTITY, không FK ra ngoài) cộng DeletedAt (DATETIME2, DEFAULT SYSDATETIME()) và DeletedBy (VARCHAR). Trigger INSTEAD OF DELETE tự INSERT dòng sang _Deleted rồi mới DELETE bảng gốc; DeletedBy lấy từ SESSION_CONTEXT(N'username'). Backend chỉ gọi DELETE, không tự cài logic archive.
+  Bảng nhóm A: Users, Roles, Branches, Rooms, Services, Items, Suppliers, Warehouses, Assets, ConsentTemplates, Patients (chỉ khi chưa có lượt khám), Appointments, và mọi bản ghi đang ở trạng thái DRAFT.
+- Nhóm B - Dữ liệu nghiệp vụ bất biến: KHÔNG cho xóa vật lý và KHÔNG sửa đè nội dung sau khi đã ký/chốt/ghi sổ. Trigger chặn DELETE và UPDATE nội dung (THROW lỗi) khi trạng thái không còn là DRAFT. Muốn đính chính thì tạo bản ghi mới liên kết bản gốc (phụ lục, đảo, điều chỉnh, hoàn). Hủy bằng trạng thái CANCELLED/VOID kèm lý do, không xóa.
+  Bảng nhóm B: Visits, EmrRecords/EmrVersions (sau khi ký), Consents (đã ký), ServiceCompletionEvents, PaymentTransactions, Deposits, DepositApplications, Refunds, InsuranceClaimVersions, StockMovements, SterilizationCycles, CashShifts (đã đối soát), JournalEntries/JournalLines (đã POSTED), AccessAuditLogs.
+- Bản ghi DRAFT của nhóm B nếu bị xóa vẫn đi qua _Deleted như nhóm A.
+2.2 Toàn vẹn dữ liệu
+- ID duy nhất, sinh tại máy chủ, không đổi (UNIQUEIDENTIFIER hoặc BIGINT IDENTITY). Mã hiển thị (ví dụ mã bệnh nhân) tách riêng, không dùng làm khóa, không quay vòng.
+- Mọi chuyển trạng thái, phép tính, ràng buộc kiểm tra ở API/CSDL trong transaction; giao diện chỉ hỗ trợ. Máy trạng thái cài ở service (bảng chuyển hợp lệ) và CHECK constraint danh sách trạng thái.
+- Idempotency: bảng IdempotencyKeys (Key, Scope, RequestHash, ResponseBody, CreatedAt). Cùng key + cùng nội dung trả cùng kết quả; cùng key khác nội dung trả 409 và ghi audit. Áp dụng cho chốt dịch vụ, reserve/consume kho, callback thanh toán, thu/hoàn tiền, gửi hồ sơ BHTM, ghi sổ. Gửi qua header Idempotency-Key.
+- Chống tranh chấp: cột Version (rowversion/optimistic) khi nhiều người sửa; khóa hàng bằng UPDLOCK/HOLDLOCK cho reserve kho, cấn cọc, chọn serial.
+- Danh mục giá, thuế, quy tắc kế toán, hoa hồng có Version, EffectiveFrom/EffectiveTo, ApprovedBy; không cho hai phiên bản hiệu lực chồng nhau cùng phạm vi; giao dịch lưu phiên bản đã dùng.
+- Audit cột chuẩn: CreatedAt, CreatedBy, nguồn gốc, liên kết bản gốc (OriginalId).
+- Báo giá khác doanh thu; yêu cầu thanh toán khác tiền đã nhận; duyệt bảo lãnh khác tiền đã chuyển; reserve khác tiêu hao. Không tự chuyển trạng thái dự kiến thành đã xác nhận.
+
+3. Phân quyền (5 Role) & tách nhiệm vụ
+3.1 Ánh xạ vai trò quy trình v14 vào 5 Role của hệ thống
+| Role                | Quyền chính (theo v14)                                                                       | Giới hạn bắt buộc |
+| Admin               | Tài khoản, phân quyền, tham số kỹ thuật, tích hợp, nhật ký vận hành                          | Không mặc định xem EMR/định danh nhạy cảm; không tự phê duyệt tài chính; không xóa vết audit của chính mình |
+| Nhân viên tiếp nhận | Hồ sơ hành chính bệnh nhân, đặt lịch, tạo lượt khám, phiếu thu, mở/đóng ca thu ngân        | Không sửa EMR đã ký; không tự duyệt giảm giá/hoàn tiền của mình; không ghi sổ |
+| Bác sĩ              | Khám, chẩn đoán, chỉ định, kế hoạch, kê đơn, ký EMR, đồng thuận, chốt dịch vụ                | Chỉ hồ sơ trong quan hệ điều trị; không xác nhận tiền đã nhận |
+| Kế toán             | Kiểm chứng từ, đối soát, hóa đơn, công nợ, BHTM, hoa hồng, lập và duyệt bút toán             | Không duyệt giao dịch do chính mình tạo; chỉ xem dữ liệu EMR tối thiểu cần cho chứng từ |
+| Quản lý kho         | Nhập/xuất/reserve/kiểm kê kho, thu hồi lô, chu trình tiệt trùng và gói dụng cụ, labo          | Không sửa doanh thu, chứng từ kế toán hay EMR lâm sàng |
+- Nguyên tắc maker-checker: người lập chứng từ KHÔNG được là người duyệt (kiểm tra ở API: CreatedBy != ApprovedBy). Vì chỉ có 1 Role Kế toán, thêm cờ quyền IsApprover trên User; seed thêm 1 tài khoản Kế toán có IsApprover = 1 để duyệt chứng từ của tài khoản kế toán còn lại (và 1 người khác duyệt hoàn tiền/giảm giá của tiếp nhận).
+- Quyền kiểm tra theo: vai trò + chi nhánh + quan hệ điều trị + mục đích + trạng thái bản ghi. Backend kiểm tra ở mọi endpoint; frontend ẩn menu bằng ProtectedRoute.
+- Truy cập khẩn cấp EMR: bảng EmergencyAccessGrants (lý do, phạm vi, thời hạn, người duyệt hoặc quy trình ngoại lệ, tự hết hạn, hậu kiểm). Không dùng tài khoản chung.
+- AccessAuditLogs: mọi lần xem/xuất/sửa/ký/truy cập khẩn cấp dữ liệu nhạy cảm ghi người, vai trò, mục đích, thời gian, đối tượng, kết quả, nguồn truy cập. API đọc EMR của người không có quan hệ điều trị bị từ chối và ghi audit.
+
+4. Quy trình phát triển từng bước (Step-by-Step Roadmap)
+Thực hiện theo 3 giai đoạn; trong mỗi giai đoạn làm theo thứ tự ưu tiên module ở mục 5 (Lõi trước, mở rộng sau).
+
+Giai đoạn 1: Thiết kế & Xây dựng Cơ sở dữ liệu (SQL Server)
+1. Tạo database [Graduation Project] trên instance DESKTOP-F5CFA0D\ADMIN.
+2. Thiết kế bảng theo mục 5: đầy đủ PK, FK, kiểu dữ liệu chuẩn (INT/BIGINT, UNIQUEIDENTIFIER, VARCHAR, NVARCHAR, DECIMAL(18,2), DATETIME2), ràng buộc NOT NULL, CHECK (số lượng/giá không âm, giảm giá 0-100%, tổng Nợ = tổng Có, Available >= 0, trạng thái hợp lệ), DEFAULT, UNIQUE (ràng buộc duy nhất cho chống trùng).
+3. Soft-delete và bảng bất biến theo mục 2.1: tạo bảng _Deleted + trigger INSTEAD OF DELETE cho nhóm A; trigger chặn DELETE/UPDATE cho nhóm B. Xử lý đúng thứ tự cha/con (bảng chi tiết archive trước, bảng cha sau).
+4. Index cần thiết cho tìm kiếm/phân trang, và unique index cho khóa chống lặp (ví dụ Source_Event_ID + Accounting_Rule_Version + Event_Type; ServiceLine + CompletionVersion).
+
+Giai đoạn 2: Xây dựng Backend (Node.js + Express)
+1. Khởi tạo Project, cấu trúc:
+   src/
+     config/        (db.js, env.js, logger.js)
+     models/        (Sequelize models)
+     repositories/  (truy cập dữ liệu)
+     services/      (logic nghiệp vụ, máy trạng thái, phép tính tiền)
+     controllers/
+     routes/        (gom theo module)
+     middlewares/   (auth JWT, phân quyền Role/chi nhánh/quan hệ điều trị, idempotency, auditAccess, validate, errorHandler, requestLogger)
+     validators/    (Joi hoặc Zod)
+     utils/         (ApiError, asyncHandler, pagination, money (decimal.js), stateMachine)
+     jobs/          (job nội bộ chạy local: hết hạn reserve, quá hạn ký EMR, đối soát cuối ngày)
+     scripts/       (seed.js)
+     app.js, server.js
+2. Cấu hình kết nối (.env, không commit):
+   DB_SERVER=DESKTOP-F5CFA0D
+   DB_INSTANCE=ADMIN
+   DB_NAME=Graduation Project
+   DB_USER=...   DB_PASSWORD=...   (SQL Authentication)
+   JWT_SECRET=...  PORT=5000
+   Sequelize dialect "mssql", dialectOptions.options { instanceName: 'ADMIN', encrypt: false, trustServerCertificate: true }. Bật SQL Server Browser và TCP/IP cho instance ADMIN.
+3. Endpoints: mỗi module một bộ route/controller/service/repository (CRUD có phân trang ?page=&pageSize=, tìm kiếm ?q=, lọc).
+   - DELETE (nhóm A/DRAFT): mở transaction, SELECT sp_set_session_context 'username' = <user JWT>, rồi DELETE để trigger archive. Thêm GET /api/<module>/deleted và POST /api/<module>/:id/restore (chỉ Admin, và chỉ với bảng nhóm A).
+   - Nhóm B: không có DELETE; cung cấp endpoint nghiệp vụ tương ứng (cancel, void, reverse, adjust, refund, addendum).
+   - Xử lý lỗi tập trung, logging (winston/pino + morgan), validation, helmet, cors, express-rate-limit, bcrypt, JWT; Swagger tùy chọn.
+   - Mọi phép tính tiền, chuyển trạng thái, chốt dịch vụ, kho, thanh toán chạy trong một transaction; lỗi giữa chừng phải rollback hoặc tạo trạng thái chờ xử lý rõ ràng (không để trừ kho hai lần hay phiếu thu thiếu giao dịch tiền).
+
+Giai đoạn 3: Xây dựng Giao diện (ReactJS trên Node.js/Vite)
+1. Khởi tạo Vite, cài Ant Design hoặc Tailwind CSS, Axios, React Router, TanStack Query.
+2. Cấu trúc:
+   src/
+     components/  (DataTable, ConfirmDeleteModal, SearchBar, FilterBar, StatusTag, MoneyInput, SignaturePad)
+     pages/       (Dashboard, danh sách/form theo module, trang Dữ liệu đã xóa, trang Đối soát)
+     services/    (axios instance + interceptor JWT + Idempotency-Key cho thao tác tiền/kho + API theo module)
+     routes/      (ProtectedRoute theo Role)
+     layouts/     (MainLayout, AuthLayout)
+     hooks/, context/ (AuthContext), utils/
+   Proxy dev: vite.config.js server.proxy trỏ /api tới http://localhost:5000.
+3. Tính năng chính: Dashboard theo Role; danh sách phân trang/tìm kiếm/lọc; form thêm/sửa; modal xác nhận xóa/hủy (nhập lý do); hiển thị trạng thái bằng tag màu; trang Dữ liệu đã xóa (DeletedAt, DeletedBy, nút Khôi phục cho Admin); màn hình EMR có sơ đồ răng, bảng chuyển trạng thái, ký đồng thuận trên tablet; màn hình thu ngân (ca, thu tiền nhiều phương thức, cấn cọc); màn hình kho (lô, hạn dùng, reserve); thông báo lỗi/loading đầy đủ.
+
+5. Danh sách Module chức năng & Ánh xạ Bảng dữ liệu
+(Ghi chú: [A] = nhóm A soft-delete có bảng _Deleted; [B] = nhóm B bất biến, chỉ thêm bản ghi điều chỉnh/đảo)
+
+LÕI (làm trước)
+- Module 1: Người dùng, Phân quyền & Audit
+  - Bảng: Users [A] (có IsApprover, BranchId), Roles [A], UserRoles (nếu cần), AccessAuditLogs [B], EmergencyAccessGrants [B], IdempotencyKeys.
+- Module 2: Danh mục & Cấu hình có phiên bản
+  - Bảng: Branches [A], Rooms/Chairs [A], Services [A], ServicePriceVersions (EffectiveFrom/To, ApprovedBy) [B], TaxRateVersions [B], DiscountPolicies, AccountingRuleVersions [B], Suppliers [A].
+- Module 3: Bệnh nhân
+  - Bảng: Patients [A] (PatientId, mã hiển thị, họ tên, ngày/năm sinh, liên hệ, người giám hộ), PatientAliases [B] (ID nguồn khi hợp nhất), PatientAllergies/MedicalHistory (giá trị UNKNOWN nếu chưa biết, kèm nguồn và thời điểm xác nhận), PatientMergeRecords [B].
+  - Quy tắc: trùng số điện thoại chỉ cảnh báo; hợp nhất cần chứng cứ + người duyệt độc lập + biên bản, chặn giao dịch mới trên hồ sơ nguồn.
+- Module 4: Lịch hẹn & Lượt khám
+  - Bảng: Appointments [A], Visits [B] (VisitId, PatientId, BranchId, DoctorId, RoomId, loại lượt, PaymentType: SELF_PAY/BHTM_GUARANTEE), VisitStatusHistory [B].
+  - Trạng thái: REGISTERED -> IN_PROGRESS -> CLINICAL_COMPLETED -> CLOSED; nhánh ON_HOLD, CANCELLED, EMERGENCY_TRANSFER (cần lý do, người chịu trách nhiệm, việc còn mở). Kiểm tra xung đột bác sĩ/ghế/thiết bị lúc xác nhận. CLOSED chỉ khi EMR đã ký (hoặc ngoại lệ có hạn), vật tư đã consume/release, labo rõ trạng thái, thanh toán/công nợ có đối tượng.
+- Module 5: EMR, Kế hoạch điều trị, Đồng thuận & Chốt dịch vụ
+  - Bảng: EmrRecords + EmrVersions [B sau ký], Diagnoses, ToothChart/ProcedureSites, TreatmentPlans (theo giai đoạn), Prescriptions/Orders, ConsentTemplates [A] (có phiên bản), Consents [B] (DRAFT -> PRESENTED -> SIGNED, REVOKED), EmrAddenda [B] (phụ lục/đính chính), ServiceLines, ServiceCompletionEvents [B] (Service_Completion_Event_ID, unique theo dòng + phiên bản hoàn thành), SignQueue (nháp chờ ký khi mất mạng).
+  - Quy tắc: chỉ bác sĩ kê đơn/chỉ định/chốt dịch vụ; chặn bắt đầu thủ thuật thiếu đồng thuận hợp lệ, thiếu gói vô trùng, thiết bị quá hạn (cấp cứu cho phép ghi sau bằng ngoại lệ có dấu thời gian); sau ký chỉ dùng phụ lục; rút đồng thuận giữ phần đã làm, dừng phần chưa làm.
+- Module 6: Thanh toán bệnh nhân & Công nợ
+  - Bảng: Invoices [B], InvoiceLines [B], PaymentAllocations (PatientAllocation, BHTMAllocation) [B], Deposits [B], DepositApplications [B] (cấn cọc), PaymentTransactions [B] (INITIATED -> PENDING -> CONFIRMED/FAILED), Refunds [B] (REQUESTED -> APPROVED -> SENT -> CONFIRMED/FAILED), DiscountApprovals [B], Receivables/Debts (đối tượng nợ, số tiền, hạn, bộ phận theo dõi), CreditNotes/InvoiceAdjustments [B].
+  - Công thức (cài ở service, kiểm tra lại bằng CHECK/trigger khi có thể):
+    Gross = Σ(quantity × approved_unit_price) cho dòng đã hoàn thành
+    NetPayable = Gross - ApprovedDiscount + Tax + RoundingAdjustment >= 0
+    NetPayable = PatientAllocation + BHTMAllocation
+    Outstanding = Allocation - ConfirmedPayment - AppliedAdvance - PostedCredit + RefundedAmount (không âm; tiền thu dư thành nghĩa vụ trả lại/ứng trước)
+  - Quy tắc: giá lấy theo phiên bản hiệu lực lúc chấp nhận báo giá và lưu ảnh chụp giá; giá/số lượng âm, giảm giá vượt tổng, tiền hoàn vượt thực thu bị từ chối; |RoundingAdjustment| <= MAX_ROUNDING_AMOUNT; không chia nhỏ giảm giá để né ngưỡng duyệt; tiền mặt chỉ xác nhận khi thực nhận và gắn ca đang mở; callback QR/chuyển khoản lặp chỉ sinh một giao dịch; FAILED không được sửa thành CONFIRMED (tạo sự kiện xác minh/điều chỉnh); cấn cọc nguyên tử, hai thu ngân không dùng chung một khoản cọc; ca miễn phí/bảo hành không sinh phiếu thu 0 đồng.
+- Module 7: Kho thuốc, Vật tư & Implant
+  - Bảng: Warehouses [A], Items [A] (đơn vị, quy đổi), GoodsReceipts [B], StockLots (lô, hạn dùng, trạng thái: RELEASED/QUARANTINED/BLOCKED/RECALLED/EXPIRED), StockSerials, StockBalances (OnHand, Reserved, Quarantined, Blocked theo kho/lô/serial), StockReservations (RESERVED -> CONSUMED/RELEASED, có hạn), StockMovements [B], Stocktakes, LotRecalls.
+  - Quy tắc: Available = OnHand - Reserved - Quarantined - Blocked >= 0 (CHECK); lô hết hạn/cách ly/thu hồi không reserve/consume được; FEFO chọn lô, tách dòng xuất khi một lô không đủ; một serial chỉ thuộc một ca tại một thời điểm; cấm âm tồn; reserve hết hạn được giải phóng có kiểm soát; thu hồi lô tạo danh sách bệnh nhân/lượt đã dùng cần đánh giá.
+
+MỞ RỘNG (làm sau khi lõi chạy ổn)
+- Module 8: Thu ngân (Ca) & Kế toán
+  - Bảng: CashShifts [B khi RECONCILED] (OpeningFloat, ExpectedCash, ActualCash, chênh lệch), CashCounts (theo mệnh giá), CashDiscrepancies (chờ xử lý), AccountingPeriods (OPEN/CLOSED), Accounts (hệ thống tài khoản), JournalEntries + JournalLines [B khi POSTED] (Source_Event_ID, Source_Document_ID, Accounting_Rule_Version, Event_Type, ngày chứng từ/hạch toán, kỳ, chi nhánh, đồng tiền, Nợ/Có, người lập/duyệt, liên kết đảo).
+  - Trạng thái bút toán: DRAFT -> SUBMITTED -> APPROVED -> POSTED; sau POSTED chỉ đảo/điều chỉnh. Tổng Nợ = tổng Có (CHECK/trigger); unique (Source_Event_ID, Accounting_Rule_Version, Event_Type); cấm ghi vào kỳ đã khóa (điều chỉnh vào kỳ mở, tham chiếu kỳ gốc). ExpectedCash = OpeningFloat + ConfirmedCashReceipts - ApprovedCashPayments ± ApprovedTransfers; chênh lệch vượt CASH_OVER_SHORT_THRESHOLD cần duyệt độc lập; không tự ghi nợ nhân viên khi chưa có kết luận. Doanh thu ghi theo sự kiện hoàn thành dịch vụ, không ghi lại khi cấn cọc/thu nợ/nhận tiền BHTM. Tài khoản kế toán chỉ là cấu hình mẫu trong AccountingRuleVersions, không hard-code (không mặc định 811, 1388, 632 hay một thuế suất cho mọi trường hợp).
+- Module 9: Bảo lãnh BHTM
+  - Bảng: InsurancePolicies/Contracts (hiệu lực, hạn mức, dịch vụ chấp nhận), InsuranceClaims [B] (Insurance_Claim_ID bất biến), InsuranceClaimLines, InsuranceClaimVersions [B], InsuranceClaimPayments (tiền thực nhận, đối soát mã giao dịch), ClaimDisputes.
+  - Trạng thái: DRAFT -> VALIDATED -> SUBMITTED -> ACKNOWLEDGED -> APPROVED/PARTIALLY_APPROVED/REJECTED/DISPUTED; SETTLED chỉ sau đối soát tiền thực nhận hoặc chứng từ bù trừ; CLOSED sau quyết định xử lý phần từ chối/tranh chấp. Chống gửi trùng theo (hồ sơ + phiên bản + đích nhận). Từ chối/duyệt thiếu không tự chuyển nợ sang bệnh nhân; nhận tiền BHTM không tăng doanh thu.
+- Module 10: Tiệt trùng, Labo & Bảo hành
+  - Bảng: SterilizationCycles [B] (thiết bị, chỉ thị, người kiểm), InstrumentPacks (hạn vô trùng theo loại gói, trạng thái), PackUsages (gắn lượt/bệnh nhân), LabOrders (chỉ định, mẫu, hạn giao, QC, chi phí), LabReworks (làm lại là bản ghi riêng), Warranties (điều kiện theo dịch vụ, liên kết hồ sơ gốc), Incidents (sự cố, chủ xử lý, hạn).
+  - Quy tắc: chu trình lỗi/gói quá hạn/rách/mất truy vết thì cách ly và chặn sử dụng; không mặc định một số ngày hạn cho mọi gói.
+- Module 11: Hoa hồng & Nhân sự (rút gọn)
+  - Bảng: CommissionRuleVersions, Commissions [B], CommissionAdjustments [B] (số âm khi hoàn tiền/đảo dịch vụ), Employees (liên kết Users), PayrollPeriods (rút gọn; không tự trừ chênh lệch két vào lương khi thiếu phê duyệt).
+  - Quy tắc: một đồng tiền không tính hoa hồng hai lần; không sửa bảng lương đã khóa.
+- Module 12: Tài sản/Thiết bị & Đối soát cuối ngày
+  - Bảng: Assets [A] (tình trạng, lịch bảo trì/hiệu chuẩn, người phụ trách), MaintenanceLogs, ReconciliationItems (mã, mức độ, chủ xử lý, hạn, trạng thái), Reports (view/SP).
+  - Quy tắc: thiết bị quá hạn điều kiện bắt buộc không được chọn cho thủ thuật liên quan; đối soát cuối ngày gồm ca tiền mặt, sao kê/chuyển khoản chờ xác nhận, cọc, công nợ BHTM/bệnh nhân, doanh thu-hóa đơn, tồn kho theo lô, EMR chờ ký, gói tiệt trùng, labo quá hạn, hàng đợi lỗi; báo cáo ghi rõ kỳ, chi nhánh, phiên bản quy tắc, thời điểm dữ liệu.
+
+6. Yêu cầu đầu ra cho từng phần phản hồi
+Làm việc lần lượt từng phần theo lệnh của tôi (ví dụ: "làm Module 1", "làm Giai đoạn 1 cho Lõi"), hoặc xuất mã nguồn chi tiết cho từng giai đoạn gồm:
+1. Mã SQL hoàn chỉnh (CREATE DATABASE, CREATE TABLE có PK/FK/CHECK/UNIQUE, bảng _Deleted và trigger soft-delete nhóm A, trigger chặn sửa/xóa nhóm B).
+2. Mã nguồn Backend Node.js (config kết nối, models, repositories, services, controllers, routes, middlewares, seed).
+3. Mã nguồn Frontend ReactJS (axios service, component và page giao diện).
+Mỗi phần kèm hướng dẫn chạy (npm install, npm run dev) và cách kiểm thử nhanh bằng Postman/Thunder Client.
+
+7. Điều kiện bổ sung: Chỉ chạy trên máy local hiện tại
+- Phạm vi: dự án CHỈ chạy trên máy local của tôi (Windows, SQL Server instance DESKTOP-F5CFA0D\ADMIN). KHÔNG cần Docker, CI/CD, deploy cloud, domain/HTTPS hay production. Tích hợp ngoài (ngân hàng QR, hệ thống BHTM) được mô phỏng bằng endpoint giả lập chạy local (ví dụ POST /api/mock/bank-callback) để thử callback lặp và idempotency.
+- Hướng dẫn chạy: chỉ viết các bước ngắn gọn, copy-paste được:
+  1. Yêu cầu cài sẵn: Node.js LTS, SQL Server + SSMS, bật TCP/IP và SQL Server Browser cho instance ADMIN.
+  2. Chạy file SQL (tạo database, bảng, bảng _Deleted, trigger) trong SSMS.
+  3. Backend: cd backend -> copy .env.example thành .env (điền DB_USER/DB_PASSWORD) -> npm install -> npm run seed -> npm run dev (http://localhost:5000).
+  4. Frontend: cd frontend -> npm install -> npm run dev (http://localhost:5173, proxy /api sang backend).
+  5. Mở trình duyệt, đăng nhập bằng tài khoản mẫu bên dưới.
+- Seed dữ liệu (npm run seed, chạy lại nhiều lần không bị trùng): tạo 5 Role và mỗi Role một tài khoản mẫu, kèm dữ liệu danh mục tối thiểu (1 chi nhánh, vài phòng/ghế, vài dịch vụ và phiên bản giá, vài vật tư và lô, hệ thống tài khoản mẫu):
+  | Role                | Username     | Password              |
+  | Admin               | admin        | Admin1234@            |
+  | Nhân viên tiếp nhận | receptionist | Receptionist1234@     |
+  | Bác sĩ              | doctor       | Doctor1234@           |
+  | Kế toán             | accountant   | Accountant1234@       |
+  | Kế toán (IsApprover)| approver     | Approver1234@         |
+  | Quản lý kho         | warehouse    | WarehouseManager1234@ |
+  (Chỉ gồm đúng 5 Role; tài khoản approver thuộc Role Kế toán, dùng để thực hiện nguyên tắc người lập khác người duyệt. Role lưu trong bảng Roles, mỗi User gắn một RoleId.)
+- Quy tắc mật khẩu (áp dụng cả khi seed, đăng ký và đổi mật khẩu): dài hơn 8 ký tự, có chữ hoa, chữ thường, số và ít nhất một ký tự đặc biệt; kiểm tra bằng Joi/Zod ở backend và hiển thị lỗi ở form frontend.
+- Mật khẩu lưu dạng hash bcrypt, tuyệt đối không lưu plain text trong database; mật khẩu mẫu chỉ nằm trong script seed và phần hướng dẫn.
+- Dữ liệu nhạy cảm (EMR, số định danh) không ghi vào log ứng dụng thông thường; che bớt số định danh với vai trò không cần biết.
+
+8. Tiêu chí nghiệm thu (rút gọn từ AT-01 đến AT-24; mỗi mục có test hoặc kịch bản chạy tay)
+| ID | Kịch bản | Kết quả mong đợi |
+| AT-01 | Thu cọc 2 triệu, hoàn thành dịch vụ 5 triệu, cấn cọc, thu thêm 3 triệu | Doanh thu ghi một lần 5 triệu; công nợ 0 |
+| AT-02 | Callback QR giống nhau 3 lần; cùng key khác nội dung | Một giao dịch/phiếu thu; nội dung khác bị từ chối và có audit |
+| AT-03 | BHTM duyệt 1 triệu nhưng chưa chuyển tiền | Phải thu BHTM còn 1 triệu; chưa SETTLED |
+| AT-04 | BHTM duyệt thiếu, hợp đồng không cho thu lại bệnh nhân | Không tự chuyển nợ; tạo quyết định xử lý phần thiếu |
+| AT-05 | Hai bệnh nhân dùng chung số điện thoại | Cảnh báo trùng, vẫn tạo riêng sau xác minh |
+| AT-06 | Rút đồng thuận sau một phần thủ thuật | Giữ phần đã làm, dừng phần chưa làm, không xóa EMR |
+| AT-07 | Hai bác sĩ cùng reserve một serial | Chỉ một reserve thành công; không âm tồn |
+| AT-08 | Lô gần hết hạn đang cách ly | FEFO bỏ qua lô; không consume được |
+| AT-09 | Ca miễn phí/bảo hành có dùng vật tư | Có EMR/tiêu hao; không phiếu thu 0 đồng; thiếu EMR thì không đóng lượt |
+| AT-10 | Đóng ca thiếu tiền chưa rõ nguyên nhân | Chênh lệch chờ xử lý, chưa ghi nợ nhân viên; vượt ngưỡng cần duyệt |
+| AT-11 | Hoàn tiền sau khóa sổ | Có duyệt, không vượt tiền đã thu; điều chỉnh ở kỳ mở liên kết bản gốc |
+| AT-12 | Thu hồi lô đã dùng nhiều ca | Chặn lô và lập danh sách lượt/bệnh nhân cần đánh giá |
+| AT-13 | Mất mạng khi ký EMR | Không giả chữ ký; nháp/chờ ký có audit và hạn xử lý |
+| AT-14 | Gửi lặp hồ sơ BHTM, duyệt một phần, nhận tiền thiếu | Không trùng hồ sơ/chứng từ; công nợ và sai lệch đúng từng lần |
+| AT-15 | Hai thu ngân cấn cùng khoản cọc | Tổng cấn không vượt số dư; một giao dịch bị từ chối |
+| AT-16 | Đổi giá/thuế sau khi báo giá và hoàn thành | Giao dịch cũ giữ phiên bản; bản mới áp dụng từ ngày hiệu lực |
+| AT-17 | Người lập tự duyệt hoàn; gọi API đọc EMR không có quan hệ điều trị | API từ chối và có audit |
+| AT-18 | Chia giảm giá để né duyệt; gọi lặp chốt dịch vụ | Không né duyệt, không tạo hai doanh thu hoặc hai lần trừ kho |
+| AT-19 | Restore bản sao lưu thử (SQL Server backup/restore local) | EMR, tệp, chữ ký, liên kết và thứ tự sự kiện nguyên vẹn |
+| AT-20 | Nhập giá/số lượng âm, giảm giá vượt tổng, tiền hoàn vượt thực thu | API từ chối, không sinh chứng từ hoặc công nợ âm |
+| AT-21 | Hai phiên bản giá/thuế cùng phạm vi và thời gian hiệu lực | Không được duyệt đồng thời |
+| AT-22 | Gói tiệt trùng lỗi/quá hạn hoặc thiết bị không đủ điều kiện | Chặn chọn/sử dụng, tạo sự cố; cấp cứu vẫn ghi được diễn biến |
+| AT-23 | Sửa ID, nội dung EMR đã ký, bút toán đã ghi sổ hoặc ca đã đối soát | API/CSDL từ chối; chỉ cho phụ lục/đảo/điều chỉnh có tham chiếu |
+| AT-24 | Ghi sổ lệch Nợ/Có, gọi lặp cùng sự kiện hoặc ghi vào kỳ khóa | Không tạo bút toán sai/trùng; kỳ khóa chỉ nhận điều chỉnh ở kỳ mở |
+- Lưu ý: tài liệu quy trình là đặc tả nghiệp vụ; các quy tắc thuộc thẩm quyền (chuyên môn, kế toán, pháp chế) là cấu hình tham số (ngưỡng giảm giá, MAX_ROUNDING_AMOUNT, CASH_OVER_SHORT_THRESHOLD, hạn vô trùng, hạn ký EMR...) lưu trong bảng cấu hình có phiên bản, KHÔNG hard-code trong mã.
