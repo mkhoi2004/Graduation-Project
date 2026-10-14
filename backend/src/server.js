@@ -42,6 +42,11 @@ import { createAccountingRepository } from './repositories/accounting-repository
 import { createAccountingService } from './services/accounting-service.js';
 import { createAccountingController } from './controllers/accounting-controller.js';
 import { createAccountingRoutes } from './routes/accounting-routes.js';
+import { initInsuranceModels } from './models/insurance-models.js';
+import { InsuranceRepository } from './repositories/insurance-repository.js';
+import { createInsuranceService } from './services/insurance-service.js';
+import { createInsuranceController } from './controllers/insurance-controller.js';
+import { createInsuranceRoutes } from './routes/insurance-routes.js';
 import { createApp } from './app.js';
 
 const logger = createLogger(env.logLevel);
@@ -131,6 +136,21 @@ const accountingService = createAccountingService({ accountingRepo, userRepo });
 const accountingController = createAccountingController({ accountingService });
 const accountingRoutes = createAccountingRoutes({ accountingController, authMiddlewares });
 
+// Module 9: Commercial Health Insurance (BHTM) - AT-03, AT-04, AT-14
+const insuranceModels = initInsuranceModels(database.sequelize, {
+  patientVisitModels,
+  billingModels,
+});
+const insuranceRepo = new InsuranceRepository(database.sequelize, {
+  ...insuranceModels,
+  Receivable: billingModels.Receivable,
+  Invoice: billingModels.Invoice,
+  InvoiceLine: billingModels.InvoiceLine,
+});
+const insuranceService = createInsuranceService({ insuranceRepo });
+const insuranceController = createInsuranceController({ insuranceService });
+const insuranceRoutes = createInsuranceRoutes({ insuranceController, authMiddlewares });
+
 const app = createApp({
   config: env,
   health: createHealthService(database),
@@ -143,6 +163,7 @@ const app = createApp({
   billingRoutes,
   inventoryRoutes,
   accountingRoutes,
+  insuranceRoutes,
 });
 
 const server = app.listen(env.port, '127.0.0.1', () => {

@@ -19,6 +19,9 @@ Môi trường: Local Windows 10/11, SQL Server 2022 Express, Node.js v24.21.0, 
 | **Module 4** | Lịch hẹn & Lượt khám (Visits) | REST API + React | **READY (Đạt)** | Nghiệm thu tiêu chí AT-17 (Quan hệ điều trị), máy trạng thái lượt khám |
 | **Module 5** | EMR, Sơ đồ răng, Đồng thuận, Đơn thuốc & Chốt dịch vụ | REST API + React | **READY (Đạt)** | Nghiệm thu tiêu chí AT-06, AT-13, AT-18, AT-23, sơ đồ răng FDI 32 răng |
 | **Module 6** | Thanh toán, Thu ngân, Cọc & Công nợ | REST API + React | **READY (Đạt)** | Nghiệm thu tiêu chí AT-01, AT-02, AT-15, AT-20, ca thu ngân `CashShifts` |
+| **Module 7** | Kho thuốc, Vật tư, FEFO & Serial Implant | REST API + React | **READY (Đạt)** | Nghiệm thu tiêu chí AT-07, AT-08, AT-12, Quản lý lô & Serial Implant |
+| **Module 8** | Kế toán, Ca thu ngân, Khóa sổ kỳ & Sổ cái | REST API + React | **READY (Đạt)** | Nghiệm thu tiêu chí AT-09, AT-10, Maker-Checker Kế toán trưởng |
+| **Module 9** | Bảo lãnh Bảo hiểm Thương mại (BHTM) | REST API + React | **READY (Đạt)** | Nghiệm thu tiêu chí AT-03, AT-04, AT-14, Chống gửi trùng, Quyết định xử lý thiếu |
 
 ---
 
@@ -123,6 +126,8 @@ Tổng kết:
 | :---: | :--- | :--- | :--- | :---: |
 | **AT-01** | Bất biến hóa đơn, phiếu thu & dịch vụ hoàn thành | Hóa đơn tính đúng Gross, không sửa đè lịch sử, thu tiền ghi append-only | Xuất hóa đơn từ các dịch vụ đã chốt `COMPLETED`; tính đúng `gross`, `invoiceLines`, `paymentAllocations`, `receivables`. Mỗi lần thanh toán tạo bản ghi `PaymentTransactions` mới không sửa đè | **ĐẠT (Passed)** |
 | **AT-02** | Hai thu ngân cùng thu tiền cho một hóa đơn | Không thu vượt số tiền còn nợ của hóa đơn | Áp dụng khóa `WITH (UPDLOCK, HOLDLOCK)` trên SQL Server. Khi 2 thu ngân cùng gửi lệnh thu tiền mà tổng vượt quá số nợ còn lại, giao dịch thứ hai bị từ chối ngay với mã `409 Conflict` (`PAYMENT_EXCEEDS_OUTSTANDING`) | **ĐẠT (Passed)** |
+| **AT-03** | BHTM duyệt 1 triệu nhưng chưa chuyển tiền | Phải thu BHTM còn 1 triệu; tiền ngân hàng chưa tăng; chưa `SETTLED` | Khi BHTM xét duyệt chấp thuận (`POST /api/insurance/claims/:id/adjudicate`), hồ sơ chuyển sang trạng thái `APPROVED`, số tiền duyệt `ApprovedAmount = 1,000,000đ`, `SettledAmount = 0`. Hệ thống ghi nhận khoản công nợ `Receivables` (DebtorType='BHTM') đúng 1.000.000đ ở trạng thái `OPEN`. Tiền ngân hàng chưa tăng và hồ sơ tuyệt đối không tự ý chuyển sang `SETTLED` | **ĐẠT (Passed)** |
+| **AT-04** | BHTM duyệt thiếu, hợp đồng không cho thu lại bệnh nhân | Không tự chuyển nợ; tạo quyết định xử lý phần thiếu | Khi yêu cầu bảo lãnh 2.000.000đ nhưng BHTM chỉ duyệt 1.500.000đ, hệ thống đọc cấu hình `CoverageRulesJson.allowPatientRecovery = false` và KHÔNG tự động tăng công nợ bệnh nhân (`Receivables` DebtorType='PATIENT' không bị tăng). Hệ thống tự động tạo bản ghi `ClaimDisputes` với số tiền thiếu 500.000đ (trạng thái `OPEN`) ghi rõ lý do hợp đồng không cho thu lại bệnh nhân và chờ Kế toán trưởng phê duyệt phương án cơ sở chịu chi phí | **ĐẠT (Passed)** |
 | **AT-05** | Hai bệnh nhân dùng chung số điện thoại | Cảnh báo trùng SĐT, vẫn tạo được hồ sơ riêng sau khi xác minh | Khi trùng SĐT, API trả mã cảnh báo `PHONE_DUPLICATE_WARNING` kèm danh sách bệnh nhân trùng. Khi gửi cờ `confirmDuplicatePhone: true`, hệ thống tạo hồ sơ riêng với mã bệnh nhân riêng biệt | **ĐẠT (Passed)** |
 | **AT-06** | Rút đồng thuận sau một phần thủ thuật | Giữ phần đã làm, dừng phần chưa làm, không xóa EMR | Khi bệnh nhân rút đồng thuận (`REVOKED`), các dịch vụ đã hoàn thành (`COMPLETED`) được giữ nguyên vẹn; các dịch vụ đang chờ (`PLANNED`) tự động chuyển thành `CANCELLED`. Bản ghi Consent chuyển trạng thái `REVOKED`, hồ sơ EMR không bị xóa | **ĐẠT (Passed)** |
 | **AT-07** | Xuất kho thuốc, vật tư theo nguyên tắc FEFO & Chặn xuất lô hết hạn | Xuất ưu tiên theo hạn dùng gần nhất (FEFO); chặn xuất lô quá hạn | Khi xuất kho mặt hàng thuốc/vật tư, hệ thống tự động ưu tiên xuất từ lô có `ExpiryDate` sớm nhất còn khả dụng (`Available > 0`). Cố tình chỉ định xuất từ lô đã hết hạn (`ExpiryDate < Today`) bị từ chối với mã lỗi `400 Bad Request` (`EXPIRED_LOT_CANNOT_DISPENSE`) | **ĐẠT (Passed)** |
@@ -131,6 +136,7 @@ Tổng kết:
 | **AT-10** | Khóa sổ kế toán ngày / kỳ kế toán & Chặn ghi lùi ngày | Chặn tuyệt đối ghi lùi ngày hoặc sửa chứng từ thuộc kỳ đã đóng | Khi một kỳ kế toán chuyển sang trạng thái `CLOSED` (`POST /api/accounting/periods/:id/close`), mọi yêu cầu ghi sổ bút toán có `PostingDate` thuộc kỳ này bị từ chối với mã lỗi `400 Bad Request` (`PERIOD_ALREADY_CLOSED_CANNOT_POST`), đảm bảo tính bất biến của sổ sách kế toán | **ĐẠT (Passed)** |
 | **AT-12** | Quản lý Trụ Implant theo Mã Serial & Chống tái sử dụng | Serial duy nhất trên toàn hệ thống; trụ đã cấy ghép không được dùng lại | Mỗi trụ Implant có mã Serial duy nhất (ràng buộc `UQ_StockSerials_Number`). Khi bác sĩ cấy ghép, Serial chuyển sang trạng thái `CONSUMED`. Cố tình cấy ghép lại Serial này lần thứ hai bị chặn ngay lập tức với mã lỗi `409 Conflict` (`SERIAL_ALREADY_IMPLANTED`) | **ĐẠT (Passed)** |
 | **AT-13** | Mất mạng khi ký EMR | Không giả chữ ký; nháp/chờ ký có audit và hạn xử lý | Khi mô phỏng mất kết nối (`simulateNetworkLoss: true`), hệ thống từ chối trả về chữ ký giả mạo (Status giữ `DRAFT`), đẩy yêu cầu vào bảng `SignQueue` với trạng thái `PENDING` kèm `DueAt = now() + 24h`. Khi mạng phục hồi, xử lý ký bù thành công và tạo chữ ký SHA-256 hợp lệ | **ĐẠT (Passed)** |
+| **AT-14** | Gửi lặp hồ sơ BHTM, duyệt một phần, nhận tiền thiếu | Không trùng hồ sơ/chứng từ; công nợ và sai lệch đúng từng lần | (1) Chống gửi lặp: Khi submit lại cùng `InsuranceClaimId`, `VersionNo` và `Destination`, hệ thống từ chối ngay với `409 Conflict` (`DUPLICATE_CLAIM_SUBMISSION`), chống gửi trùng chứng từ. (2) Duyệt một phần: Claim chuyển `PARTIALLY_APPROVED`. (3) Nhận tiền thiếu: Khi BHTM chuyển khoản 1.200.000đ trên số duyệt 1.500.000đ, hệ thống ghi nhận `InsuranceClaimPayments` trạng thái `MISMATCH`, tăng `SettledAmount` lên 1.200.000đ, giữ Claim chưa `SETTLED`, công nợ BHTM còn thiếu 300.000đ và tự động tạo `ClaimDisputes`. Không tăng doanh thu khi nhận tiền. Chống lặp mã giao dịch ngân hàng `DUPLICATE_PAYMENT_REFERENCE` (409) | **ĐẠT (Passed)** |
 | **AT-15** | Hai thu ngân cấn cọc đồng thời vượt số dư cọc | Không cấn cọc âm, chặn giao dịch vượt số dư | Sử dụng khóa `WITH (UPDLOCK, HOLDLOCK)` trên bảng `Deposits`. Khi 2 thu ngân cấn cọc đồng thời với tổng số tiền vượt quá số dư cọc hiện tại, một giao dịch thành công và giao dịch còn lại bị chặn với mã `409 Conflict` (`DEPOSIT_BALANCE_INSUFFICIENT`) | **ĐẠT (Passed)** |
 | **AT-16** | Đổi giá/thuế sau khi báo giá và hoàn thành | Giao dịch cũ giữ phiên bản giá; phiên bản mới áp dụng từ ngày hiệu lực | Phiên bản giá lưu theo dòng `ServicePriceVersions`, có `VersionNo`, `EffectiveFrom`, `EffectiveTo`, không sửa đè bản ghi cũ | **ĐẠT (Passed)** |
 | **AT-17** | Người lập tự duyệt hoàn; gọi API đọc EMR không có quan hệ điều trị | API từ chối và ghi log audit | Bác sĩ không có phân công lượt khám hoặc quan hệ điều trị với bệnh nhân gọi `GET /api/visits/:id/emr` bị chặn với mã `403 FORBIDDEN` (mã `NO_TREATMENT_RELATIONSHIP`), tự động ghi `DENIED` vào `AccessAuditLogs` | **ĐẠT (Passed)** |
@@ -200,6 +206,21 @@ Tổng kết:
 | `/api/accounting/journal-entries/:id/post` | POST | Kế toán viên tự duyệt | Bút toán cân bằng của chính mình | `403 Forbidden` | Chặn tự duyệt: `MAKER_CANNOT_APPROVE` (Maker-Checker CSDL) |
 | `/api/accounting/journal-entries/:id/post` | POST | Kế toán trưởng duyệt | Bút toán cân bằng Nợ = Có | `200 OK` | Ghi sổ thành công, trạng thái chuyển `POSTED` |
 
+### Dữ liệu Kiểm thử Trực tiếp API Bảo lãnh BHTM (Module 9 Live API Endpoints)
+
+| Endpoint | Method | Vai trò thực hiện | Payload / Tham số | HTTP Status | Kết quả thực tế |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| `/api/insurance/contracts` | POST | Kế toán duyệt (Approver) | Tạo HĐ: `coverageRulesJson: { allowPatientRecovery: false }` | `201 Created` | Tạo `InsuranceContracts` thành công, lưu quy tắc AT-04 |
+| `/api/insurance/claims` | POST | Thu ngân / Kế toán | Lập claim từ hóa đơn / dòng dịch vụ (1.000.000đ) | `201 Created` | Tạo `InsuranceClaims` trạng thái `VALIDATED`, lưu `InsuranceClaimLines` |
+| `/api/insurance/claims/:id/submit` | POST | Kế toán | Nộp hồ sơ lần 1 (`versionNo: 1`, `destination: 'BAO_VIET'`) | `200 OK` | Tạo `InsuranceClaimVersions`, Claim chuyển `ACKNOWLEDGED` (AT-14) |
+| `/api/insurance/claims/:id/submit` | POST | Kế toán | Nộp lặp lại cùng `versionNo` và `destination` | `409 Conflict` | Chặn gửi trùng hồ sơ/chứng từ: `DUPLICATE_CLAIM_SUBMISSION` (AT-14) |
+| `/api/insurance/claims/:id/adjudicate` | POST | Kế toán | Duyệt đủ 1.000.000đ nhưng chưa chuyển tiền | `200 OK` | Claim chuyển `APPROVED`, `SettledAmount = 0` (chưa SETTLED), công nợ `Receivables` (BHTM) ghi nhận 1.000.000đ `OPEN`, bank chưa tăng (AT-03) |
+| `/api/insurance/claims/:id/adjudicate` | POST | Kế toán | Claim 2.000.000đ nhưng chỉ duyệt 1.500.000đ | `200 OK` | Claim chuyển `PARTIALLY_APPROVED`. Đọc hợp đồng `allowPatientRecovery = false` -> KHÔNG chuyển nợ sang bệnh nhân; Tự động sinh `ClaimDisputes` 500.000đ `OPEN` (AT-04) |
+| `/api/insurance/payments` | POST | Kế toán | Nhận tiền thiếu: Duyệt 1.500.000đ nhưng chỉ nhận 1.200.000đ | `200 OK` | `InsuranceClaimPayments` trạng thái `MISMATCH`, tăng `SettledAmount = 1.200.000đ`, Claim giữ nguyên chưa `SETTLED`, nợ BHTM còn 300.000đ, sinh `ClaimDisputes` ghi nhận thiếu hụt (AT-14) |
+| `/api/insurance/payments` | POST | Kế toán | Gửi lặp lại cùng mã giao dịch ngân hàng `ExternalReference` | `409 Conflict` | Chặn lặp giao dịch ngân hàng: `DUPLICATE_PAYMENT_REFERENCE` (AT-02 / AT-14) |
+| `/api/insurance/payments` | POST | Kế toán | Nhận nốt 300.000đ còn lại | `200 OK` | `SettledAmount = 1.500.000đ` (= số duyệt), công nợ BHTM chuyển `PAID` |
+| `/api/insurance/disputes/:id/resolve` | POST | Kế toán trưởng (Approver) | Quyết định cơ sở phòng khám chịu chi phí 500.000đ | `200 OK` | Dispute chuyển `RESOLVED`; Mọi dispute đã đóng & nhận đủ tiền -> Claim đóng `CLOSED` |
+
 ---
 
 ## 5. Danh sách Tài khoản Kiểm thử Đã Xác minh (Demo Credentials)
@@ -227,8 +248,8 @@ Tổng kết:
 | **6** | **Thanh toán, Thu ngân & Công nợ** | Đã tạo | Đã xong (Shifts, Invoices, Deposits, Payments) | Đã xong (Trang Thu ngân, Cấn cọc, Đóng mở ca) | **HOÀN THÀNH (100%)** |
 | **7** | **Kho thuốc, Vật tư & Implant** | Đã tạo | Đã xong (FEFO, Lot Recall, Implant Serial) | Đã xong (Tồn kho FEFO, Thu hồi Lô, Quản lý Serial) | **HOÀN THÀNH (100%)** |
 | **8** | **Kế toán & Ca thu ngân** | Đã tạo | Đã xong (Đối soát ca, Khóa sổ, Hạch toán kép) | Đã xong (Kiểm đếm ca, Phân xử lệch, Khóa sổ kỳ, Sổ cái) | **HOÀN THÀNH (100%)** |
-| **9** | **Bảo lãnh BHTM** | Đã tạo | Chờ triển khai | Chờ triển khai | Kế hoạch tiếp theo (AT-11, AT-19) |
-| **10** | **Tiệt trùng, Labo & Bảo hành** | Đã tạo | Chờ triển khai | Chờ triển khai | Chưa thực hiện |
+| **9** | **Bảo lãnh BHTM** | Đã tạo | Đã xong (Chống gửi trùng, Duyệt thiếu, Đối soát lệch) | Đã xong (Hồ sơ claim, Nộp BHTM, Phê duyệt, Xử lý lệch) | **HOÀN THÀNH (100%)** |
+| **10** | **Tiệt trùng, Labo & Bảo hành** | Đã tạo | Chờ triển khai | Chờ triển khai | Kế hoạch tiếp theo (AT-22) |
 | **11** | **Hoa hồng & Nhân sự** | Đã tạo | Chờ triển khai | Chờ triển khai | Chưa thực hiện |
 | **12** | **Tài sản & Đối soát cuối ngày** | Đã tạo | Chờ triển khai | Chờ triển khai | Chưa thực hiện |
 
@@ -236,6 +257,7 @@ Tổng kết:
 
 ## 7. Lịch sử Commit Git
 
+* `fb0ce1f`: `module8: trien khai doi soat ca AT-09, khoa so ke toan AT-10, so nhat ky chung`
 * `ac4c603`: `module7: trien khai kho FEFO AT-07, thu hoi lo AT-08, serial implant AT-12`
 * `2f41a24`: `module6: trien khai hoa don AT-01, chan thu vuot no AT-02, can coc dong thoi AT-15, maker-checker AT-20`
 * `5c9dcf9`: `module5: trien khai EMR bat bien AT-23, so do rang FDI, rut dong thuan AT-06, hang doi ky so AT-13, chot dich vu AT-18`

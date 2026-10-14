@@ -14,6 +14,7 @@ import {
   FileDoneOutlined,
   InboxOutlined,
   AuditOutlined,
+  SafetyCertificateOutlined,
 } from '@ant-design/icons';
 import { useNavigate, useLocation, Outlet } from 'react-router-dom';
 import { useAuth } from '../context/auth-context.jsx';
@@ -97,6 +98,15 @@ export function MainLayout() {
             key: '/accounting',
             icon: <AuditOutlined />,
             label: 'Kế toán & Khóa sổ (AT-09/10)',
+          },
+        ]
+      : []),
+    ...(['ADMIN', 'RECEPTIONIST', 'ACCOUNTANT'].includes(user?.role) || user?.isApprover
+      ? [
+          {
+            key: '/insurance',
+            icon: <SafetyCertificateOutlined />,
+            label: 'Bảo hiểm BHTM (AT-03/04/14)',
           },
         ]
       : []),

@@ -179,4 +179,18 @@ export const accountingApi = {
   postJournalEntry: (id) => apiClient.post(`/accounting/journal-entries/${id}/post`).then(res => res.data),
 };
 
+export const insuranceApi = {
+  getContracts: (params) => apiClient.get('/insurance/contracts', { params }).then(res => res.data),
+  getContractById: (id) => apiClient.get(`/insurance/contracts/${id}`).then(res => res.data),
+  createContract: (data) => apiClient.post('/insurance/contracts', data).then(res => res.data),
+  getClaims: (params) => apiClient.get('/insurance/claims', { params }).then(res => res.data),
+  getClaimById: (id) => apiClient.get(`/insurance/claims/${id}`).then(res => res.data),
+  createClaim: (data) => apiClient.post('/insurance/claims', data).then(res => res.data),
+  submitClaim: (id, data) => apiClient.post(`/insurance/claims/${id}/submit`, data).then(res => res.data),
+  adjudicateClaim: (id, data) => apiClient.post(`/insurance/claims/${id}/adjudicate`, data).then(res => res.data),
+  recordPayment: (data) => apiClient.post('/insurance/payments', data).then(res => res.data),
+  resolveDispute: (id, data) => apiClient.post(`/insurance/disputes/${id}/resolve`, data).then(res => res.data),
+};
+
+
 
