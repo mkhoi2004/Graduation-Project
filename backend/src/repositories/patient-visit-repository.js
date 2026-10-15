@@ -1,4 +1,4 @@
-import { Op, QueryTypes } from 'sequelize';
+import { Op, QueryTypes, Transaction } from 'sequelize';
 import { setSessionUser, clearSessionUser } from '../utils/session-context.js';
 
 export function createPatientVisitRepository({ sequelize, models, userModels, catalogModels }) {
@@ -167,16 +167,40 @@ export function createPatientVisitRepository({ sequelize, models, userModels, ca
     },
 
     async createAppointment(data) {
-      return Appointment.create({
-        patientId: data.patientId,
-        branchId: data.branchId,
-        doctorId: data.doctorId || null,
-        roomId: data.roomId || null,
-        startsAt: data.startsAt,
-        endsAt: data.endsAt,
-        status: 'BOOKED',
-        note: data.note?.trim() || null,
-        createdBy: data.createdBy,
+      return sequelize.transaction({ isolationLevel: Transaction.ISOLATION_LEVELS.SERIALIZABLE }, async transaction => {
+        const resourceFilters = [{ doctorId: data.doctorId }];
+        if (data.roomId) resourceFilters.push({ roomId: data.roomId });
+
+        const conflict = await Appointment.findOne({
+          where: {
+            branchId: data.branchId,
+            status: { [Op.notIn]: ['CANCELLED', 'NO_SHOW', 'COMPLETED'] },
+            startsAt: { [Op.lt]: data.endsAt },
+            endsAt: { [Op.gt]: data.startsAt },
+            [Op.or]: resourceFilters,
+          },
+          transaction,
+          lock: transaction.LOCK.UPDATE,
+        });
+        if (conflict) {
+          const error = new Error('Bác sĩ hoặc ghế/phòng đã có lịch trong khoảng thời gian này');
+          error.statusCode = 409;
+          error.code = 'APPOINTMENT_RESOURCE_CONFLICT';
+          error.details = { appointmentId: conflict.appointmentId };
+          throw error;
+        }
+
+        return Appointment.create({
+          patientId: data.patientId,
+          branchId: data.branchId,
+          doctorId: data.doctorId,
+          roomId: data.roomId || null,
+          startsAt: data.startsAt,
+          endsAt: data.endsAt,
+          status: 'BOOKED',
+          note: data.note || null,
+          createdBy: data.createdBy,
+        }, { transaction });
       });
     },
 
@@ -203,7 +227,14 @@ export function createPatientVisitRepository({ sequelize, models, userModels, ca
     async findVisitById(visitId) {
       return Visit.findByPk(visitId, {
         include: [
-          { model: Patient, as: 'patient' },
+          {
+            model: Patient,
+            as: 'patient',
+            include: [
+              { model: PatientAllergy, as: 'allergies' },
+              { model: PatientMedicalHistory, as: 'medicalHistories' },
+            ],
+          },
           { model: User, as: 'doctor', attributes: ['userId', 'displayName'] },
           { model: Room, as: 'room', attributes: ['roomId', 'name', 'roomType'] },
           { model: Branch, as: 'branch', attributes: ['branchId', 'name', 'code'] },

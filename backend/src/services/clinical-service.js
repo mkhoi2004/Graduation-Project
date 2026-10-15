@@ -1,4 +1,5 @@
 import { ApiError } from '../utils/api-error.js';
+import { validateToothChart, validateToothCode } from '../validators/odontogram.js';
 
 export function createClinicalService({ clinicalRepo, patientVisitRepo, userRepo }) {
   async function assertTreatmentRelationship(visitId, user) {
@@ -51,7 +52,15 @@ export function createClinicalService({ clinicalRepo, patientVisitRepo, userRepo
   async function updateDraftEmr(visitId, emrVersionId, payload, user) {
     await assertTreatmentRelationship(visitId, user);
     assertDoctorRole(user, 'chỉnh sửa nội dung EMR');
-    return clinicalRepo.updateDraftEmr(visitId, emrVersionId, payload, user);
+    const visit = await patientVisitRepo.findVisitById(visitId);
+    const validation = validateToothChart(payload?.toothChart || [], visit?.patient || {});
+    const result = await clinicalRepo.updateDraftEmr(visitId, emrVersionId, {
+      ...payload,
+      toothChart: validation.entries,
+    }, user);
+    if (validation.warnings.length === 0) return result;
+    const plain = typeof result?.toJSON === 'function' ? result.toJSON() : result;
+    return { ...plain, validationWarnings: validation.warnings };
   }
 
   async function signEmr(visitId, emrVersionId, user, options = {}) {
@@ -160,6 +169,7 @@ export function createClinicalService({ clinicalRepo, patientVisitRepo, userRepo
 
   async function addServiceLine(visitId, payload, user) {
     await assertTreatmentRelationship(visitId, user);
+    if (payload?.toothCode) validateToothCode(payload.toothCode);
     return clinicalRepo.addServiceLine(visitId, payload, user);
   }
 

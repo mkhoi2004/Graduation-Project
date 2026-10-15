@@ -50,3 +50,35 @@ tr:hover td {
   background-color: #fafafa;
 }
 
+button:focus-visible,
+a:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible {
+  outline: 3px solid #22a6a1;
+  outline-offset: 2px;
+}
+
+.ant-table-wrapper {
+  overflow-x: auto;
+}
+
+@media (max-width: 768px) {
+  .app-header {
+    min-height: 64px;
+    height: auto !important;
+    padding: 8px 12px !important;
+    flex-wrap: wrap;
+    gap: 8px;
+  }
+
+  .app-content {
+    margin: 12px !important;
+  }
+
+  .ant-card-head-wrapper,
+  .ant-space {
+    flex-wrap: wrap;
+  }
+}
+

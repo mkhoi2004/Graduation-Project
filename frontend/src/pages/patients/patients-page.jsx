@@ -28,6 +28,12 @@ import { useAuth } from '../../context/auth-context.jsx';
 
 const { Text } = Typography;
 
+function formatDateOnly(value) {
+  if (!value) return '—';
+  const [year, month, day] = String(value).slice(0, 10).split('-');
+  return year && month && day ? `${day}/${month}/${year}` : value;
+}
+
 export function PatientsPage() {
   const { user } = useAuth();
   const [patients, setPatients] = useState([]);
@@ -63,12 +69,14 @@ export function PatientsPage() {
       const payload = {
         fullName: values.fullName,
         phone: values.phone,
+        email: values.email,
         gender: values.gender,
         dateOfBirth: values.dateOfBirth ? values.dateOfBirth.format('YYYY-MM-DD') : null,
         birthYear: values.birthYear ? parseInt(values.birthYear, 10) : undefined,
         allergy: values.allergy,
         allergyReaction: values.allergyReaction,
         medicalHistory: values.medicalHistory,
+        guardianName: values.guardianName,
         confirmDuplicatePhone: confirmDuplicate,
       };
 
@@ -115,7 +123,7 @@ export function PatientsPage() {
     {
       title: 'Ngày/Năm sinh',
       key: 'dob',
-      render: (_, r) => r.dateOfBirth ? new Date(r.dateOfBirth).toLocaleDateString('vi-VN') : r.birthYear || '—',
+      render: (_, r) => r.dateOfBirth ? formatDateOnly(r.dateOfBirth) : r.birthYear || '—',
     },
     {
       title: 'Giới tính',
@@ -142,7 +150,7 @@ export function PatientsPage() {
 
   return (
     <Card
-      title="Module 3: Quản lý Hồ sơ Bệnh nhân (Patients & Clinical History)"
+      title="Hồ sơ bệnh nhân"
       extra={
         <Space>
           <Input
@@ -199,13 +207,23 @@ export function PatientsPage() {
           />
         )}
 
-        <Form form={form} layout="vertical" onFinish={(vals) => handleCreate(vals, false)}>
+        <Form form={form} layout="vertical" onFinish={(vals) => handleCreate(vals, false)} requiredMark="optional">
           <Form.Item name="fullName" label="Họ và tên" rules={[{ required: true, message: 'Nhập họ tên bệnh nhân' }]}>
             <Input placeholder="ví dụ: Nguyễn Văn An" />
           </Form.Item>
 
           <Space style={{ display: 'flex', width: '100%' }} size="middle">
-            <Form.Item orientation="vertical" name="phone" label="Số điện thoại" style={{ flex: 1 }}>
+            <Form.Item
+              orientation="vertical"
+              name="phone"
+              label="Số điện thoại"
+              style={{ flex: 1 }}
+              rules={[{
+                pattern: /^(?:0\d{9}|\+[1-9]\d{7,14})$/,
+                message: 'Nhập 10 chữ số nội địa hoặc định dạng quốc tế E.164',
+                transform: value => value?.replace(/[\s().-]/g, ''),
+              }]}
+            >
               <Input placeholder="ví dụ: 0901234567" />
             </Form.Item>
             <Form.Item name="gender" label="Giới tính" initialValue="MALE" style={{ width: 140 }}>
@@ -219,12 +237,29 @@ export function PatientsPage() {
 
           <Space style={{ display: 'flex', width: '100%' }} size="middle">
             <Form.Item name="dateOfBirth" label="Ngày sinh" style={{ flex: 1 }}>
-              <DatePicker style={{ width: '100%' }} placeholder="Chọn ngày sinh" />
+              <DatePicker
+                style={{ width: '100%' }}
+                placeholder="Chọn ngày sinh"
+                format="DD/MM/YYYY"
+                disabledDate={current => current && current.valueOf() > Date.now()}
+              />
             </Form.Item>
             <Form.Item name="birthYear" label="Hoặc Năm sinh" style={{ width: 140 }}>
               <Input placeholder="ví dụ: 1995" />
             </Form.Item>
           </Space>
+
+          <Form.Item name="email" label="Email" rules={[{ type: 'email', message: 'Email không đúng định dạng' }]}>
+            <Input type="email" autoComplete="email" placeholder="ví dụ: benhnhan@example.com" />
+          </Form.Item>
+
+          <Form.Item
+            name="guardianName"
+            label="Người giám hộ"
+            extra="Bắt buộc với bệnh nhân dưới 18 tuổi; backend sẽ kiểm tra lại theo ngày/năm sinh."
+          >
+            <Input placeholder="Họ tên cha/mẹ/người giám hộ" />
+          </Form.Item>
 
           <Form.Item name="allergy" label="Dị ứng thuốc/thực phẩm (nếu có)">
             <Input placeholder="ví dụ: Penicillin, hải sản..." />
@@ -261,7 +296,7 @@ export function PatientsPage() {
               <Descriptions.Item label="Số điện thoại">{selectedPatient.phone || 'Chưa cung cấp'}</Descriptions.Item>
               <Descriptions.Item label="Giới tính">{selectedPatient.gender}</Descriptions.Item>
               <Descriptions.Item label="Ngày sinh">
-                {selectedPatient.dateOfBirth || selectedPatient.birthYear}
+                {selectedPatient.dateOfBirth ? formatDateOnly(selectedPatient.dateOfBirth) : selectedPatient.birthYear}
               </Descriptions.Item>
               <Descriptions.Item label="Trạng thái">
                 <Tag color={selectedPatient.status === 'ACTIVE' ? 'success' : 'default'}>{selectedPatient.status}</Tag>

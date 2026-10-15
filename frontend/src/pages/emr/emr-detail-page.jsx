@@ -2,9 +2,10 @@ import React, { useState, useEffect } from 'react';
 import { useParams, useNavigate } from 'react-router-dom';
 import { clinicalApi, visitApi, catalogApi } from '../../services/api-client';
 
-// Dental tooth numbers FDI 32 permanent teeth
 const UPPER_TEETH = ['18', '17', '16', '15', '14', '13', '12', '11', '21', '22', '23', '24', '25', '26', '27', '28'];
 const LOWER_TEETH = ['48', '47', '46', '45', '44', '43', '42', '41', '31', '32', '33', '34', '35', '36', '37', '38'];
+const UPPER_PRIMARY_TEETH = ['55', '54', '53', '52', '51', '61', '62', '63', '64', '65'];
+const LOWER_PRIMARY_TEETH = ['85', '84', '83', '82', '81', '71', '72', '73', '74', '75'];
 
 export default function EmrDetailPage() {
   const { visitId } = useParams();
@@ -29,7 +30,9 @@ export default function EmrDetailPage() {
   const [toothChart, setToothChart] = useState([]);
   const [selectedTooth, setSelectedTooth] = useState(null);
   const [selectedToothFinding, setSelectedToothFinding] = useState('CARIES');
+  const [selectedToothSurface, setSelectedToothSurface] = useState('O');
   const [selectedToothNote, setSelectedToothNote] = useState('');
+  const [dentition, setDentition] = useState('PERMANENT');
 
   // AT-13 Network simulation flag
   const [simulateNetworkLoss, setSimulateNetworkLoss] = useState(false);
@@ -127,7 +130,7 @@ export default function EmrDetailPage() {
     setError(null);
     setSuccessMsg(null);
     try {
-      await clinicalApi.updateDraftEmr(visitId, latestVersion.emrVersionId, {
+      const response = await clinicalApi.updateDraftEmr(visitId, latestVersion.emrVersionId, {
         clinicalContent: {
           chiefComplaint,
           medicalHistory,
@@ -137,7 +140,8 @@ export default function EmrDetailPage() {
         diagnoses,
         toothChart,
       });
-      setSuccessMsg('Đã lưu bản nháp bệnh án thành công.');
+      const warning = response.data?.validationWarnings?.[0]?.message;
+      setSuccessMsg(warning ? `Đã lưu bản nháp. Cảnh báo: ${warning}` : 'Đã lưu bản nháp bệnh án thành công.');
       await loadData();
     } catch (err) {
       setError(err.response?.data?.error?.message || err.message || 'Lỗi lưu bản nháp.');
@@ -200,11 +204,13 @@ export default function EmrDetailPage() {
 
   function handleAddToothFinding() {
     if (!selectedTooth) return;
-    const filtered = toothChart.filter(t => t.toothCode !== selectedTooth);
+    const surfaceCode = selectedToothFinding === 'CARIES' ? selectedToothSurface : null;
+    const filtered = toothChart.filter(t => !(t.toothCode === selectedTooth && (t.surfaceCode || null) === surfaceCode));
     setToothChart([
       ...filtered,
       {
         toothCode: selectedTooth,
+        surfaceCode,
         findingCode: selectedToothFinding,
         note: selectedToothNote,
       },
@@ -212,6 +218,11 @@ export default function EmrDetailPage() {
     setSelectedTooth(null);
     setSelectedToothNote('');
   }
+
+  const upperTeeth = dentition === 'PRIMARY' ? UPPER_PRIMARY_TEETH : UPPER_TEETH;
+  const lowerTeeth = dentition === 'PRIMARY' ? LOWER_PRIMARY_TEETH : LOWER_TEETH;
+  const patientAllergies = visit?.patient?.allergies || [];
+  const patientMedicalHistories = visit?.patient?.medicalHistories || [];
 
   // --- Consents Actions (AT-06) ---
   async function handleCreateConsent() {
@@ -325,7 +336,7 @@ export default function EmrDetailPage() {
               <span className={`text-xs px-2.5 py-1 rounded-full font-semibold ${
                 isSigned ? 'bg-emerald-100 text-emerald-800' : 'bg-amber-100 text-amber-800'
               }`}>
-                {isSigned ? '🔒 ĐÃ KÝ SỐ (BẤT BIẾN - AT-23)' : '📝 BẢN NHÁP (DRAFT)'}
+                {isSigned ? '🔒 ĐÃ KÝ SỐ — CHỈ BỔ SUNG PHỤ LỤC' : '📝 BẢN NHÁP'}
               </span>
             </h1>
             <p className="text-sm text-slate-600 mt-1">
@@ -341,7 +352,7 @@ export default function EmrDetailPage() {
                 onClick={() => setShowAddendumModal(true)}
                 className="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700 font-medium text-sm shadow-sm flex items-center gap-2"
               >
-                <span>📝</span> Lập phụ lục đính chính (AT-23)
+                <span>📝</span> Lập phụ lục đính chính
               </button>
             ) : (
               <>
@@ -360,6 +371,24 @@ export default function EmrDetailPage() {
               </>
             )}
           </div>
+        </div>
+
+        <div
+          className={`sticky top-0 z-20 mt-4 p-3 rounded-lg border text-sm shadow-sm ${
+            patientAllergies.length > 0 || patientMedicalHistories.length > 0
+              ? 'bg-rose-50 border-rose-300 text-rose-900'
+              : 'bg-emerald-50 border-emerald-200 text-emerald-900'
+          }`}
+          role="status"
+          aria-label="Cảnh báo y khoa của bệnh nhân"
+        >
+          <strong>⚠ Cảnh báo y khoa luôn hiển thị:</strong>{' '}
+          {patientAllergies.length > 0
+            ? `Dị ứng: ${patientAllergies.map(item => item.allergen).join(', ')}. `
+            : 'Chưa ghi nhận dị ứng. '}
+          {patientMedicalHistories.length > 0
+            ? `Bệnh nền/tiền sử: ${patientMedicalHistories.map(item => item.description).join(', ')}.`
+            : 'Chưa ghi nhận bệnh nền.'}
         </div>
 
         {/* Simulation toggle */}
@@ -394,7 +423,7 @@ export default function EmrDetailPage() {
       </div>
 
       {/* Navigation Tabs */}
-      <div className="flex border-b border-slate-200 gap-8 text-sm font-semibold">
+      <div className="flex flex-wrap border-b border-slate-200 gap-x-8 gap-y-3 text-sm font-semibold overflow-x-auto">
         <button
           onClick={() => setActiveTab('emr')}
           className={`pb-3 border-b-2 flex items-center gap-2 ${
@@ -413,7 +442,7 @@ export default function EmrDetailPage() {
               : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
-          <span>📜</span> Giấy đồng thuận điều trị (AT-06)
+          <span>📜</span> Giấy đồng thuận điều trị
           <span className="px-2 py-0.5 rounded-full text-xs bg-slate-100">{consents.length}</span>
         </button>
         <button
@@ -424,7 +453,7 @@ export default function EmrDetailPage() {
               : 'border-transparent text-slate-500 hover:text-slate-800'
           }`}
         >
-          <span>🦷</span> Thủ thuật & Chốt dịch vụ (AT-18)
+          <span>🦷</span> Thủ thuật & Chốt dịch vụ
           <span className="px-2 py-0.5 rounded-full text-xs bg-slate-100">{serviceLines.length}</span>
         </button>
         <button
@@ -495,16 +524,37 @@ export default function EmrDetailPage() {
               <div className="pt-2 border-t border-slate-100">
                 <div className="flex items-center justify-between mb-2">
                   <label className="block text-xs font-semibold text-slate-800 uppercase tracking-wider">
-                    Sơ đồ răng khám (FDI Standard 32 Răng)
+                    Sơ đồ răng (odontogram — FDI)
                   </label>
                   <span className="text-xs text-slate-500">Nhấp vào răng để ghi nhận tình trạng</span>
                 </div>
 
+                <div className="flex flex-wrap gap-2 mb-3" role="group" aria-label="Chọn bộ răng">
+                  <button
+                    type="button"
+                    aria-pressed={dentition === 'PERMANENT'}
+                    onClick={() => setDentition('PERMANENT')}
+                    className={`px-3 py-1.5 rounded text-xs font-semibold border ${dentition === 'PERMANENT' ? 'bg-cyan-700 text-white border-cyan-700' : 'bg-white text-slate-700 border-slate-300'}`}
+                  >
+                    Răng vĩnh viễn (11–48)
+                  </button>
+                  <button
+                    type="button"
+                    aria-pressed={dentition === 'PRIMARY'}
+                    onClick={() => setDentition('PRIMARY')}
+                    className={`px-3 py-1.5 rounded text-xs font-semibold border ${dentition === 'PRIMARY' ? 'bg-cyan-700 text-white border-cyan-700' : 'bg-white text-slate-700 border-slate-300'}`}
+                  >
+                    Răng sữa (51–85)
+                  </button>
+                </div>
+
                 {/* Upper Teeth */}
                 <div className="mb-2">
-                  <div className="text-[10px] text-center font-bold text-slate-400 mb-1">HÀM TRÊN (18 ➔ 28)</div>
+                  <div className="text-[10px] text-center font-bold text-slate-400 mb-1">
+                    {dentition === 'PRIMARY' ? 'HÀM TRÊN (55 ➔ 65)' : 'HÀM TRÊN (18 ➔ 28)'}
+                  </div>
                   <div className="flex justify-center gap-1.5 flex-wrap">
-                    {UPPER_TEETH.map((tooth) => {
+                    {upperTeeth.map((tooth) => {
                       const finding = toothChart.find(t => t.toothCode === tooth);
                       return (
                         <button
@@ -514,6 +564,7 @@ export default function EmrDetailPage() {
                           onClick={() => {
                             setSelectedTooth(tooth);
                             setSelectedToothFinding(finding?.findingCode || 'CARIES');
+                            setSelectedToothSurface(finding?.surfaceCode || (Number(tooth[1]) >= 4 ? 'O' : 'I'));
                             setSelectedToothNote(finding?.note || '');
                           }}
                           className={`w-9 h-11 rounded border text-xs font-bold flex flex-col items-center justify-center transition-all ${
@@ -532,9 +583,11 @@ export default function EmrDetailPage() {
 
                 {/* Lower Teeth */}
                 <div>
-                  <div className="text-[10px] text-center font-bold text-slate-400 mb-1">HÀM DƯỚI (48 ➔ 38)</div>
+                  <div className="text-[10px] text-center font-bold text-slate-400 mb-1">
+                    {dentition === 'PRIMARY' ? 'HÀM DƯỚI (85 ➔ 75)' : 'HÀM DƯỚI (48 ➔ 38)'}
+                  </div>
                   <div className="flex justify-center gap-1.5 flex-wrap">
-                    {LOWER_TEETH.map((tooth) => {
+                    {lowerTeeth.map((tooth) => {
                       const finding = toothChart.find(t => t.toothCode === tooth);
                       return (
                         <button
@@ -544,6 +597,7 @@ export default function EmrDetailPage() {
                           onClick={() => {
                             setSelectedTooth(tooth);
                             setSelectedToothFinding(finding?.findingCode || 'CARIES');
+                            setSelectedToothSurface(finding?.surfaceCode || (Number(tooth[1]) >= 4 ? 'O' : 'I'));
                             setSelectedToothNote(finding?.note || '');
                           }}
                           className={`w-9 h-11 rounded border text-xs font-bold flex flex-col items-center justify-center transition-all ${
@@ -576,6 +630,24 @@ export default function EmrDetailPage() {
                       <option value="IMPLANT">Cấy Implant</option>
                       <option value="IMPACTED">Răng ngầm / Răng khôn lệch</option>
                     </select>
+                    {selectedToothFinding === 'CARIES' && (
+                      <select
+                        value={selectedToothSurface}
+                        onChange={(e) => setSelectedToothSurface(e.target.value)}
+                        aria-label="Mặt răng"
+                        className="text-xs border rounded p-1.5 bg-white"
+                      >
+                        <option value="M">M — Mesial</option>
+                        {Number(selectedTooth[1]) >= 4
+                          ? <option value="O">O — Occlusal</option>
+                          : <option value="I">I — Incisal</option>}
+                        <option value="D">D — Distal</option>
+                        <option value="B">B — Buccal</option>
+                        <option value="F">F — Facial</option>
+                        <option value="L">L — Lingual</option>
+                        <option value="P">P — Palatal</option>
+                      </select>
+                    )}
                     <input
                       type="text"
                       placeholder="Ghi chú chi tiết vị trí..."

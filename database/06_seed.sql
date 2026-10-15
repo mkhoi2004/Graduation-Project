@@ -1,4 +1,4 @@
-SET NOCOUNT ON;
+﻿SET NOCOUNT ON;
 SET XACT_ABORT ON;
 SET ANSI_NULLS ON;
 SET ANSI_PADDING ON;
@@ -43,11 +43,25 @@ BEGIN TRY
 
   DECLARE @Approver UNIQUEIDENTIFIER=(SELECT UserId FROM dbo.Users WHERE Username='approver');
   IF NOT EXISTS(SELECT 1 FROM dbo.Rooms WHERE BranchId=@Branch AND Code='CHAIR-01')
-    INSERT dbo.Rooms(BranchId,Code,Name,RoomType,CreatedBy) VALUES(@Branch,'CHAIR-01',N'Ghế nha số 1','CHAIR','seed');
+    INSERT dbo.Rooms(BranchId,Code,Name,RoomType,CreatedBy) VALUES(@Branch,'CHAIR-01',N'Ghế nha số 1','CHAIR','seed')
+  ELSE
+    UPDATE dbo.Rooms SET Name=N'Ghế nha số 1' WHERE BranchId=@Branch AND Code='CHAIR-01';
+
   IF NOT EXISTS(SELECT 1 FROM dbo.Rooms WHERE BranchId=@Branch AND Code='STERILE-01')
-    INSERT dbo.Rooms(BranchId,Code,Name,RoomType,CreatedBy) VALUES(@Branch,'STERILE-01',N'Phòng tiệt trùng','STERILIZATION','seed');
-  IF NOT EXISTS(SELECT 1 FROM dbo.Services WHERE Code='EXAM') INSERT dbo.Services(Code,Name,CreatedBy) VALUES('EXAM',N'Khám và tư vấn','seed');
-  IF NOT EXISTS(SELECT 1 FROM dbo.Services WHERE Code='CLEANING') INSERT dbo.Services(Code,Name,CreatedBy) VALUES('CLEANING',N'Cạo vôi răng','seed');
+    INSERT dbo.Rooms(BranchId,Code,Name,RoomType,CreatedBy) VALUES(@Branch,'STERILE-01',N'Phòng tiệt trùng','STERILIZATION','seed')
+  ELSE
+    UPDATE dbo.Rooms SET Name=N'Phòng tiệt trùng' WHERE BranchId=@Branch AND Code='STERILE-01';
+
+  IF NOT EXISTS(SELECT 1 FROM dbo.Services WHERE Code='EXAM')
+    INSERT dbo.Services(Code,Name,CreatedBy) VALUES('EXAM',N'Khám và tư vấn','seed')
+  ELSE
+    UPDATE dbo.Services SET Name=N'Khám và tư vấn' WHERE Code='EXAM';
+
+  IF NOT EXISTS(SELECT 1 FROM dbo.Services WHERE Code='CLEANING')
+    INSERT dbo.Services(Code,Name,CreatedBy) VALUES('CLEANING',N'Cạo vôi răng','seed')
+  ELSE
+    UPDATE dbo.Services SET Name=N'Cạo vôi răng' WHERE Code='CLEANING';
+
   IF NOT EXISTS(SELECT 1 FROM dbo.ServicePriceVersions p JOIN dbo.Services s ON s.ServiceId=p.ServiceId WHERE s.Code='EXAM' AND p.VersionNo=1)
     INSERT dbo.ServicePriceVersions(ServiceId,BranchId,VersionNo,UnitPrice,EffectiveFrom,Status,ApprovedBy,CreatedBy)
       SELECT ServiceId,@Branch,1,100000,'2026-01-01','APPROVED',@Approver,'seed' FROM dbo.Services WHERE Code='EXAM';
@@ -55,9 +69,21 @@ BEGIN TRY
     INSERT dbo.ServicePriceVersions(ServiceId,BranchId,VersionNo,UnitPrice,EffectiveFrom,Status,ApprovedBy,CreatedBy)
       SELECT ServiceId,@Branch,1,300000,'2026-01-01','APPROVED',@Approver,'seed' FROM dbo.Services WHERE Code='CLEANING';
 
-  IF NOT EXISTS(SELECT 1 FROM dbo.Suppliers WHERE Code='LOCAL-SUPPLIER') INSERT dbo.Suppliers(Code,Name,CreatedBy) VALUES('LOCAL-SUPPLIER',N'Nhà cung cấp mẫu','seed');
-  IF NOT EXISTS(SELECT 1 FROM dbo.Warehouses WHERE BranchId=@Branch AND Code='MAIN') INSERT dbo.Warehouses(BranchId,Code,Name,CreatedBy) VALUES(@Branch,'MAIN',N'Kho chính','seed');
-  IF NOT EXISTS(SELECT 1 FROM dbo.Items WHERE Code='GLOVE-M') INSERT dbo.Items(Code,Name,BaseUnit,ConversionFactor,CreatedBy) VALUES('GLOVE-M',N'Găng tay y tế M','BOX',1,'seed');
+  IF NOT EXISTS(SELECT 1 FROM dbo.Suppliers WHERE Code='LOCAL-SUPPLIER')
+    INSERT dbo.Suppliers(Code,Name,CreatedBy) VALUES('LOCAL-SUPPLIER',N'Nhà cung cấp mẫu','seed')
+  ELSE
+    UPDATE dbo.Suppliers SET Name=N'Nhà cung cấp mẫu' WHERE Code='LOCAL-SUPPLIER';
+
+  IF NOT EXISTS(SELECT 1 FROM dbo.Warehouses WHERE BranchId=@Branch AND Code='MAIN')
+    INSERT dbo.Warehouses(BranchId,Code,Name,CreatedBy) VALUES(@Branch,'MAIN',N'Kho chính','seed')
+  ELSE
+    UPDATE dbo.Warehouses SET Name=N'Kho chính' WHERE BranchId=@Branch AND Code='MAIN';
+
+  IF NOT EXISTS(SELECT 1 FROM dbo.Items WHERE Code='GLOVE-M')
+    INSERT dbo.Items(Code,Name,BaseUnit,ConversionFactor,CreatedBy) VALUES('GLOVE-M',N'Găng tay y tế M','BOX',1,'seed')
+  ELSE
+    UPDATE dbo.Items SET Name=N'Găng tay y tế M' WHERE Code='GLOVE-M';
+
   DECLARE @Warehouse UNIQUEIDENTIFIER=(SELECT WarehouseId FROM dbo.Warehouses WHERE BranchId=@Branch AND Code='MAIN');
   DECLARE @Item UNIQUEIDENTIFIER=(SELECT ItemId FROM dbo.Items WHERE Code='GLOVE-M');
   IF NOT EXISTS(SELECT 1 FROM dbo.StockLots WHERE ItemId=@Item AND WarehouseId=@Warehouse AND LotNumber='SEED-LOT-01')
@@ -66,11 +92,30 @@ BEGIN TRY
   IF NOT EXISTS(SELECT 1 FROM dbo.StockBalances WHERE WarehouseId=@Warehouse AND ItemId=@Item AND StockLotId=@Lot)
     INSERT dbo.StockBalances(WarehouseId,ItemId,StockLotId,OnHand) VALUES(@Warehouse,@Item,@Lot,10);
 
-  IF NOT EXISTS(SELECT 1 FROM dbo.Accounts WHERE Code='111') INSERT dbo.Accounts(Code,Name,AccountType,CreatedBy) VALUES('111',N'Tiền mặt','ASSET','seed');
-  IF NOT EXISTS(SELECT 1 FROM dbo.Accounts WHERE Code='131') INSERT dbo.Accounts(Code,Name,AccountType,CreatedBy) VALUES('131',N'Phải thu','ASSET','seed');
-  IF NOT EXISTS(SELECT 1 FROM dbo.Accounts WHERE Code='3387') INSERT dbo.Accounts(Code,Name,AccountType,CreatedBy) VALUES('3387',N'Doanh thu chưa thực hiện/tiền cọc','LIABILITY','seed');
-  IF NOT EXISTS(SELECT 1 FROM dbo.Accounts WHERE Code='511') INSERT dbo.Accounts(Code,Name,AccountType,CreatedBy) VALUES('511',N'Doanh thu dịch vụ','REVENUE','seed');
-  IF NOT EXISTS(SELECT 1 FROM dbo.Accounts WHERE Code='632') INSERT dbo.Accounts(Code,Name,AccountType,CreatedBy) VALUES('632',N'Giá vốn cấu hình mẫu','EXPENSE','seed');
+  IF NOT EXISTS(SELECT 1 FROM dbo.Accounts WHERE Code='111')
+    INSERT dbo.Accounts(Code,Name,AccountType,CreatedBy) VALUES('111',N'Tiền mặt','ASSET','seed')
+  ELSE
+    UPDATE dbo.Accounts SET Name=N'Tiền mặt' WHERE Code='111';
+
+  IF NOT EXISTS(SELECT 1 FROM dbo.Accounts WHERE Code='131')
+    INSERT dbo.Accounts(Code,Name,AccountType,CreatedBy) VALUES('131',N'Phải thu','ASSET','seed')
+  ELSE
+    UPDATE dbo.Accounts SET Name=N'Phải thu' WHERE Code='131';
+
+  IF NOT EXISTS(SELECT 1 FROM dbo.Accounts WHERE Code='3387')
+    INSERT dbo.Accounts(Code,Name,AccountType,CreatedBy) VALUES('3387',N'Doanh thu chưa thực hiện/tiền cọc','LIABILITY','seed')
+  ELSE
+    UPDATE dbo.Accounts SET Name=N'Doanh thu chưa thực hiện/tiền cọc' WHERE Code='3387';
+
+  IF NOT EXISTS(SELECT 1 FROM dbo.Accounts WHERE Code='511')
+    INSERT dbo.Accounts(Code,Name,AccountType,CreatedBy) VALUES('511',N'Doanh thu dịch vụ','REVENUE','seed')
+  ELSE
+    UPDATE dbo.Accounts SET Name=N'Doanh thu dịch vụ' WHERE Code='511';
+
+  IF NOT EXISTS(SELECT 1 FROM dbo.Accounts WHERE Code='632')
+    INSERT dbo.Accounts(Code,Name,AccountType,CreatedBy) VALUES('632',N'Giá vốn cấu hình mẫu','EXPENSE','seed')
+  ELSE
+    UPDATE dbo.Accounts SET Name=N'Giá vốn cấu hình mẫu' WHERE Code='632';
 
   IF NOT EXISTS(SELECT 1 FROM dbo.SystemConfigVersions WHERE ConfigKey='MAX_ROUNDING_AMOUNT' AND ScopeCode='GLOBAL' AND VersionNo=1)
     INSERT dbo.SystemConfigVersions(ConfigKey,ScopeCode,VersionNo,ValueJson,EffectiveFrom,Status,ApprovedBy,CreatedBy)

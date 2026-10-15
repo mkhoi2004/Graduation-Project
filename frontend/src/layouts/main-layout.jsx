@@ -73,7 +73,7 @@ export function MainLayout() {
           {
             key: '/sign-queue',
             icon: <FileDoneOutlined />,
-            label: 'Hàng đợi ký số (AT-13)',
+            label: 'Hàng đợi ký số',
           },
         ]
       : []),
@@ -82,7 +82,7 @@ export function MainLayout() {
           {
             key: '/billing',
             icon: <DollarOutlined />,
-            label: 'Thu ngân & Viện phí (AT-01/15)',
+            label: 'Thu ngân & Thanh toán',
           },
         ]
       : []),
@@ -91,7 +91,7 @@ export function MainLayout() {
           {
             key: '/inventory',
             icon: <InboxOutlined />,
-            label: 'Kho Dược & Vật tư (AT-07/08/12)',
+            label: 'Kho thuốc & Vật tư',
           },
         ]
       : []),
@@ -100,7 +100,7 @@ export function MainLayout() {
           {
             key: '/accounting',
             icon: <AuditOutlined />,
-            label: 'Kế toán & Khóa sổ (AT-09/10)',
+            label: 'Kế toán & Khóa sổ',
           },
         ]
       : []),
@@ -109,14 +109,14 @@ export function MainLayout() {
           {
             key: '/insurance',
             icon: <SafetyCertificateOutlined />,
-            label: 'Bảo hiểm BHTM (AT-03/04/14)',
+            label: 'Bảo hiểm thương mại',
           },
         ]
       : []),
     {
       key: '/operations',
       icon: <ExperimentOutlined />,
-      label: 'Tiệt trùng & Labo (AT-22)',
+      label: 'Tiệt trùng & Labo',
     },
     ...(['ADMIN', 'ACCOUNTANT', 'DOCTOR'].includes(user?.role)
       ? [
@@ -132,7 +132,7 @@ export function MainLayout() {
           {
             key: '/reconciliation',
             icon: <ReconciliationOutlined />,
-            label: 'Đối soát & Toàn vẹn (M12)',
+            label: 'Đối soát & Toàn vẹn',
           },
         ]
       : []),
@@ -185,7 +185,16 @@ export function MainLayout() {
 
   return (
     <Layout style={{ minHeight: '100vh' }}>
-      <Sider collapsible collapsed={collapsed} onCollapse={setCollapsed} theme="light" width={240}>
+      <Sider
+        collapsible
+        collapsed={collapsed}
+        onCollapse={setCollapsed}
+        breakpoint="lg"
+        collapsedWidth={0}
+        theme="light"
+        width={240}
+        aria-label="Điều hướng chính"
+      >
         <div style={{ height: 64, display: 'flex', alignItems: 'center', justifyContent: 'center', borderBottom: '1px solid #f0f0f0', padding: '0 16px' }}>
           <Space orientation="horizontal" size="small">
             <div style={{ width: 32, height: 32, borderRadius: 6, background: '#08979c', color: '#fff', display: 'flex', alignItems: 'center', justifyContent: 'center', fontWeight: 'bold' }}>
@@ -193,8 +202,8 @@ export function MainLayout() {
             </div>
             {!collapsed && (
               <div>
-                <div style={{ fontWeight: 'bold', fontSize: 14, color: '#002329', lineHeight: 1.2 }}>NHA KHOA ERP</div>
-                <div style={{ fontSize: 10, color: '#8c8c8c' }}>Hệ thống quản lý phòng khám</div>
+                <div style={{ fontWeight: 'bold', fontSize: 14, color: '#002329', lineHeight: 1.2 }}>DENTAL EMR</div>
+                <div style={{ fontSize: 10, color: '#8c8c8c' }}>Quản lý phòng khám nha khoa</div>
               </div>
             )}
           </Space>
@@ -209,9 +218,9 @@ export function MainLayout() {
         />
       </Sider>
       <Layout>
-        <Header style={{ background: '#fff', padding: '0 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f0f0f0' }}>
+        <Header className="app-header" style={{ background: '#fff', padding: '0 24px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', borderBottom: '1px solid #f0f0f0' }}>
           <div>
-            <Tag color="cyan">Chi nhánh: {user?.branchName || 'Phòng khám local'}</Tag>
+            <Tag color="cyan">Chi nhánh: {user?.branchName || 'Chưa cấu hình'}</Tag>
             {user?.isApprover && <Tag color="orange">Người duyệt (Approver)</Tag>}
           </div>
           <Space orientation="horizontal" size="middle">
@@ -226,7 +235,7 @@ export function MainLayout() {
             </Dropdown>
           </Space>
         </Header>
-        <Content style={{ margin: '20px', minHeight: 280 }}>
+        <Content className="app-content" style={{ margin: '20px', minHeight: 280 }}>
           <Outlet />
         </Content>
       </Layout>

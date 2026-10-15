@@ -4,6 +4,9 @@ Dự án: **Hệ thống Quản lý Phòng khám Nha khoa Tích hợp ERP & EMR*
 Thời điểm kiểm tra: 14/10/2026 23:38:00 (GMT+7)  
 Môi trường: Local Windows 10/11, SQL Server 2022 Express, Node.js v24.21.0, React 19 + Vite 7
 
+> **Cập nhật mới nhất:** 15/10/2026 (GMT+7), working tree phát triển từ commit `d77248e600c4c70850eb9535b3ea03b168cf05c7`.  
+> **Lưu ý về lịch sử:** số liệu **96/96 Pass** bên dưới là kết quả của lần chạy ngày 14/10/2026 và được giữ nguyên để bảo toàn lịch sử. Kết quả hiện tại, test case chi tiết, lỗi và rủi ro nằm tại **Mục 8**; kết luận “100% hoàn thành” cũ không còn được dùng làm kết luận hiện hành.
+
 ---
 
 ## 1. Tổng quan Trạng thái Hệ thống
@@ -367,3 +370,141 @@ Tổng kết:
 * `6e712dd`: `module1: trien khai xac thuc JWT, phan quyen 5 role, audit log va quan ly nguoi dung`
 * `3892f62`: `bat dau dung`
 * `dc7b149`: `setup: tao moi truong local va schema nha khoa`
+
+---
+
+## 8. Cập nhật kiểm thử tăng cường ngày 15/10/2026
+
+### 8.1. Hiện trạng và phạm vi
+
+- **Đã có:** 12 module, RBAC, audit cơ bản, soft delete ở nhiều danh mục, EMR ký/khóa và addendum, thanh toán nhiều lần/hoàn tiền có maker-checker, kho FEFO/recall/serial, kế toán và đối soát.
+- **Thiếu hoặc chưa đủ bằng chứng:** ma trận test chi tiết; kiểm thử responsive/accessibility bằng trình duyệt; giờ làm việc; đồng thời khi đặt lịch; liên kết bắt buộc chẩn đoán–thủ thuật; kiểm soát sửa kế hoạch đã duyệt; allergy/drug interaction và liều nhi khoa.
+- **Sai logic đã xác nhận và sửa trong vòng này:** dữ liệu bệnh nhân thiếu/sai vẫn lọt; lịch hẹn trùng tài nguyên; lượt khám nhảy trạng thái; odontogram nhận mã răng/mặt răng tự do; màn EMR không luôn hiển thị dị ứng/bệnh nền.
+- **Giả định cần chuyên gia xác nhận:** tuổi chuyển tiếp răng sữa chỉ cảnh báo, không chặn; quy tắc mặt răng đang dùng mức tối thiểu O cho răng sau/I cho răng trước; liều thuốc và tương tác thuốc chưa triển khai vì cần bác sĩ/dược sĩ và nguồn dữ liệu thuốc được phê duyệt.
+
+### 8.2. Bằng chứng chạy test và tỷ lệ hiện tại
+
+| Phạm vi | Pass | Fail | Blocked/Not tested | Kết luận |
+| :--- | ---: | ---: | ---: | :--- |
+| Baseline trước thay đổi (14/10/2026) | 96 | 0 | 0 | Lịch sử; không đại diện đầy đủ UI/biên/phân quyền |
+| Nhóm thay đổi Patient + Appointment/Visit + Odontogram | 29 | 0 | 0 | `node --test ...`: **29/29 Pass** |
+| Toàn bộ backend hiện tại | 110 | 7 | 0 | **110/117 Pass (94,02%)**; 7 lỗi do truy vấn SQL timeout/khóa 5–15 giây ở Module 5 và 11, xem BUG-006 |
+| Frontend production build | 1 | 0 | 0 | Build thành công, 3.270 modules; có cảnh báo bundle lớn |
+| UI thủ công desktop/mobile | 0 | 0 | 3 | **Blocked:** in-app browser chặn `http://localhost:5173` với `ERR_BLOCKED_BY_CLIENT` |
+
+| Module | Tình trạng vòng này | Pass/Fail/NT | Ghi chú |
+| :--- | :--- | :--- | :--- |
+| 1–2, 6–10, 12 | Regression tự động | Pass trong lần full run hiện tại | Không mở rộng test UI trong vòng này |
+| 3 Bệnh nhân | Validation + integration | 10 Pass / 1 Blocked | Thêm DOB, liên hệ, guardian; trùng hồ sơ đầy đủ còn thiếu |
+| 4 Lịch hẹn/Lượt khám | Validation + integration | 7 Pass / 4 Not tested | Chặn trùng bác sĩ/phòng và state machine; giờ làm việc/đồng thời chưa đủ |
+| 5 EMR/Odontogram | Unit + integration + build | 8 Pass / 5 Fail/Blocked/NT | Odontogram đạt unit test; regression EMR bị SQL timeout trong full run |
+| 11 Nhân sự | Regression | 8 Pass / 1 Fail | Case danh sách hoa hồng bác sĩ timeout SQL |
+
+### 8.3. Tham khảo sản phẩm và nguyên tắc áp dụng
+
+Không sao chép nội dung hay tài sản thiết kế. Chỉ dùng các nguyên tắc điều hướng, hiển thị và kiểm soát nghiệp vụ từ tài liệu chính thức.
+
+| Hệ thống | Quan sát có thể áp dụng | Nguồn |
+| :--- | :--- | :--- |
+| Open Dental | Chart module gom lịch sử, kế hoạch và thông tin y khoa; tooth chart hỗ trợ cấu hình đánh số, màu/trạng thái lịch sử; thủ thuật có treatment area theo tooth/surface/quadrant/arch; mặt răng B/F, V, M, O/I, D, L. | [Chart Module](https://www.opendental.com/site/0_chart.html), [Graphical Tooth Chart](https://www.opendental.com/manual/graphicaltoothchart.html), [Enter Treatment](https://www.opendental.com/manual/entertreatment.html), [Procedure Edit](https://opendental.com/manual/procedureedit.html) |
+| Dentally | Patient chart có permanent/deciduous/mixed dentition, history/sidebar và treatment tabs; lịch hẹn có booked/unbooked và liên kết treatment plan; medical history được thu thập trong hồ sơ bệnh nhân. | [Charting](https://help.dentally.com/en/articles/3565932-how-to-chart-in-dentally), [Appointments](https://help.dentally.com/en/articles/3551480-how-to-use-the-appointments-tab), [Treatment-plan appointment](https://help.dentally.com/en/articles/12165237-how-to-add-appointments-to-a-treatment-plan), [Medical history](https://help.dentally.com/en/collections/3993924-patient-medical-history-tab) |
+| OpenMRS | Patient dashboard giữ demographics ở header, đặt allergy/problem list nổi bật, và tổ chức visits/encounters theo tab/timeline. | [Patient Dashboard](https://guide.openmrs.org/collecting-data/the-patient-dashboard-in-depth/) |
+| OpenEMR | Dashboard dùng widget có thể cấu hình cho allergy/problem/medication/prescription; calendar và ACL tách quyền đặt lịch trùng/ngoài template. | [Patient Record](https://www.open-emr.org/wiki/index.php/HOWTO%3A_Create_a_New_Patient_Record_-_OpenEMR_v7), [Calendar](https://www.open-emr.org/wiki/index.php/TheCalendarNotes-v7), [Access Controls](https://www.open-emr.org/wiki/index.php/Access_Controls_Listing) |
+| Dentrix Enterprise | Tham khảo luồng enterprise theo patient, appointment, chart và treatment planning; chưa dùng tài sản giao diện. | [Learner's Guide](https://hsps.pro/DentrixEnterprise/Documentation/Dentrix_Enterprise_11.0.43_Learners_Guide_-_CDCR.pdf) |
+| Carestream Dental | Scheduler và charting tách rõ lịch hẹn, chart, điều trị và tài liệu đào tạo thao tác. | [Scheduler Workbook](https://help.carestreamdental.com/rh/web/server/SoftDent_Scheduler/projects_responsive/OH_DE1010/assets/docs/NG941_Scheduler_ITW.pdf), [Charting Workbook](https://help.carestreamdental.com/rh/web/server/SoftDent/projects_responsive/DE1075_SDChart_Wkbk/PDFs/DE1075_SD_ChartingWorkbook.pdf) |
+| DentIQ (Việt Nam) | Mẫu Patient 360, lịch hẹn, sơ đồ răng, EMR và billing cùng hệ thống phù hợp hướng tổng quát hóa tại Việt Nam. | [DentIQ](https://www.dentiq.vn/) |
+| Curve Dental | Chưa xác minh được tài liệu UI/luồng chính thức đủ chi tiết trong vòng này. | **Cần nghiên cứu tiếp; không suy diễn** |
+
+Luồng mục tiêu thống nhất: **Đăng ký → Lịch hẹn → Tiếp đón → Khám → Chẩn đoán → Kế hoạch điều trị → Thực hiện → Đơn thuốc → Thanh toán → Tái khám**. Cảnh báo y khoa phải luôn nhìn thấy trong ngữ cảnh khám; odontogram phải hỗ trợ FDI, răng sữa/vĩnh viễn và thao tác theo mặt răng.
+
+### 8.4. Bảng test case chi tiết
+
+| ID | Module | Mô tả | Điều kiện tiên quyết | Bước thực hiện | Dữ liệu vào | Kết quả mong đợi | Kết quả thực tế | Trạng thái | Mức độ | Ghi chú |
+| :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- | :--- |
+| PAT-001 | Bệnh nhân | Tạo người lớn hợp lệ | API chạy | Gọi validator/API tạo BN | Tên có khoảng trắng, DOB quá khứ, phone/email hợp lệ | Chuẩn hóa và lưu | Unit test đạt | Pass | High | Dữ liệu giả |
+| PAT-002 | Bệnh nhân | Chặn ngày sinh tương lai | Không | Validate payload | Ngày mai | 400 `DATE_OF_BIRTH_IN_FUTURE` | Đúng mã lỗi | Pass | High | UI cũng khóa ngày tương lai |
+| PAT-003 | Bệnh nhân | Trẻ dưới 18 tuổi phải có guardian | Không | Validate không/có guardian | DOB trẻ vị thành niên | Không guardian bị chặn; có guardian được nhận | Unit test đạt | Pass | Critical | Cần pháp chế xác nhận trường guardian tối thiểu |
+| PAT-004 | Bệnh nhân | Chặn phone/email sai | Không | Validate payload | `abc`, `not-email` | 400, không ghi DB | Unit test đạt | Pass | Medium | Có validation UI và service |
+| PAT-005 | Bệnh nhân | Không tự gán năm sinh hiện tại khi thiếu DOB | Không | Tạo payload chỉ có tên | Không DOB/birthYear | Bị chặn trường bắt buộc | Unit test đạt | Pass | High | Sửa hành vi cũ gây sai tuổi |
+| PAT-006 | Bệnh nhân | Cảnh báo trùng SĐT | Có BN cùng phone | Tạo BN mới | Phone đã tồn tại | Cảnh báo, cần xác nhận | Integration đạt | Pass | High | Chưa đủ khóa trùng họ tên+DOB+SĐT |
+| PAT-007 | Bệnh nhân | Form responsive và bàn phím | App local chạy | Test 360/768/1440px, tab/focus | Form thêm BN | Không tràn; focus rõ; lỗi gắn trường | Không mở được localhost trong browser tool | Blocked | Medium | `ERR_BLOCKED_BY_CLIENT` |
+| APT-001 | Lịch hẹn | Tạo lịch tương lai hợp lệ | Patient/branch/doctor có sẵn | POST appointment | start/end ISO tương lai | 201 BOOKED | Validator đạt | Pass | High | Bác sĩ bắt buộc |
+| APT-002 | Lịch hẹn | Chặn quá khứ và end ≤ start | Không | Validate 3 payload biên | Quá khứ, invalid date, đảo giờ | 400 | Unit test đạt | Pass | High | Không kiểm tra giờ làm việc |
+| APT-003 | Lịch hẹn | Chặn trùng bác sĩ | Có lịch active | POST khoảng giao nhau | Cùng doctor/branch | 409 `APPOINTMENT_RESOURCE_CONFLICT` | Integration đạt | Pass | Critical | So sánh overlap chuẩn `start < end2 && end > start2` |
+| APT-004 | Lịch hẹn | Chặn trùng ghế/phòng | Có room + lịch active | POST cùng room | Doctor khác, room giống | 409 | Code đã có; chưa có test DB riêng | Not tested | Critical | Bổ sung integration test |
+| APT-005 | Lịch hẹn | Hai request đồng thời cùng slot | SQL chạy | Gửi Promise.all 2 POST | Cùng doctor/room/time | Chỉ 1 thành công | Chưa chạy test concurrency | Not tested | Critical | Transaction SERIALIZABLE đã áp dụng nhưng cần stress test |
+| APT-006 | Lịch hẹn | Ngoài giờ làm việc | Có cấu hình ca làm | POST ngoài ca | 02:00 hoặc ngày nghỉ | Bị chặn/trình quyền override | Chưa có cấu hình giờ làm | Not tested | High | OpenEMR gợi ý ACL override riêng |
+| VIS-001 | Lượt khám | Luồng chuẩn | Visit REGISTERED | Đổi IN_PROGRESS → CLINICAL_COMPLETED → CLOSED | Trạng thái hợp lệ | Từng bước thành công | Integration/unit đạt | Pass | Critical | Máy trạng thái mới |
+| VIS-002 | Lượt khám | Chặn nhảy bước | Visit REGISTERED | Đổi thẳng CLINICAL_COMPLETED | Trạng thái bỏ qua | 400 `INVALID_VISIT_STATUS_TRANSITION` | Integration đạt | Pass | Critical | Lỗi cũ đã sửa |
+| VIS-003 | Lượt khám | Hủy/tạm giữ cần lý do | Visit active | Đổi CANCELLED/ON_HOLD | reason rỗng | 400 | Unit test đạt | Pass | High | Phục vụ audit |
+| VIS-004 | Lượt khám | Cập nhật lặp/đồng thời | Hai người dùng | Gửi 2 transition cùng lúc | Cùng version visit | Một thao tác thắng, thao tác kia conflict | Chưa có optimistic lock | Not tested | High | Rủi ro race condition |
+| ODO-001 | Odontogram | Mã FDI răng vĩnh viễn/răng sữa | Không | Validate chart | 11–48 và 51–85 hợp lệ | Được nhận | Unit test đạt | Pass | Critical | 32 răng vĩnh viễn + 20 răng sữa |
+| ODO-002 | Odontogram | Chặn mã răng ngoài FDI | Không | Validate chart | 10, 49, 50, 86 | 400 `INVALID_TOOTH_CODE` | Unit test đạt | Pass | Critical | Không nhận free text |
+| ODO-003 | Odontogram | Chặn mặt răng sai/không tồn tại | Không | Validate chart | `X`, O trên răng trước, I trên răng sau | 400 | Unit test đạt | High | High | Quy tắc tối thiểu cần nha sĩ duyệt |
+| ODO-004 | Odontogram | Sâu răng phải gắn mặt răng | Không | Validate CARIES | surface null | 400 `TOOTH_SURFACE_REQUIRED` | Unit test đạt | Pass | High | Cho phép nhiều tổn thương/răng theo mặt |
+| ODO-005 | Odontogram | Chặn trùng răng+mặt | Không | Gửi 2 finding giống nhau | 16-O lặp | 400 | Unit test đạt | Pass | Medium | Tránh ghi đè mơ hồ |
+| ODO-006 | Odontogram | Người lớn chọn răng sữa | Patient DOB người lớn | Lưu 55-M | Răng sữa ở người lớn | Lưu kèm cảnh báo | Unit test đạt | Pass | Medium | **Cần nha sĩ xác nhận**, không tự chặn |
+| ODO-007 | Odontogram UI | Chọn dentition và surface | Frontend chạy | Chọn răng, mặt, thêm finding | Permanent/primary; M/O/I/D/B/F/L/P | UI phản hồi và lưu đúng | Build đạt; thao tác thật bị chặn | Blocked | High | Cần manual E2E |
+| EMR-001 | EMR | API visit trả dị ứng/bệnh nền | Patient có allergy/history | GET visit | Allergy giả | Dữ liệu nằm trong patient | Integration đạt | Pass | Critical | Dùng cho thanh cảnh báo |
+| EMR-002 | EMR | Cảnh báo y khoa luôn hiển thị | Mở EMR | Cuộn/tạo draft | Patient có dị ứng | Banner sticky, rõ ràng | Code/build đạt, chưa kiểm tra trực quan | Blocked | Critical | Không xem như clinical decision support |
+| EMR-003 | EMR | Hồ sơ ký chỉ thêm addendum | EMR đã ký | Thử sửa trực tiếp rồi thêm phụ lục | Nội dung giả | Sửa bị chặn, addendum được lưu | Lịch sử 14/10 Pass; full run hiện tại timeout dây chuyền | Fail | Critical | BUG-006, cần rerun môi trường DB sạch |
+| TPL-001 | Kế hoạch điều trị | Thủ thuật gắn chẩn đoán | Có diagnosis | Thêm service line | Không diagnosis | Bị chặn/cảnh báo | Chưa triển khai ràng buộc | Not tested | Critical | Thiếu business rule |
+| TPL-002 | Kế hoạch điều trị | Kế hoạch duyệt không sửa tự do | Plan APPROVED | Sửa giá/dịch vụ | Không lý do | Tạo revision + reason + audit | Chưa xác minh end-to-end | Not tested | Critical | Cần bổ sung versioning |
+| RX-001 | Đơn thuốc | Chặn/cảnh báo thuốc trùng dị ứng | Có allergy | Kê hoạt chất liên quan | Thuốc giả mapping allergy | Cảnh báo nghiêm trọng hoặc chặn | Chưa có drug knowledge base | Not tested | Critical | **Cần bác sĩ/dược sĩ xác nhận** |
+| RX-002 | Đơn thuốc | Liều trẻ em theo tuổi/cân nặng | Có DOB, weight | Kê thuốc nhi khoa | mg/kg giả | Kiểm tra liều, không tự suy đoán | Chưa triển khai | Not tested | Critical | **Cần dược sĩ xác nhận** |
+| RX-003 | Đơn thuốc | Tương tác và số lượng/liều | Có danh sách thuốc | Kê cặp tương tác, qty ≤ 0 | Dữ liệu giả | Chặn qty/liều vô lý; cảnh báo tương tác | Chưa triển khai | Not tested | Critical | Cần nguồn tương tác được cấp phép |
+| PAY-001 | Thanh toán | Không thu vượt dư nợ | Invoice có outstanding | Thu lớn hơn dư nợ | Số tiền giả | Bị chặn | Regression Module 6 đạt | Pass | Critical | AT-02/AT-20 |
+| PAY-002 | Thanh toán | Nhiều lần và đồng thời | Invoice mở | Thu nhiều giao dịch | Hai cashier | Tổng không vượt dư nợ | Regression Module 6 đạt | Pass | Critical | Có race test |
+| PAY-003 | Thanh toán | Hoàn tiền có kiểm soát | Có payment | Request/approve refund | Người tạo ≠ người duyệt | Append-only, maker-checker | Regression Module 6 đạt | Pass | Critical | Không xóa giao dịch gốc |
+| SEC-001 | Bảo mật | RBAC hồ sơ và dữ liệu nhạy cảm | User nhiều role | Gọi API khác quyền | Doctor/receptionist/admin | 403 khi ngoài phạm vi | Regression Module 1 & AT-17 đạt | Pass | Critical | Masking chi tiết chưa test |
+| SEC-002 | Bảo mật | Audit xem/sửa/xóa | Audit bật | Xem, sửa, soft delete | Hồ sơ giả | Có actor/time/action/outcome | Mới xác minh một phần qua audit hiện có | Not tested | High | Chưa chứng minh đủ cả view/edit/delete |
+| UI-001 | UI chung | Build production | Dependencies có sẵn | `npm run build` | Source hiện tại | Exit 0 | Đạt, 3.270 modules | Pass | High | Bundle 1.688,52 kB |
+| UI-002 | UI chung | Responsive 360/768/1440px | App local chạy | Mở các trang chính | Ba viewport | Không tràn/cắt thao tác | Browser tool chặn localhost | Blocked | Medium | CSS responsive đã thêm nhưng chưa nghiệm thu trực quan |
+| UI-003 | UI chung | Keyboard/focus/a11y | App mở được | Tab, Enter, screen reader smoke | Không chuột | Focus rõ, label/role hợp lệ | Chưa chạy | Not tested | Medium | Mới thêm focus-visible/aria ở phần sửa |
+
+### 8.5. Bug log
+
+| Bug ID | Mô tả và bước tái hiện | Sai / Đúng mong đợi | Mức độ | Trạng thái | Test case |
+| :--- | :--- | :--- | :--- | :--- | :--- |
+| BUG-001 | Tạo BN với DOB tương lai, contact sai hoặc trẻ em thiếu guardian. | Trước: có thể lọt/default năm hiện tại. Đúng: 400 theo trường. | Critical | **Fixed / Verified** | PAT-002–005 |
+| BUG-002 | Tạo hai lịch giao nhau cùng bác sĩ/phòng. | Trước: cùng được lưu. Đúng: bản sau 409. | Critical | **Fixed / Verified** | APT-003; APT-004 cần test bổ sung |
+| BUG-003 | Từ REGISTERED chuyển thẳng CLINICAL_COMPLETED. | Trước: được phép. Đúng: chỉ chuyển theo state machine. | Critical | **Fixed / Verified** | VIS-001–003 |
+| BUG-004 | Gửi tooth code/surface tùy ý hoặc CARIES không có surface. | Trước: payload được lưu. Đúng: validation FDI/mặt răng. | Critical | **Fixed / Verified** | ODO-001–006 |
+| BUG-005 | GET visit không trả allergy/medical history nên EMR không thể cảnh báo liên tục. | Trước: thiếu dữ liệu. Đúng: include dữ liệu và banner sticky. | Critical | **Fixed / Verified API; UI Blocked** | EMR-001–002 |
+| BUG-006 | Chạy full backend làm truy vấn Module 5/11 timeout; tăng timeout 5→15 giây vẫn tái hiện. Bước: `npm test`. | Hiện tại: 110/117, 7 fail dây chuyền. Đúng: 117/117 ổn định. | High | **Open** | EMR-003; regression Module 11 |
+| BUG-007 | Vite cảnh báo chunk JS sau minify >500 kB. | Hiện tại: 1.688,52 kB (gzip 515,95 kB). Đúng: code splitting/lazy route hợp lý. | Medium | **Open** | UI-001 |
+
+### 8.6. Thay đổi giao diện đã áp dụng
+
+- Đổi nhãn/branding sang thuật ngữ tổng quát **Dental EMR**, bỏ mã module/AT và tên phòng khám hard-code khỏi điều hướng.
+- Sidebar có breakpoint/collapsed mode; tab EMR wrap; bảng có overflow; nội dung/card co giãn trên mobile; thêm `:focus-visible` cơ bản.
+- Form bệnh nhân thêm email, người giám hộ, validation phone/email/DOB và hiển thị ngày `dd/MM/yyyy`.
+- Hồ sơ khám có thanh cảnh báo dị ứng/bệnh nền sticky; trạng thái hồ sơ ký diễn đạt theo nghiệp vụ “chỉ bổ sung phụ lục”.
+- Odontogram hỗ trợ chuyển răng vĩnh viễn/răng sữa, chọn mặt M/O-I/D/B/F/L/P và lưu nhiều finding theo răng+mặt.
+- Lý do thiết kế: áp dụng mô hình patient header/medical alerts của OpenMRS/OpenEMR và treatment/chart principles của Open Dental/Dentally; không sao chép hình ảnh hay bố cục độc quyền.
+
+### 8.7. Quy tắc nghiệp vụ đã bổ sung
+
+| Mã | Ràng buộc | Nơi áp dụng | Test case |
+| :--- | :--- | :--- | :--- |
+| BR-PAT-001 | Họ tên và DOB/birthYear hợp lệ; DOB không tương lai; không gửi đồng thời DOB và birthYear. | UI + patient service | PAT-001, PAT-002, PAT-005 |
+| BR-PAT-002 | Phone/email đúng định dạng; người dưới 18 tuổi cần guardian. | UI + patient service | PAT-003, PAT-004 |
+| BR-APT-001 | Doctor bắt buộc; start/end hợp lệ, tương lai, end > start. | appointment validator/service | APT-001, APT-002 |
+| BR-APT-002 | Không trùng bác sĩ hoặc phòng/ghế trong cùng branch với lịch active; kiểm tra trong transaction SERIALIZABLE. | appointment repository | APT-003–005 |
+| BR-VIS-001 | Chuyển trạng thái theo state machine; CANCELLED/ON_HOLD cần lý do. | visit service | VIS-001–003 |
+| BR-ODO-001 | Chỉ FDI 11–48 hoặc 51–85; surface thuộc M/O/I/D/B/F/L/P; O/I theo nhóm răng. | clinical service/validator | ODO-001–003 |
+| BR-ODO-002 | CARIES cần surface; không lặp tooth+surface; răng sữa người lớn sinh warning. | clinical service/validator | ODO-004–006 |
+| BR-EMR-001 | Ngữ cảnh visit phải mang allergy/history để hiển thị cảnh báo. | visit repository + EMR UI | EMR-001–002 |
+
+### 8.8. Việc còn lại và rủi ro
+
+1. Điều tra SQL blocking/transaction leak gây BUG-006, làm sạch môi trường test rồi chạy lại full suite; không công bố 100% khi còn 7 Fail.
+2. Chạy manual/E2E bằng trình duyệt truy cập được localhost ở 360/768/1440px; kiểm tra keyboard, focus, empty/loading/error state.
+3. Thêm test đồng thời lịch hẹn, xung đột phòng/ghế và cấu hình giờ làm/ACL override.
+4. Hoàn thiện duplicate patient theo **họ tên chuẩn hóa + DOB + phone**, có cơ chế merge thay vì xóa cứng.
+5. Bổ sung version/audit cho treatment plan đã duyệt và bắt buộc service line liên kết diagnosis/price version.
+6. Prescription CDS (allergy, pediatric dose, interaction) chỉ làm sau khi bác sĩ/dược sĩ duyệt quy tắc và nguồn dữ liệu thuốc.
+7. Rà soát audit cho thao tác xem/sửa/xóa và masking dữ liệu nhạy cảm theo role; chuẩn hóa timezone và `dd/MM/yyyy` toàn hệ thống.
+8. Tách bundle theo route/lazy loading để xử lý BUG-007.
+
+> **Kết luận hiện hành:** các thay đổi mới có 29/29 test mục tiêu đạt và frontend build đạt; toàn bộ backend hiện ở **110/117 Pass**, vì vậy trạng thái phát hành là **chưa đủ điều kiện nghiệm thu toàn phần** cho đến khi BUG-006 được khắc phục và các test Blocked/Not tested quan trọng được thực thi.

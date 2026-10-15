@@ -156,7 +156,8 @@ Graduation-Project/
 │   │   ├── routes/              # Điều hướng và bảo vệ route theo quyền (RBAC)
 │   │   └── services/            # Axios API Client kết nối Backend
 │   └── package.json
-├── Test.md                      # Báo cáo chi tiết 96 bài test và bảng nghiệm thu AT
+├── QUY_TRINH_VAN_HANH_THEO_ROLE.md # Hướng dẫn chi tiết quy trình thao tác nghiệp vụ theo 5 role
+├── Test.md                      # Báo cáo chi tiết 118 bài test và bảng nghiệm thu AT
 └── README.md                    # Tài liệu hướng dẫn cài đặt và vận hành
 ```
 
@@ -179,4 +180,5 @@ Graduation-Project/
 
 ---
 
-> 📖 *Để xem chi tiết toàn bộ số liệu kiểm thử và kết quả đo đạc thực tế trên CSDL, vui lòng tham khảo tài liệu [Test.md](Test.md).*
+> 📖 *Để xem chi tiết toàn bộ số liệu kiểm thử và kết quả đo đạc thực tế trên CSDL, vui lòng tham khảo tài liệu [Test.md](Test.md).*  
+> 📘 *Để xem hướng dẫn thao tác chi tiết từng bước cho từng nhân sự (Lễ tân, Bác sĩ, Kho, Kế toán, Admin), vui lòng tham khảo [QUY_TRINH_VAN_HANH_THEO_ROLE.md](QUY_TRINH_VAN_HANH_THEO_ROLE.md).*

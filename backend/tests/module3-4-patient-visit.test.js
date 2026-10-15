@@ -157,6 +157,7 @@ test('Modules 3 & 4 - Patients, Appointments, Visits & AT-05/AT-17 Tests', async
     assert.equal(res.body.status, 'ok');
     assert.equal(res.body.data.status, 'REGISTERED');
     assert.equal(res.body.data.doctorId, doctorUserId);
+    assert.equal(res.body.data.patient.allergies[0].allergen, 'Penicillin');
     visitId = res.body.data.visitId;
   });
 
@@ -178,6 +179,48 @@ test('Modules 3 & 4 - Patients, Appointments, Visits & AT-05/AT-17 Tests', async
       .expect(403);
 
     assert.equal(res.body.error.code, 'NO_TREATMENT_RELATIONSHIP');
+  });
+
+  await t.test('Appointment rejects an overlapping slot for the same doctor', async () => {
+    const uniqueOffset = 30 * 24 * 60 * 60 * 1000 + Math.floor(Math.random() * 300 * 24 * 60 * 60 * 1000);
+    const startsAt = new Date(Date.now() + uniqueOffset);
+    const endsAt = new Date(startsAt.getTime() + 30 * 60 * 1000);
+
+    await request(app)
+      .post('/api/visits/appointments')
+      .set('Authorization', `Bearer ${receptionistToken}`)
+      .send({
+        patientId: patient1Id,
+        branchId,
+        doctorId: doctorUserId,
+        startsAt: startsAt.toISOString(),
+        endsAt: endsAt.toISOString(),
+      })
+      .expect(201);
+
+    const conflict = await request(app)
+      .post('/api/visits/appointments')
+      .set('Authorization', `Bearer ${receptionistToken}`)
+      .send({
+        patientId: patient2Id,
+        branchId,
+        doctorId: doctorUserId,
+        startsAt: new Date(startsAt.getTime() + 10 * 60 * 1000).toISOString(),
+        endsAt: new Date(endsAt.getTime() + 10 * 60 * 1000).toISOString(),
+      })
+      .expect(409);
+
+    assert.equal(conflict.body.error.code, 'APPOINTMENT_RESOURCE_CONFLICT');
+  });
+
+  await t.test('Visit cannot skip directly from REGISTERED to CLINICAL_COMPLETED', async () => {
+    const res = await request(app)
+      .patch(`/api/visits/${visitId}/status`)
+      .set('Authorization', `Bearer ${doctorToken}`)
+      .send({ newStatus: 'CLINICAL_COMPLETED', reason: 'Bỏ qua bước đang khám' })
+      .expect(409);
+
+    assert.equal(res.body.error.code, 'INVALID_VISIT_STATUS_TRANSITION');
   });
 
   await t.test('Doctor can transition visit state to IN_PROGRESS and CLINICAL_COMPLETED', async () => {

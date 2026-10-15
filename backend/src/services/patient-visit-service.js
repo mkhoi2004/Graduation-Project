@@ -1,5 +1,8 @@
 import { ApiError } from '../utils/api-error.js';
 import { scopeByRole } from '../middlewares/scope-by-role.js';
+import { validatePatientPayload } from '../validators/patient.js';
+import { validateAppointmentPayload } from '../validators/appointment.js';
+import { assertVisitTransition } from '../validators/visit-status.js';
 
 export function createPatientVisitService({ patientVisitRepo, userRepo }) {
   return {
@@ -57,22 +60,15 @@ export function createPatientVisitService({ patientVisitRepo, userRepo }) {
     },
 
     async createPatient(data, user) {
-      if (!data.fullName) {
-        throw ApiError.badRequest('MISSING_FIELDS', 'Họ và tên bệnh nhân là bắt buộc');
-      }
-
-      // Check birth constraint: Either DateOfBirth or BirthYear, not both, not neither
-      if (!data.dateOfBirth && !data.birthYear) {
-        data.birthYear = new Date().getFullYear();
-      }
+      const validated = validatePatientPayload(data);
 
       // AT-05: Check duplicate phone number
-      if (data.phone && !data.confirmDuplicatePhone) {
-        const existing = await patientVisitRepo.findPatientsByPhone(data.phone);
+      if (validated.phone && !validated.confirmDuplicatePhone) {
+        const existing = await patientVisitRepo.findPatientsByPhone(validated.phone);
         if (existing.length > 0) {
           return {
             warning: 'PHONE_DUPLICATE_WARNING',
-            message: `Số điện thoại ${data.phone} đã được đăng ký bởi ${existing.length} bệnh nhân khác (AT-05)`,
+            message: `Số điện thoại ${validated.phone} đã được đăng ký bởi ${existing.length} bệnh nhân khác (AT-05)`,
             existingPatients: existing,
             requireConfirmation: true,
           };
@@ -84,24 +80,24 @@ export function createPatientVisitService({ patientVisitRepo, userRepo }) {
       const patientCode = data.patientCode || `BN${year}${random}`;
 
       const patient = await patientVisitRepo.createPatient({
-        ...data,
+        ...validated,
         patientCode,
         createdBy: user.username,
       });
 
       // Add initial allergy/medical history if provided
-      if (data.allergy) {
+      if (validated.allergy) {
         await patientVisitRepo.addAllergy(patient.patientId, {
-          allergen: data.allergy,
-          reaction: data.allergyReaction,
+          allergen: validated.allergy,
+          reaction: validated.allergyReaction,
           knowledgeStatus: 'KNOWN',
           createdBy: user.username,
         });
       }
 
-      if (data.medicalHistory) {
+      if (validated.medicalHistory) {
         await patientVisitRepo.addMedicalHistory(patient.patientId, {
-          description: data.medicalHistory,
+          description: validated.medicalHistory,
           knowledgeStatus: 'KNOWN',
           createdBy: user.username,
         });
@@ -123,7 +119,8 @@ export function createPatientVisitService({ patientVisitRepo, userRepo }) {
     },
 
     async updatePatient(id, data, user) {
-      const updated = await patientVisitRepo.updatePatient(id, data);
+      const validated = validatePatientPayload(data, { partial: true });
+      const updated = await patientVisitRepo.updatePatient(id, validated);
       if (!updated) throw ApiError.notFound('PATIENT_NOT_FOUND', 'Không tìm thấy bệnh nhân');
 
       await userRepo.createAuditLog({
@@ -173,12 +170,10 @@ export function createPatientVisitService({ patientVisitRepo, userRepo }) {
     },
 
     async createAppointment(data, user) {
-      if (!data.patientId || !data.branchId || !data.startsAt || !data.endsAt) {
-        throw ApiError.badRequest('MISSING_FIELDS', 'Bệnh nhân, chi nhánh và thời gian hẹn là bắt buộc');
-      }
+      const validated = validateAppointmentPayload(data);
 
       return patientVisitRepo.createAppointment({
-        ...data,
+        ...validated,
         createdBy: user.username,
       });
     },
@@ -242,18 +237,15 @@ export function createPatientVisitService({ patientVisitRepo, userRepo }) {
     },
 
     async updateVisitStatus(id, { newStatus, reason }, user) {
-      const validStatuses = ['REGISTERED', 'IN_PROGRESS', 'CLINICAL_COMPLETED', 'CLOSED', 'ON_HOLD', 'CANCELLED'];
-      if (!validStatuses.includes(newStatus)) {
-        throw ApiError.badRequest('INVALID_STATUS', `Trạng thái lượt khám không hợp lệ: ${newStatus}`);
-      }
+      const current = await patientVisitRepo.findVisitById(id);
+      if (!current) throw ApiError.notFound('VISIT_NOT_FOUND', 'Không tìm thấy lượt khám');
+      assertVisitTransition(current.status, newStatus, reason);
 
       const updated = await patientVisitRepo.updateVisitStatus(id, {
         newStatus,
         reason,
         changedByUserId: user.userId,
       });
-
-      if (!updated) throw ApiError.notFound('VISIT_NOT_FOUND', 'Không tìm thấy lượt khám');
 
       await userRepo.createAuditLog({
         actorId: user.userId,
