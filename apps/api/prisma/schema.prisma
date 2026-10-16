@@ -1,0 +1,34 @@
+// Add domain models here as each Dental ERP module is introduced.
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "sqlserver"
+  url      = env("DATABASE_URL")
+}
+
+model Role {
+  id          Int      @id @default(autoincrement())
+  code        String   @unique @db.VarChar(50)
+  name        String   @db.NVarChar(100)
+  description String   @db.NVarChar(1000)
+  users       User[]
+  createdAt   DateTime @default(now()) @db.DateTime2
+  updatedAt   DateTime @updatedAt @db.DateTime2
+}
+
+model User {
+  id           Int      @id @default(autoincrement())
+  username     String   @unique @db.VarChar(50)
+  fullName     String   @db.NVarChar(150)
+  passwordHash String   @db.VarChar(255)
+  isActive     Boolean  @default(true)
+  roleId       Int
+  role         Role     @relation(fields: [roleId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  createdAt    DateTime @default(now()) @db.DateTime2
+  updatedAt    DateTime @updatedAt @db.DateTime2
+
+  @@index([roleId])
+}

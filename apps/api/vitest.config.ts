@@ -1,0 +1,19 @@
+import { defineConfig } from 'vitest/config';
+
+export default defineConfig({
+  // Resolves the path aliases declared in tsconfig.json, including the ones
+  // added by `nest g library`. Requires Vite 8, which ships this option.
+  resolve: { tsconfigPaths: true },
+  test: {
+    env: {
+      DATABASE_URL:
+        'sqlserver://DESKTOP-F5CFA0D:1433;database=Graduation-Project;integratedSecurity=true;trustServerCertificate=true;schema=dbo',
+      JWT_SECRET: 'test-only-secret-with-at-least-32-characters',
+      API_PORT: '3000',
+      FRONTEND_URL: 'http://localhost:5173',
+    },
+    globals: true,
+    root: './',
+    include: ['**/*.spec.ts'],
+  },
+});

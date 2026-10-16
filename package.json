@@ -1,0 +1,33 @@
+{
+  "name": "dental-erp",
+  "version": "0.1.0",
+  "private": true,
+  "workspaces": [
+    "apps/*"
+  ],
+  "scripts": {
+    "dev": "concurrently -n web,api -c cyan,green \"npm run dev:web\" \"npm run dev:api\"",
+    "dev:web": "npm run dev --workspace web",
+    "dev:api": "npm run start:dev --workspace api",
+    "build": "npm run db:generate && npm run build --workspaces --if-present",
+    "lint": "npm run lint --workspaces --if-present",
+    "test": "npm run test --workspaces --if-present",
+    "test:e2e": "npm run test:e2e --workspace api",
+    "db:generate": "npm run prisma:generate --workspace api",
+    "db:migrate": "npm run prisma:migrate --workspace api",
+    "db:push": "npm run prisma:push --workspace api",
+    "db:seed": "npm run prisma:seed --workspace api",
+    "db:studio": "npm run prisma:studio --workspace api",
+    "postinstall": "npm run db:generate"
+  },
+  "devDependencies": {
+    "concurrently": "^10.0.6"
+  },
+  "engines": {
+    "node": ">=22.0.0",
+    "npm": ">=10.0.0"
+  },
+  "optionalDependencies": {
+    "@rolldown/binding-win32-x64-msvc": "1.2.14"
+  }
+}

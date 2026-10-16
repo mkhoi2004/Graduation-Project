@@ -1,0 +1,39 @@
+import { ClipboardPlus, FileText, HeartPulse, LayoutDashboard, LogOut, Send, Stethoscope, UsersRound } from 'lucide-react'
+import { NavLink, Outlet, useNavigate } from 'react-router-dom'
+import { clearSession, type AuthSession } from '@/lib/auth-session'
+import { ReceptionProvider } from './reception-context'
+
+const tabs = [
+  { to: '/reception', label: 'Tổng quan', icon: LayoutDashboard, end: true },
+  { to: '/reception/patients', label: 'Bệnh nhân', icon: UsersRound },
+  { to: '/reception/intakes/new', label: 'Tạo tiếp nhận', icon: ClipboardPlus },
+  { to: '/reception/services', label: 'Dịch vụ & điều phối', icon: Stethoscope },
+  { to: '/reception/receipt', label: 'Phiếu tiếp nhận', icon: FileText },
+  { to: '/reception/transfer', label: 'Chuyển bác sĩ', icon: Send },
+]
+
+export function ReceptionLayout({ session }: { session: AuthSession }) {
+  const navigate = useNavigate()
+  function logout() { clearSession(); navigate('/login', { replace: true }) }
+
+  return (
+    <ReceptionProvider>
+      <div className="min-h-screen bg-[#f6f7fb] text-slate-950">
+        <header className="border-b border-slate-200/80 bg-white">
+          <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
+            <div className="flex items-center gap-3"><div className="grid size-10 place-items-center rounded-2xl bg-[#5546e8] text-white shadow-lg shadow-[#5546e8]/20"><HeartPulse className="size-5" /></div><div><p className="font-bold tracking-[-0.03em]">DentalERP</p><p className="text-xs text-slate-400">Quầy tiếp nhận</p></div></div>
+            <div className="flex items-center gap-3"><div className="hidden text-right sm:block"><p className="text-sm font-semibold text-slate-800">{session.user.fullName}</p><p className="text-xs text-slate-400">{session.user.roleName}</p></div><button type="button" onClick={logout} aria-label="Đăng xuất" className="grid size-10 place-items-center rounded-xl border border-slate-200 text-slate-500 transition hover:border-red-200 hover:bg-red-50 hover:text-red-600"><LogOut className="size-4" /></button></div>
+          </div>
+        </header>
+
+        <div className="border-b border-slate-200/80 bg-white">
+          <nav aria-label="Chức năng tiếp nhận" className="mx-auto flex max-w-[1500px] gap-1 overflow-x-auto px-4 sm:px-6 lg:px-8">
+            {tabs.map(({ to, label, icon: Icon, end }) => <NavLink key={to} to={to} end={end} className={({ isActive }) => `flex shrink-0 items-center gap-2 border-b-2 px-3 py-4 text-sm font-semibold transition ${isActive ? 'border-[#6657e8] text-[#5546e8]' : 'border-transparent text-slate-500 hover:text-slate-900'}`}><Icon className="size-4" />{label}</NavLink>)}
+          </nav>
+        </div>
+
+        <main className="mx-auto max-w-[1500px] px-4 py-7 sm:px-6 lg:px-8 lg:py-10"><Outlet /></main>
+      </div>
+    </ReceptionProvider>
+  )
+}
