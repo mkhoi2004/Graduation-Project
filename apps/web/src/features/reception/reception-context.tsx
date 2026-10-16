@@ -1,5 +1,5 @@
 import { createContext, useContext, useEffect, useReducer, type ReactNode } from 'react'
-import type { Intake, Patient } from './reception-data'
+import { demoReceptionData, type Intake, type Patient } from './reception-data'
 
 export interface ReceptionState {
   patients: Patient[]
@@ -11,6 +11,8 @@ type ReceptionAction =
   | { type: 'ADD_INTAKE'; intake: Intake }
   | { type: 'UPDATE_INTAKE'; intake: Intake }
   | { type: 'TRANSFER_INTAKE'; intakeId: string; transferredAt: string }
+  | { type: 'LOAD_DEMO_DATA' }
+  | { type: 'CLEAR_DATA' }
 
 interface ReceptionContextValue extends ReceptionState {
   dispatch: React.Dispatch<ReceptionAction>
@@ -42,18 +44,23 @@ export function receptionReducer(state: ReceptionState, action: ReceptionAction)
           ? { ...intake, status: 'TRANSFERRED', transferredAt: action.transferredAt }
           : intake),
       }
+    case 'LOAD_DEMO_DATA':
+      return { patients: demoReceptionData.patients, intakes: demoReceptionData.intakes }
+    case 'CLEAR_DATA':
+      return { patients: [], intakes: [] }
   }
 }
 
 function loadState(): ReceptionState {
+  const defaultInitial = import.meta.env.MODE === 'test' ? initialReceptionState : demoReceptionData
   try {
     const raw = window.localStorage.getItem(storageKey)
-    if (!raw) return initialReceptionState
+    if (!raw) return defaultInitial
     const parsed = JSON.parse(raw) as Partial<ReceptionState>
-    if (!Array.isArray(parsed.patients) || !Array.isArray(parsed.intakes)) return initialReceptionState
+    if (!Array.isArray(parsed.patients) || !Array.isArray(parsed.intakes)) return defaultInitial
     return { patients: parsed.patients, intakes: parsed.intakes }
   } catch {
-    return initialReceptionState
+    return defaultInitial
   }
 }
 

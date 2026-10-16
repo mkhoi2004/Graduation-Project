@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from '@testing-library/react'
+import { cleanup, fireEvent, render, screen } from '@testing-library/react'
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
 import App from './App'
 
@@ -54,5 +54,25 @@ describe('Dental ERP login', () => {
     window.history.pushState({}, '', '/reception')
     render(<App />)
     expect(screen.getByRole('heading', { name: 'Quản trị viên' })).toBeInTheDocument()
+  })
+
+  it('navigates to reception workspace upon successful login submission', async () => {
+    const session = receptionSession()
+    const originalFetch = globalThis.fetch
+    globalThis.fetch = async () =>
+      new Response(JSON.stringify(session), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+
+    try {
+      render(<App />)
+      fireEvent.click(screen.getByRole('button', { name: 'Tiếp nhận' }))
+      const form = screen.getByRole('button', { name: /đăng nhập/i }).closest('form')!
+      fireEvent.submit(form)
+      expect(await screen.findByRole('heading', { name: /quầy tiếp nhận/i })).toBeInTheDocument()
+    } finally {
+      globalThis.fetch = originalFetch
+    }
   })
 })

@@ -29,14 +29,27 @@ function ProtectedRoleRoute({ role, title }: { role: string; title: string }) {
   return <RequireRole role={role}><RolePlaceholder title={title} session={session} /></RequireRole>
 }
 
-function AppRoutes() {
+function ProtectedReceptionRoute() {
   const session = getSession()
+  if (!session) return <Navigate to="/login" replace />
+  if (session.user.role !== 'RECEPTION_STAFF') {
+    return <Navigate to={getRoleRoute(session.user.role)} replace />
+  }
+  return <ReceptionLayout session={session} />
+}
 
+function PublicLoginRoute() {
+  const session = getSession()
+  if (session) return <Navigate to={getRoleRoute(session.user.role)} replace />
+  return <LoginPage />
+}
+
+function AppRoutes() {
   return (
     <Routes>
-      <Route path="/login" element={session ? <Navigate to={getRoleRoute(session.user.role)} replace /> : <LoginPage />} />
+      <Route path="/login" element={<PublicLoginRoute />} />
       <Route path="/admin" element={<ProtectedRoleRoute role="ADMIN" title="Quản trị viên" />} />
-      <Route path="/reception" element={session ? <RequireRole role="RECEPTION_STAFF"><ReceptionLayout session={session} /></RequireRole> : <Navigate to="/login" replace />}>
+      <Route path="/reception" element={<ProtectedReceptionRoute />}>
         <Route index element={<ReceptionDashboard />} />
         <Route path="patients" element={<PatientsPage />} />
         <Route path="intakes/new" element={<NewIntakePage />} />
