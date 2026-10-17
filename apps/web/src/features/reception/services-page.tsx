@@ -10,7 +10,7 @@ export function ServicesPage() {
   const { patients, intakes, dispatch } = useReception()
   const [params] = useSearchParams()
   const navigate = useNavigate()
-  const editableIntakes = intakes.filter((item) => item.status !== 'TRANSFERRED')
+  const editableIntakes = intakes.filter((item) => (item.status === 'DRAFT' || item.status === 'READY') && item.payment?.status !== 'PENDING')
   const requestedId = params.get('intake')
   const [selectedId, setSelectedId] = useState(editableIntakes.some((item) => item.id === requestedId) ? requestedId ?? '' : editableIntakes[0]?.id ?? '')
   const intake = editableIntakes.find((item) => item.id === selectedId)
@@ -28,7 +28,7 @@ export function ServicesPage() {
   function save() {
     if (!intake || !intake.services.length || !intake.roomId || !intake.doctorId) return
     dispatch({ type: 'UPDATE_INTAKE', intake: { ...intake, status: 'READY' } })
-    navigate(`/reception/receipt?intake=${encodeURIComponent(intake.id)}`)
+    navigate(`/reception/payment?intake=${encodeURIComponent(intake.id)}`)
   }
 
   return <>

@@ -109,11 +109,19 @@ FRONTEND_URL=http://localhost:5173
 
 # 5. Cấu hình Frontend
 VITE_API_URL=http://localhost:3000/api
+
+# 6. MoMo sandbox (chỉ được đặt ở backend, không dùng tiền tố VITE_)
+MOMO_PARTNER_CODE=your-momo-partner-code
+MOMO_ACCESS_KEY=your-momo-access-key
+MOMO_SECRET_KEY=your-momo-secret-key
+MOMO_REDIRECT_URL=http://localhost:3000/api/payments/momo/return
+MOMO_IPN_URL=https://your-public-api.example.com/api/payments/momo/ipn
 ```
 
 > [!IMPORTANT]
 > - `JWT_SECRET`: Phải có độ dài từ 32 ký tự trở lên và khác chuỗi mặc định `replace-with-a-long-random-secret-before-production`, nếu không Backend sẽ chặn khởi động để bảo vệ an toàn.
 > - `DATABASE_URL`: Thay `localhost:1433` bằng tên máy (ví dụ `DESKTOP-F5CFA0D:1433`) nếu kết nối qua tên máy tính.
+> - `MOMO_IPN_URL`: MoMo phải truy cập được URL này từ Internet. Khi chạy local, hãy dùng tunnel HTTPS (ví dụ ngrok) trỏ tới cổng backend `3000`.
 
 ### Bước 4.3: Sinh Prisma Client và đồng bộ CSDL
 Chạy chuỗi lệnh sau để hoàn tất thiết lập cơ sở dữ liệu:
@@ -169,6 +177,7 @@ Tất cả tài khoản demo sử dụng mật khẩu chung: `Dental@123`
 > - Quản lý danh sách & tạo mới hồ sơ bệnh nhân (sinh mã tự động `MBN-YYYYMMDD/xxxx`).
 > - Tạo phiếu tiếp nhận khám (sinh mã `TNK-YYYYMMDD/xxxx`).
 > - Chọn dịch vụ điều trị (cơ bản, thẩm mỹ, niềng răng, implant), chỉ định bác sĩ & phòng khám.
+> - Thu tiền mặt hoặc tạo giao dịch MoMo sandbox; chỉ phiếu đã thanh toán mới được in và chuyển sang bác sĩ.
 > - Xem và in phiếu tiếp nhận / chuyển bệnh nhân sang bác sĩ khám.
 > - Báo cáo kết quả kiểm tra và trạng thái API chi tiết xem tại [TestReception.md](file:///c:/Users/ADMIN/Documents/GitHub/Graduation-Project/TestReception.md).
 

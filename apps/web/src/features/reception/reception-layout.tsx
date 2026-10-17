@@ -1,4 +1,4 @@
-import { ClipboardPlus, Database, FileText, HeartPulse, LayoutDashboard, LogOut, Send, Sparkles, Stethoscope, UsersRound } from 'lucide-react'
+import { ClipboardPlus, CreditCard, Database, FileText, HeartPulse, LayoutDashboard, LogOut, Send, Sparkles, Stethoscope, UsersRound } from 'lucide-react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { clearSession, type AuthSession } from '@/lib/auth-session'
 import { ReceptionProvider, useReception } from './reception-context'
@@ -8,6 +8,7 @@ const tabs = [
   { to: '/reception/patients', label: 'Bệnh nhân', icon: UsersRound },
   { to: '/reception/intakes/new', label: 'Tạo tiếp nhận', icon: ClipboardPlus },
   { to: '/reception/services', label: 'Dịch vụ & điều phối', icon: Stethoscope },
+  { to: '/reception/payment', label: 'Thanh toán', icon: CreditCard },
   { to: '/reception/receipt', label: 'Phiếu tiếp nhận', icon: FileText },
   { to: '/reception/transfer', label: 'Chuyển bác sĩ', icon: Send },
 ]

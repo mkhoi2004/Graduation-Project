@@ -20,7 +20,14 @@ export interface ServiceSelection {
   quantity: number
 }
 
-export type IntakeStatus = 'DRAFT' | 'READY' | 'TRANSFERRED'
+export type IntakeStatus = 'DRAFT' | 'READY' | 'PAID' | 'TRANSFERRED'
+
+export interface IntakePayment {
+  method: 'CASH' | 'MOMO'
+  status: 'PENDING' | 'PAID' | 'FAILED'
+  orderId?: string
+  paidAt?: string
+}
 
 export interface Intake {
   id: string
@@ -33,6 +40,7 @@ export interface Intake {
   status: IntakeStatus
   createdAt: string
   transferredAt?: string
+  payment?: IntakePayment
 }
 
 export interface DentalService {
@@ -209,6 +217,11 @@ export const demoReceptionData: { patients: Patient[]; intakes: Intake[] } = {
       status: 'TRANSFERRED',
       createdAt: '2026-10-17T01:05:00.000Z',
       transferredAt: '2026-10-17T01:30:00.000Z',
+      payment: {
+        method: 'CASH',
+        status: 'PAID',
+        paidAt: '2026-10-17T01:10:00.000Z',
+      },
     },
     {
       id: 'TNK20261710/0002',
@@ -235,8 +248,14 @@ export const demoReceptionData: { patients: Patient[]; intakes: Intake[] } = {
       ],
       roomId: 'room-02',
       doctorId: 'doctor-lan',
-      status: 'READY',
+      status: 'PAID',
       createdAt: '2026-10-17T01:22:00.000Z',
+      payment: {
+        method: 'MOMO',
+        status: 'PAID',
+        orderId: 'DENTAL-MOMO-DEMO-0003',
+        paidAt: '2026-10-17T01:25:00.000Z',
+      },
     },
     {
       id: 'TNK20261710/0004',

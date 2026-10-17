@@ -1,4 +1,14 @@
-import { createContext, useContext, useEffect, useReducer, type ReactNode } from 'react'
+import { createContext, useCallback, useContext, useEffect, useReducer, type ReactNode } from 'react'
+import {
+  createIntakeApi,
+  createPatientApi,
+  fetchIntakes,
+  fetchPatients,
+  payCashApi,
+  transferIntakeApi,
+  updateIntakeServicesApi,
+  updatePatientApi,
+} from './reception-api'
 import { demoReceptionData, type Intake, type Patient } from './reception-data'
 
 export interface ReceptionState {
@@ -7,6 +17,7 @@ export interface ReceptionState {
 }
 
 type ReceptionAction =
+  | { type: 'SET_STATE'; state: ReceptionState }
   | { type: 'UPSERT_PATIENT'; patient: Patient }
   | { type: 'ADD_INTAKE'; intake: Intake }
   | { type: 'UPDATE_INTAKE'; intake: Intake }
@@ -16,6 +27,7 @@ type ReceptionAction =
 
 interface ReceptionContextValue extends ReceptionState {
   dispatch: React.Dispatch<ReceptionAction>
+  refreshData: () => Promise<void>
 }
 
 export const initialReceptionState: ReceptionState = { patients: [], intakes: [] }
@@ -24,6 +36,8 @@ const ReceptionContext = createContext<ReceptionContextValue | null>(null)
 
 export function receptionReducer(state: ReceptionState, action: ReceptionAction): ReceptionState {
   switch (action.type) {
+    case 'SET_STATE':
+      return action.state
     case 'UPSERT_PATIENT': {
       const exists = state.patients.some((patient) => patient.id === action.patient.id)
       return {
@@ -40,7 +54,7 @@ export function receptionReducer(state: ReceptionState, action: ReceptionAction)
     case 'TRANSFER_INTAKE':
       return {
         ...state,
-        intakes: state.intakes.map((intake) => intake.id === action.intakeId
+        intakes: state.intakes.map((intake) => intake.id === action.intakeId && intake.status === 'PAID'
           ? { ...intake, status: 'TRANSFERRED', transferredAt: action.transferredAt }
           : intake),
       }
@@ -67,11 +81,75 @@ function loadState(): ReceptionState {
 export function ReceptionProvider({ children }: { children: ReactNode }) {
   const [state, dispatch] = useReducer(receptionReducer, undefined, loadState)
 
+  const refreshData = useCallback(async () => {
+    try {
+      const [patients, intakes] = await Promise.all([fetchPatients(), fetchIntakes()])
+      if (patients.length || intakes.length) {
+        dispatch({ type: 'SET_STATE', state: { patients, intakes } })
+      }
+    } catch (error) {
+      console.warn('Không thể đồng bộ từ máy chủ tiếp nhận:', error)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (import.meta.env.MODE !== 'test') {
+      void refreshData()
+    }
+  }, [refreshData])
+
   useEffect(() => {
     window.localStorage.setItem(storageKey, JSON.stringify(state))
   }, [state])
 
-  return <ReceptionContext.Provider value={{ ...state, dispatch }}>{children}</ReceptionContext.Provider>
+  const enhancedDispatch = useCallback((action: ReceptionAction) => {
+    dispatch(action)
+
+    if (import.meta.env.MODE === 'test') return
+
+    // Background sync to SQL Server database
+    switch (action.type) {
+      case 'UPSERT_PATIENT': {
+        const isExisting = state.patients.some((p) => p.id === action.patient.id)
+        if (isExisting) {
+          updatePatientApi(action.patient.id, action.patient).catch(console.error)
+        } else {
+          createPatientApi(action.patient).catch(console.error)
+        }
+        break
+      }
+      case 'ADD_INTAKE': {
+        createIntakeApi({
+          patientCode: action.intake.patientId,
+          symptoms: action.intake.symptoms,
+          priority: action.intake.priority,
+        }).catch(console.error)
+        break
+      }
+      case 'UPDATE_INTAKE': {
+        if (action.intake.status === 'READY') {
+          updateIntakeServicesApi(action.intake.id, {
+            roomCode: action.intake.roomId,
+            doctorUsername: action.intake.doctorId,
+            services: action.intake.services,
+          }).catch(console.error)
+        } else if (action.intake.status === 'PAID' && action.intake.payment?.method === 'CASH') {
+          payCashApi(action.intake.id).catch(console.error)
+        }
+        break
+      }
+      case 'TRANSFER_INTAKE': {
+        transferIntakeApi(action.intakeId).catch(console.error)
+        break
+      }
+    }
+  }, [state.patients])
+
+  return (
+    <ReceptionContext.Provider value={{ ...state, dispatch: enhancedDispatch, refreshData }}>
+      {children}
+    </ReceptionContext.Provider>
+  )
 }
 
 export function useReception() {

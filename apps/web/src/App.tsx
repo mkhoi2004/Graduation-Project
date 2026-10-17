@@ -4,6 +4,7 @@ import { LoginPage } from '@/features/auth/login-page'
 import { RolePlaceholder } from '@/features/auth/role-placeholder'
 import { NewIntakePage } from '@/features/reception/new-intake-page'
 import { PatientsPage } from '@/features/reception/patients-page'
+import { PaymentPage } from '@/features/reception/payment-page'
 import { ReceiptPage } from '@/features/reception/receipt-page'
 import { ReceptionDashboard } from '@/features/reception/reception-dashboard'
 import { ReceptionLayout } from '@/features/reception/reception-layout'
@@ -54,6 +55,7 @@ function AppRoutes() {
         <Route path="patients" element={<PatientsPage />} />
         <Route path="intakes/new" element={<NewIntakePage />} />
         <Route path="services" element={<ServicesPage />} />
+        <Route path="payment" element={<PaymentPage />} />
         <Route path="receipt" element={<ReceiptPage />} />
         <Route path="transfer" element={<TransferPage />} />
       </Route>

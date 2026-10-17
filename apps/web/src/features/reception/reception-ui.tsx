@@ -25,7 +25,7 @@ export function EmptyState({ icon, title, description, action }: { icon: ReactNo
 }
 
 export function StatusPill({ status }: { status: string }) {
-  const style = status === 'TRANSFERRED' ? 'bg-emerald-50 text-emerald-700' : status === 'READY' ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700'
-  const label = status === 'TRANSFERRED' ? 'Đã chuyển bác sĩ' : status === 'READY' ? 'Sẵn sàng chuyển' : 'Đang chuẩn bị'
+  const style = status === 'TRANSFERRED' ? 'bg-emerald-50 text-emerald-700' : status === 'PAID' ? 'bg-violet-50 text-violet-700' : status === 'READY' ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700'
+  const label = status === 'TRANSFERRED' ? 'Đã chuyển bác sĩ' : status === 'PAID' ? 'Đã thanh toán' : status === 'READY' ? 'Chờ thanh toán' : 'Đang chuẩn bị'
   return <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${style}`}>{label}</span>
 }

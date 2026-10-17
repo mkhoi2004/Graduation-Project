@@ -61,9 +61,88 @@ const roles = [
   },
 ] as const;
 
+const doctorUsers = [
+  { username: 'doctor-minh', fullName: 'BS. Nguyễn Hoàng Minh' },
+  { username: 'doctor-lan', fullName: 'BS. Trần Ngọc Lan' },
+  { username: 'doctor-huy', fullName: 'BS. Lê Quốc Huy' },
+];
+
+const clinicRooms = [
+  { code: 'room-01', name: 'Phòng khám 01', description: 'Khám tổng quát & nha khoa cơ bản' },
+  { code: 'room-02', name: 'Phòng khám 02', description: 'Thẩm mỹ & chỉnh nha' },
+  { code: 'room-03', name: 'Phòng tiểu phẫu', description: 'Tiểu phẫu răng khôn & phục hình' },
+];
+
+const dentalServices = [
+  { code: 'cleaning', category: 'Nha khoa cơ bản', name: 'Cạo vôi + đánh bóng', price: 400_000, unit: '2 hàm' },
+  { code: 'filling', category: 'Nha khoa cơ bản', name: 'Trám răng', price: 300_000, unit: '1 chiếc' },
+  { code: 'root-front', category: 'Nha khoa cơ bản', name: 'Lấy tủy răng cửa', price: 2_000_000, unit: '1 chiếc' },
+  { code: 'root-molar', category: 'Nha khoa cơ bản', name: 'Lấy tủy răng hàm', price: 3_000_000, unit: '1 chiếc' },
+  { code: 'extract-normal', category: 'Nha khoa cơ bản', name: 'Nhổ răng thường', price: 300_000, unit: '1 chiếc' },
+  { code: 'extract-wisdom', category: 'Nha khoa cơ bản', name: 'Nhổ răng khôn', price: 500_000, unit: '1 chiếc' },
+  { code: 'whitening-clinic', category: 'Thẩm mỹ & phục hình', name: 'Tẩy trắng tại phòng', price: 3_000_000, unit: '2 hàm' },
+  { code: 'whitening-home', category: 'Thẩm mỹ & phục hình', name: 'Khay tẩy tại nhà', price: 1_500_000, unit: '2 hàm' },
+  { code: 'crown-metal', category: 'Thẩm mỹ & phục hình', name: 'Răng sứ kim loại', price: 1_500_000, unit: '1 cái' },
+  { code: 'crown-ceramic', category: 'Thẩm mỹ & phục hình', name: 'Răng toàn sứ', price: 8_000_000, unit: '1 cái' },
+  { code: 'crown-premium', category: 'Thẩm mỹ & phục hình', name: 'Răng toàn sứ cao cấp', price: 15_000_000, unit: '1 cái' },
+  { code: 'braces-metal', category: 'Chỉnh nha & Implant', name: 'Niềng mắc cài kim loại', price: 40_000_000, unit: '2 hàm' },
+  { code: 'braces-ceramic', category: 'Chỉnh nha & Implant', name: 'Niềng mắc cài sứ / tự buộc', price: 50_000_000, unit: '2 hàm' },
+  { code: 'aligner', category: 'Chỉnh nha & Implant', name: 'Niềng khay trong suốt', price: 70_000_000, unit: '2 hàm' },
+];
+
+const demoPatients = [
+  {
+    code: 'MBN20261710/0001',
+    fullName: 'Nguyễn Văn An',
+    dateOfBirth: new Date('1992-05-14'),
+    gender: 'Nam',
+    phone: '0912345678',
+    address: '123 Nguyễn Trãi, Quận 1, TP.HCM',
+    note: 'Dị ứng nhẹ với penicillin, ê buốt răng hàm dưới khi uống nước đá.',
+  },
+  {
+    code: 'MBN20261710/0002',
+    fullName: 'Trần Thị Mai Hương',
+    dateOfBirth: new Date('1998-11-20'),
+    gender: 'Nữ',
+    phone: '0987654321',
+    address: '45 Lê Lợi, Quận Hải Châu, Đà Nẵng',
+    note: 'Nhu cầu niềng răng khay trong suốt và tẩy trắng răng thẩm mỹ 2 hàm.',
+  },
+  {
+    code: 'MBN20261710/0003',
+    fullName: 'Lê Quốc Bảo',
+    dateOfBirth: new Date('1985-08-03'),
+    gender: 'Nam',
+    phone: '0903112233',
+    address: '88 Cầu Giấy, Hà Nội',
+    note: 'Sưng đau nướu răng khôn hàm dưới bên trái, há miệng khó khăn.',
+  },
+  {
+    code: 'MBN20261710/0004',
+    fullName: 'Phạm Thùy Linh',
+    dateOfBirth: new Date('2001-02-28'),
+    gender: 'Nữ',
+    phone: '0934567890',
+    address: '12 Đinh Tiên Hoàng, Quận Bình Thạnh, TP.HCM',
+    note: 'Khám định kỳ 6 tháng, cạo vôi răng và đánh bóng 2 hàm.',
+  },
+  {
+    code: 'MBN20261710/0005',
+    fullName: 'Hoàng Minh Tuấn',
+    dateOfBirth: new Date('1978-10-10'),
+    gender: 'Nam',
+    phone: '0978999888',
+    address: '67 Trần Hưng Đạo, Hoàn Kiếm, Hà Nội',
+    note: 'Răng cửa bị mẻ lớn sau va chạm, muốn bọc răng toàn sứ cao cấp.',
+  },
+];
+
 async function main() {
   const passwordHash = await hash('Dental@123', 12);
 
+  // 1. Roles & Core Users
+  const roleMap = new Map<string, number>();
   for (const item of roles) {
     const role = await prisma.role.upsert({
       where: { code: item.code },
@@ -77,6 +156,7 @@ async function main() {
         description: item.description,
       },
     });
+    roleMap.set(item.code, role.id);
 
     await prisma.user.upsert({
       where: { username: item.username },
@@ -92,6 +172,258 @@ async function main() {
       },
     });
   }
+
+  // 2. Doctor Users
+  const doctorRoleId = roleMap.get('DOCTOR')!;
+  for (const doc of doctorUsers) {
+    await prisma.user.upsert({
+      where: { username: doc.username },
+      update: {
+        fullName: doc.fullName,
+        roleId: doctorRoleId,
+      },
+      create: {
+        username: doc.username,
+        fullName: doc.fullName,
+        passwordHash,
+        roleId: doctorRoleId,
+      },
+    });
+  }
+
+  // 3. Clinic Rooms
+  for (const room of clinicRooms) {
+    await prisma.clinicRoom.upsert({
+      where: { code: room.code },
+      update: {
+        name: room.name,
+        description: room.description,
+      },
+      create: room,
+    });
+  }
+
+  // 4. Dental Services
+  for (const service of dentalServices) {
+    await prisma.dentalService.upsert({
+      where: { code: service.code },
+      update: {
+        name: service.name,
+        category: service.category,
+        price: service.price,
+        unit: service.unit,
+      },
+      create: service,
+    });
+  }
+
+  // 5. Demo Patients
+  const patientMap = new Map<string, number>();
+  for (const p of demoPatients) {
+    const patient = await prisma.patient.upsert({
+      where: { code: p.code },
+      update: {
+        fullName: p.fullName,
+        dateOfBirth: p.dateOfBirth,
+        gender: p.gender,
+        phone: p.phone,
+        address: p.address,
+        note: p.note,
+      },
+      create: p,
+    });
+    patientMap.set(p.code, patient.id);
+  }
+
+  // 6. Demo Intakes with strict relations
+  const receptionUser = await prisma.user.findUnique({ where: { username: 'reception' } });
+  const doctorMinh = await prisma.user.findUnique({ where: { username: 'doctor-minh' } });
+  const doctorHuy = await prisma.user.findUnique({ where: { username: 'doctor-huy' } });
+  const doctorLan = await prisma.user.findUnique({ where: { username: 'doctor-lan' } });
+  const room01 = await prisma.clinicRoom.findUnique({ where: { code: 'room-01' } });
+  const room02 = await prisma.clinicRoom.findUnique({ where: { code: 'room-02' } });
+  const room03 = await prisma.clinicRoom.findUnique({ where: { code: 'room-03' } });
+
+  const filling = await prisma.dentalService.findUnique({ where: { code: 'filling' } });
+  const cleaning = await prisma.dentalService.findUnique({ where: { code: 'cleaning' } });
+  const wisdom = await prisma.dentalService.findUnique({ where: { code: 'extract-wisdom' } });
+  const aligner = await prisma.dentalService.findUnique({ where: { code: 'aligner' } });
+  const whiteningClinic = await prisma.dentalService.findUnique({ where: { code: 'whitening-clinic' } });
+
+  // Intake 1: TRANSFERRED (Paid cash, transferred to doctor)
+  const intake1 = await prisma.intake.upsert({
+    where: { code: 'TNK20261710/0001' },
+    update: {
+      status: 'TRANSFERRED',
+      transferredAt: new Date(),
+    },
+    create: {
+      code: 'TNK20261710/0001',
+      patientId: patientMap.get('MBN20261710/0001')!,
+      symptoms: 'Đau nhức vùng răng cấm bên phải 2 ngày, ê buốt khi ăn đồ ngọt hoặc uống lạnh.',
+      priority: 'Thường',
+      status: 'TRANSFERRED',
+      roomId: room01?.id,
+      doctorId: doctorMinh?.id,
+      createdById: receptionUser?.id,
+      transferredAt: new Date(),
+    },
+  });
+
+  if (filling && cleaning) {
+    await prisma.intakeService.upsert({
+      where: { intakeId_serviceId: { intakeId: intake1.id, serviceId: filling.id } },
+      update: {},
+      create: {
+        intakeId: intake1.id,
+        serviceId: filling.id,
+        quantity: 1,
+        unitPrice: filling.price,
+        amount: filling.price,
+      },
+    });
+    await prisma.intakeService.upsert({
+      where: { intakeId_serviceId: { intakeId: intake1.id, serviceId: cleaning.id } },
+      update: {},
+      create: {
+        intakeId: intake1.id,
+        serviceId: cleaning.id,
+        quantity: 1,
+        unitPrice: cleaning.price,
+        amount: cleaning.price,
+      },
+    });
+  }
+
+  await prisma.payment.upsert({
+    where: { orderId: 'CASH-TNK20261710/0001' },
+    update: {},
+    create: {
+      intakeId: intake1.id,
+      intakeCode: intake1.code,
+      orderId: 'CASH-TNK20261710/0001',
+      requestId: 'REQ-CASH-TNK20261710/0001',
+      partnerCode: 'CLINIC_CASHIER',
+      method: 'CASH',
+      status: 'PAID',
+      amount: 700000,
+      paidAt: new Date(),
+      createdById: receptionUser?.id,
+    },
+  });
+
+  // Intake 2: READY (Assigned room & doctor, pending payment)
+  const intake2 = await prisma.intake.upsert({
+    where: { code: 'TNK20261710/0002' },
+    update: { status: 'READY' },
+    create: {
+      code: 'TNK20261710/0002',
+      patientId: patientMap.get('MBN20261710/0003')!,
+      symptoms: 'Răng số 8 hàm dưới bên trái sưng tấy, đau nhức dữ dội lan lên thái dương.',
+      priority: 'Khẩn cấp',
+      status: 'READY',
+      roomId: room03?.id,
+      doctorId: doctorHuy?.id,
+      createdById: receptionUser?.id,
+    },
+  });
+
+  if (wisdom && cleaning) {
+    await prisma.intakeService.upsert({
+      where: { intakeId_serviceId: { intakeId: intake2.id, serviceId: wisdom.id } },
+      update: {},
+      create: {
+        intakeId: intake2.id,
+        serviceId: wisdom.id,
+        quantity: 1,
+        unitPrice: wisdom.price,
+        amount: wisdom.price,
+      },
+    });
+    await prisma.intakeService.upsert({
+      where: { intakeId_serviceId: { intakeId: intake2.id, serviceId: cleaning.id } },
+      update: {},
+      create: {
+        intakeId: intake2.id,
+        serviceId: cleaning.id,
+        quantity: 1,
+        unitPrice: cleaning.price,
+        amount: cleaning.price,
+      },
+    });
+  }
+
+  // Intake 3: PAID (Paid via MoMo, waiting for transfer)
+  const intake3 = await prisma.intake.upsert({
+    where: { code: 'TNK20261710/0003' },
+    update: { status: 'PAID' },
+    create: {
+      code: 'TNK20261710/0003',
+      patientId: patientMap.get('MBN20261710/0002')!,
+      symptoms: 'Tư vấn niềng răng khay trong suốt và tẩy trắng răng thẩm mỹ đón sự kiện.',
+      priority: 'Ưu tiên',
+      status: 'PAID',
+      roomId: room02?.id,
+      doctorId: doctorLan?.id,
+      createdById: receptionUser?.id,
+    },
+  });
+
+  if (aligner && whiteningClinic) {
+    await prisma.intakeService.upsert({
+      where: { intakeId_serviceId: { intakeId: intake3.id, serviceId: aligner.id } },
+      update: {},
+      create: {
+        intakeId: intake3.id,
+        serviceId: aligner.id,
+        quantity: 1,
+        unitPrice: aligner.price,
+        amount: aligner.price,
+      },
+    });
+    await prisma.intakeService.upsert({
+      where: { intakeId_serviceId: { intakeId: intake3.id, serviceId: whiteningClinic.id } },
+      update: {},
+      create: {
+        intakeId: intake3.id,
+        serviceId: whiteningClinic.id,
+        quantity: 1,
+        unitPrice: whiteningClinic.price,
+        amount: whiteningClinic.price,
+      },
+    });
+  }
+
+  await prisma.payment.upsert({
+    where: { orderId: 'DENTAL-MOMO-DEMO-0003' },
+    update: {},
+    create: {
+      intakeId: intake3.id,
+      intakeCode: intake3.code,
+      orderId: 'DENTAL-MOMO-DEMO-0003',
+      requestId: 'REQ-MOMO-DEMO-0003',
+      partnerCode: 'MOMO',
+      method: 'MOMO',
+      status: 'PAID',
+      amount: 73000000,
+      paidAt: new Date(),
+      createdById: receptionUser?.id,
+    },
+  });
+
+  // Intake 4: DRAFT (Newly received patient, no services assigned yet)
+  await prisma.intake.upsert({
+    where: { code: 'TNK20261710/0004' },
+    update: { status: 'DRAFT' },
+    create: {
+      code: 'TNK20261710/0004',
+      patientId: patientMap.get('MBN20261710/0005')!,
+      symptoms: 'Răng cửa trên bị sứt mẻ 1/3 thân răng, cần khám phục hình thẩm mỹ.',
+      priority: 'Thường',
+      status: 'DRAFT',
+      createdById: receptionUser?.id,
+    },
+  });
 }
 
 main()

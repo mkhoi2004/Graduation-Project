@@ -17,6 +17,7 @@ describe('reception workflow state', () => {
     let state = receptionReducer(initialReceptionState, { type: 'UPSERT_PATIENT', patient })
     state = receptionReducer(state, { type: 'ADD_INTAKE', intake })
     state = receptionReducer(state, { type: 'ADD_INTAKE', intake: { ...intake, id: 'TNK20261610/0002' } })
+    state = receptionReducer(state, { type: 'UPDATE_INTAKE', intake: { ...intake, status: 'PAID', payment: { method: 'CASH', status: 'PAID' } } })
     state = receptionReducer(state, { type: 'TRANSFER_INTAKE', intakeId: intake.id, transferredAt: '2026-10-16T01:00:00.000Z' })
 
     expect(state.patients).toHaveLength(1)
@@ -49,7 +50,20 @@ describe('reception workflow state', () => {
     expect(calculateIntakeTotal(state.intakes[0].services)).toBe(600_000)
     expect(state.intakes[0]).toMatchObject({ roomId: 'room-01', doctorId: 'doctor-minh', status: 'READY' })
 
+    state = receptionReducer(state, { type: 'UPDATE_INTAKE', intake: { ...state.intakes[0], status: 'PAID', payment: { method: 'CASH', status: 'PAID' } } })
     state = receptionReducer(state, { type: 'TRANSFER_INTAKE', intakeId: intake.id, transferredAt: '2026-10-16T01:00:00.000Z' })
     expect(state.intakes[0].status).toBe('TRANSFERRED')
+  })
+
+  it('refuses to transfer an intake that has not been paid', () => {
+    const ready = {
+      id: 'TNK1', patientId: 'MBN1', symptoms: 'Đau răng', priority: 'Thường' as const,
+      services: [{ serviceId: 'filling', quantity: 1 }], roomId: 'room-01', doctorId: 'doctor-minh',
+      status: 'READY' as const, createdAt: '2026-10-17T00:00:00.000Z',
+    }
+    const state = receptionReducer({ patients: [], intakes: [ready] }, {
+      type: 'TRANSFER_INTAKE', intakeId: ready.id, transferredAt: '2026-10-17T01:00:00.000Z',
+    })
+    expect(state.intakes[0].status).toBe('READY')
   })
 })

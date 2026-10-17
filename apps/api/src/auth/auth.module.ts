@@ -28,5 +28,6 @@ import {
     { provide: UsersRepository, useClass: PrismaUsersRepository },
     { provide: PasswordHasher, useClass: BcryptPasswordHasher },
   ],
+  exports: [JwtModule],
 })
 export class AuthModule {}

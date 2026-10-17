@@ -39,6 +39,7 @@ describe('Dental ERP login', () => {
     expect(screen.getByRole('heading', { name: /quầy tiếp nhận/i })).toBeInTheDocument()
     expect(screen.getByRole('link', { name: /^bệnh nhân$/i })).toHaveAttribute('href', '/reception/patients')
     expect(screen.getByRole('link', { name: /^tạo tiếp nhận$/i })).toHaveAttribute('href', '/reception/intakes/new')
+    expect(screen.getByRole('link', { name: /^thanh toán$/i })).toHaveAttribute('href', '/reception/payment')
   })
 
   it('redirects an unauthenticated reception route to login', () => {

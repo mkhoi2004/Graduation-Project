@@ -1,124 +1,246 @@
-# Báo Cáo Kiểm Tra Hệ Thống: Đăng Nhập & Phân Hệ Tiếp Nhận (/reception)
+# Báo Cáo Kiểm Tra Toàn Diện: CSDL Quan Hệ & Luồng Quầy Tiếp Nhận (/reception)
 
 > **Dự án:** Dental ERP (Hệ thống quản lý phòng khám nha khoa)  
 > **Thời gian cập nhật:** 17/10/2026  
-> **Môi trường:** Localhost (Windows 11, Node.js v22, MS SQL Server Express 2017+, NestJS, React 19 + Vite)  
-> **Trạng thái tổng thể:** ✅ **PASSED (33/33 Automated Tests + Live API & Proxy Verified)**
+> **Môi trường:** Localhost (Windows 11, Node.js v22, MS SQL Server Express 2017+, NestJS, React 19 + Vite, Prisma ORM v6)  
+> **Trạng thái kiểm thử:** ✅ **PASSED (66/66 Automated Tests + E2E DB Integration + 0 Lint Warnings)**
 
 ---
 
-## 1. Tổng Quan & Khắc Phục Sự Cố Đăng Nhập
+## 1. Thiết Kế Cơ Sở Dữ Liệu Quan Hệ (Database Relational Schema)
 
-### 1.1. Chẩn đoán sự cố: "Nhập tài khoản ấn đăng nhập bị load lại màn hình không nhảy qua"
-Khi người dùng nhập tài khoản `reception` / `Dental@123` và bấm "Đăng nhập", màn hình bị giật/nháy rồi giữ nguyên ở trang `/login`. Nguyên nhân bắt nguồn từ cơ chế khai báo Route trong `apps/web/src/App.tsx`:
-- **Nguyên nhân cốt lõi**: Trước đây, trong `AppRoutes`, biến `session = getSession()` được gọi một lần duy nhất lúc component khởi tạo. Khi chưa đăng nhập, `session` mang giá trị `null`, khiến biểu thức `<Route path="/reception" element={session ? ... : <Navigate to="/login" replace />} />` gắn cố định thẻ `<Navigate to="/login" />` vào cấu trúc cây Route của `/reception`.
-- **Hiện tượng**: Khi form đăng nhập gọi `saveSession(payload)` và `navigate('/reception')`, React Router chuyển hướng đến `/reception`. Tại đây, cây Route khớp thẻ `<Navigate to="/login" />` và ngay lập tức redirect ngược trở lại `/login`. Người dùng nhìn thấy màn hình "load lại" mà không thể vào được quầy tiếp nhận.
-- **Giải pháp đã xử lý triệt để**:
-  1. Tách các route bảo vệ thành các component độc lập: `ProtectedReceptionRoute` và `PublicLoginRoute`. Mỗi khi có chuyển hướng URL, component tự động đọc `getSession()` từ `localStorage` để quyết định cấp quyền hay điều hướng.
-  2. Bổ sung cấu hình proxy `/api` vào `apps/web/vite.config.ts` trỏ về `http://localhost:3000` và mở rộng cấu hình CORS trong `apps/api/src/app.setup.ts` chấp nhận cả `localhost:5173` và `127.0.0.1:5173`.
-  3. Bổ sung kiểm thử tự động `App.test.tsx` giả lập luồng người dùng bấm nút "Tiếp nhận" và submit form đăng nhập -> đảm bảo hệ thống chuyển trang mượt mà sang `Quầy tiếp nhận`.
+Hệ thống hoạt động với **16 bảng dữ liệu** trên Microsoft SQL Server thông qua Prisma ORM:
+- **8 Bảng vận hành chính (Operational Tables)**: Có hệ thống **Khóa chính (PK), Khóa ngoại (FK) và Ràng buộc duy nhất (Unique / Cascade)** chặt chẽ.
+- **8 Bảng sao lưu dự phòng (Backup / Audit *Deleted Tables)**: Khi thực hiện các chức năng xóa dữ liệu, thay vì xóa vĩnh viễn mất dữ liệu, hệ thống tự động POST toàn bộ thông tin bản ghi sang các bảng có hậu tố `Deleted` để lưu trữ lịch sử, phục vụ kiểm toán và khôi phục khi cần thiết.
 
 ---
 
-## 2. Danh Sách API Liên Quan & Trạng Thái Kiểm Thử
+### 1.1. Sơ Đồ Quan Hệ Thực Thể 8 Bảng Vận Hành Chính (ERD)
 
-| Phương thức | Endpoint | Chức năng | Phân quyền | Kết quả kiểm thử | Chi tiết phản hồi |
-| :--- | :--- | :--- | :--- | :--- | :--- |
-| `POST` | `/api/auth/login` | Đăng nhập tài khoản nội bộ | Public (Giới hạn 5 req/phút) | ✅ **PASSED** | Trả về `accessToken` JWT, thông tin user và role `RECEPTION_STAFF` |
-| `POST` | `/api/auth/login` *(Qua Vite Proxy)* | Đăng nhập qua proxy `localhost:5173/api/auth/login` | Public | ✅ **PASSED** | Kết nối thông suốt, loại bỏ hoàn toàn lỗi CORS / lệch cổng |
-| `POST` | `/api/auth/login` *(Sai pass)* | Kiểm tra bảo mật sai thông tin | Public | ✅ **PASSED** | Trả về HTTP `401 Unauthorized` (`"Tên đăng nhập hoặc mật khẩu không đúng"`) |
-| `POST` | `/api/auth/login` *(Rate limit)* | Kiểm tra chống brute-force | Public | ✅ **PASSED** | Gửi > 5 request/phút trả về HTTP `429 Too Many Requests` |
-| `GET` | `/api/health` | Kiểm tra tình trạng backend | Public | ✅ **PASSED** | Trả về HTTP `200 OK` (`{"service":"dental-erp-api","status":"ok"}`) |
-| `GET` | `/api/openapi.json` | Cung cấp tài liệu OpenAPI cho APIdog | Public | ✅ **PASSED** | Trả về HTTP `200 OK` schema OpenAPI 3.0 |
-| `GET` | `/api/docs` | Giao diện Swagger UI | Public | ✅ **PASSED** | Trả về HTTP `200 OK` HTML Swagger Docs |
+```mermaid
+erDiagram
+    Role ||--o{ User : "contains"
+    User ||--o{ Intake : "assigned doctor (doctorId)"
+    User ||--o{ Intake : "created staff (createdById)"
+    User ||--o{ Payment : "cashier (createdById)"
+    Patient ||--o{ Intake : "has intakes (patientId)"
+    ClinicRoom ||--o{ Intake : "assigned room (roomId)"
+    Intake ||--|{ IntakeService : "includes (Cascade Delete)"
+    DentalService ||--o{ IntakeService : "catalog item (serviceId)"
+    Intake ||--o{ Payment : "settled by (intakeId)"
 
----
+    Patient {
+        int id PK "Tự tăng (Identity)"
+        varchar code UK "Mã MBN (MBNYYYYDDMM/xxxx)"
+        nvarchar fullName "Họ tên bệnh nhân"
+        date dateOfBirth "Ngày sinh (chuẩn Date SQL Server)"
+        nvarchar gender "Nam / Nữ / Khác"
+        varchar phone UK "Số điện thoại duy nhất"
+        nvarchar address "Địa chỉ liên hệ"
+        nvarchar note "Tiền sử bệnh lý / dị ứng"
+        datetime2 createdAt "Thời điểm tạo hồ sơ"
+    }
 
-## 3. Dữ Liệu Mẫu (Demo Test Data) Cho Phân Hệ Tiếp Nhận (/reception)
+    ClinicRoom {
+        int id PK "Tự tăng (Identity)"
+        varchar code UK "Mã phòng khám (room-01, room-02,...)"
+        nvarchar name "Tên phòng khám"
+        nvarchar description "Chức năng phòng"
+        bit isActive "Trạng thái hoạt động"
+    }
 
-Hệ thống đã được tích hợp sẵn bộ dữ liệu mẫu phong phú bao gồm **5 bệnh nhân** và **4 phiếu tiếp nhận** với đầy đủ các trạng thái và nghiệp vụ để phục vụ việc kiểm thử:
+    DentalService {
+        int id PK "Tự tăng (Identity)"
+        varchar code UK "Mã dịch vụ (cleaning, filling,...)"
+        nvarchar name "Tên dịch vụ nha khoa"
+        nvarchar category "Danh mục chuyên môn"
+        int price "Đơn giá hiện hành (VND)"
+        nvarchar unit "Đơn vị tính (chiếc, 2 hàm,...)"
+        bit isActive "Trạng thái cung cấp"
+    }
 
-> [!TIP]
-> **Thao tác 1 chạm trong giao diện**:
-> - Trên thanh Header của Quầy tiếp nhận, có sẵn nút **"Nạp dữ liệu mẫu"** (biểu tượng ✨) để nạp tức thì bộ dữ liệu dưới đây.
-> - Nút **"Làm mới"** để xóa trắng dữ liệu và bắt đầu lại từ đầu.
-> - Nếu bạn mở quầy tiếp nhận lần đầu tiên, hệ thống sẽ tự động hiển thị dữ liệu mẫu này.
+    Intake {
+        int id PK "Tự tăng (Identity)"
+        varchar code UK "Mã phiếu tiếp nhận (TNKYYYYDDMM/xxxx)"
+        int patientId FK "Khóa ngoại tham chiếu Patient(id)"
+        nvarchar symptoms "Triệu chứng ban đầu"
+        varchar priority "Mức độ: Thường / Ưu tiên / Khẩn cấp"
+        varchar status "Trạng thái: DRAFT, READY, PAID, TRANSFERRED"
+        int roomId FK "Khóa ngoại tham chiếu ClinicRoom(id)"
+        int doctorId FK "Khóa ngoại tham chiếu User(id)"
+        int createdById FK "Khóa ngoại tham chiếu User(id)"
+        datetime2 transferredAt "Thời điểm bàn giao bác sĩ"
+        datetime2 createdAt "Thời điểm tạo phiếu"
+    }
 
-### 3.1. Danh sách 5 Bệnh nhân mẫu (Patients)
+    IntakeService {
+        int id PK "Tự tăng (Identity)"
+        int intakeId FK "Khóa ngoại Intake(id) [CASCADE DELETE]"
+        int serviceId FK "Khóa ngoại DentalService(id) [RESTRICT]"
+        int quantity "Số lượng chỉ định"
+        int unitPrice "Đơn giá tại thời điểm chỉ định"
+        int amount "Thành tiền (unitPrice * quantity)"
+    }
 
-| Mã Bệnh Nhân | Họ và tên | Ngày sinh | Giới tính | Số điện thoại | Địa chỉ | Ghi chú / Tiền sử bệnh |
-| :--- | :--- | :---: | :---: | :--- | :--- | :--- |
-| `MBN20261710/0001` | **Nguyễn Văn An** | 14/05/1992 | Nam | `0912345678` | 123 Nguyễn Trãi, Q.1, TP.HCM | Dị ứng nhẹ với penicillin, ê buốt răng hàm dưới khi uống nước đá |
-| `MBN20261710/0002` | **Trần Thị Mai Hương** | 20/11/1998 | Nữ | `0987654321` | 45 Lê Lợi, Q.Hải Châu, Đà Nẵng | Nhu cầu niềng răng khay trong suốt và tẩy trắng răng thẩm mỹ 2 hàm |
-| `MBN20261710/0003` | **Lê Quốc Bảo** | 03/08/1985 | Nam | `0903112233` | 88 Cầu Giấy, Hà Nội | Sưng đau nướu răng khôn hàm dưới bên trái, há miệng khó khăn |
-| `MBN20261710/0004` | **Phạm Thùy Linh** | 28/02/2001 | Nữ | `0934567890` | 12 Đinh Tiên Hoàng, Bình Thạnh, TP.HCM | Khám định kỳ 6 tháng, cạo vôi răng và đánh bóng 2 hàm |
-| `MBN20261710/0005` | **Hoàng Minh Tuấn** | 10/10/1978 | Nam | `0978999888` | 67 Trần Hưng Đạo, Hoàn Kiếm, HN | Răng cửa bị mẻ lớn sau va chạm, muốn bọc răng toàn sứ cao cấp |
-
----
-
-### 3.2. Danh sách 4 Phiếu tiếp nhận mẫu (Intakes)
-
-| Mã Tiếp Nhận | Bệnh nhân | Triệu chứng ban đầu | Ưu tiên | Dịch vụ đã chọn & Tạm tính | Phòng khám & Bác sĩ | Trạng thái |
-| :--- | :--- | :--- | :---: | :--- | :--- | :---: |
-| `TNK20261710/0001` | Nguyễn Văn An | Đau nhức răng cấm phải 2 ngày, ê buốt khi ăn đồ ngọt | Thường | - Trám răng (x1): 300.000đ<br>- Cạo vôi + đánh bóng (x1): 400.000đ<br>**Tổng: 700.000 VNĐ** | - Phòng khám 01<br>- BS. Nguyễn Hoàng Minh | `TRANSFERRED`<br>*(Đã chuyển bác sĩ, hồ sơ được khóa an toàn)* |
-| `TNK20261710/0002` | Lê Quốc Bảo | Răng số 8 sưng tấy, đau nhức dữ dội lan lên thái dương | Khẩn cấp | - Nhổ răng khôn (x1): 500.000đ<br>- Cạo vôi + đánh bóng (x1): 400.000đ<br>**Tổng: 900.000 VNĐ** | - Phòng tiểu phẫu<br>- BS. Lê Quốc Huy | `READY`<br>*(Sẵn sàng xem phiếu & bấm chuyển bác sĩ)* |
-| `TNK20261710/0003` | Trần Thị Mai Hương | Tư vấn niềng khay trong suốt và tẩy trắng răng thẩm mỹ | Ưu tiên | - Niềng khay trong suốt (x1): 70.000.000đ<br>- Tẩy trắng tại phòng (x1): 3.000.000đ<br>**Tổng: 73.000.000 VNĐ** | - Phòng khám 02<br>- BS. Trần Ngọc Lan | `READY`<br>*(Sẵn sàng xem phiếu & bấm chuyển bác sĩ)* |
-| `TNK20261710/0004` | Hoàng Minh Tuấn | Răng cửa trên sứt mẻ 1/3 thân răng, cần phục hình | Thường | *Chưa chọn dịch vụ*<br>**Tổng: 0 VNĐ** | *Chưa chọn phòng/bác sĩ* | `DRAFT`<br>*(Đang chờ tiếp tục chọn dịch vụ và điều phối)* |
-
----
-
-## 4. Hướng Dẫn Thử Nghiệm Từng Tính Năng Tại Quầy Tiếp Nhận
-
-### 4.1. Bước 1: Dashboard Quầy tiếp nhận (`/reception`)
-- Nhìn thấy ngay 4 khối thẻ thống kê:
-  - **Tổng bệnh nhân:** `5`
-  - **Phiếu tiếp nhận:** `4`
-  - **Chờ hoàn thiện:** `3` (gồm 1 phiếu DRAFT và 2 phiếu READY)
-  - **Đã chuyển bác sĩ:** `1` (phiếu TNK...0001)
-- Bảng danh sách "Tiếp nhận gần đây" liệt kê đầy đủ 4 hồ sơ kèm huy hiệu trạng thái tương ứng.
-
-### 4.2. Bước 2: Quản lý Hồ sơ bệnh nhân (`/reception/patients`)
-- **Xem danh sách**: Có sẵn 5 bệnh nhân với đầy đủ thông tin.
-- **Thử tìm kiếm**: Nhập `An`, `0987`, hoặc `0003` vào thanh tìm kiếm -> danh sách lọc tức thì.
-- **Thử chỉnh sửa**: Bấm nút **"Sửa"** tại một bệnh nhân -> thông tin tự động điền lên form bên trái -> thay đổi địa chỉ hoặc ghi chú -> bấm **"Cập nhật hồ sơ bệnh nhân"**.
-- **Thử tạo tiếp nhận nhanh**: Bấm nút **"Tiếp nhận"** tại dòng bệnh nhân -> hệ thống tự chuyển sang trang Tạo tiếp nhận với bệnh nhân đó đã được chọn sẵn.
-- **Thử tạo bệnh nhân mới**: Điền thông tin mới -> hệ thống sinh mã tự tăng `MBN20261710/0006`.
-
-### 4.3. Bước 3: Tạo Tiếp nhận mới (`/reception/intakes/new`)
-- Chọn bất kỳ bệnh nhân nào trong danh sách.
-- Nhập triệu chứng và chọn mức độ ưu tiên (*Thường*, *Ưu tiên*, *Khẩn cấp*).
-- Xem ô "Mã dự kiến" tự động hiển thị `TNK20261710/0005`.
-- Bấm **"Tạo phiếu & chọn dịch vụ"** để tự động chuyển sang trang Chọn dịch vụ.
-
-### 4.4. Bước 4: Chọn Dịch vụ & Điều phối (`/reception/services`)
-- Chọn phiếu `TNK20261710/0004` (đang ở trạng thái DRAFT):
-  - Bấm nút `+` để thêm các dịch vụ mong muốn (ví dụ: *Răng toàn sứ cao cấp*).
-  - Quan sát khung bên phải: Tổng tạm tính nhảy số tức thì theo đơn vị tiền tệ VND.
-  - Chọn **Phòng khám** (ví dụ: *Phòng khám 01*) và **Bác sĩ** (ví dụ: *BS. Lê Quốc Huy*).
-  - Khi đã chọn đủ 3 yếu tố (Dịch vụ, Phòng, Bác sĩ), nút **"Lưu & xem phiếu"** sáng lên -> bấm để chuyển sang bước xem phiếu.
-
-### 4.5. Bước 5: Xem Phiếu tiếp nhận (`/reception/receipt`)
-- Xem chi tiết phiếu tiếp nhận trình bày đẹp mắt: mã TNK, tên bệnh nhân, bác sĩ, phòng khám, danh mục dịch vụ chi tiết và tổng tiền.
-- Bấm nút **"In phiếu"** -> nhận thông báo xác nhận tính năng in phiếu sẵn sàng kết nối thiết bị.
-- Bấm **"Tiếp tục chuyển bác sĩ"** để đi tới bước cuối cùng.
-
-### 4.6. Bước 6: Chuyển bác sĩ (`/reception/transfer`)
-- Thấy ngay danh sách hồ sơ:
-  - Phiếu `DRAFT`: Hiện cảnh báo vàng báo chưa đủ dịch vụ/phòng khám.
-  - Phiếu `READY` (`TNK...0002` hoặc `0003`): Nút **"Chuyển bác sĩ"** màu đỏ sẵn sàng bấm.
-- Bấm nút **"Chuyển bác sĩ"**:
-  - Trạng thái lập tức đổi sang `Đã chuyển` (màu xanh lục).
-  - Thẻ thống kê tại Dashboard tăng số hồ sơ đã chuyển lên `2`.
-  - Nút chỉnh sửa dịch vụ tự động ẩn đi để khóa hồ sơ.
+    Payment {
+        int id PK "Tự tăng (Identity)"
+        int intakeId FK "Khóa ngoại Intake(id)"
+        varchar intakeCode "Mã phiếu TNK"
+        varchar orderId UK "Mã đơn hàng duy nhất"
+        varchar requestId UK "Mã yêu cầu cổng thanh toán"
+        varchar partnerCode "Mã đối tác (MOMO / CLINIC_CASHIER)"
+        varchar method "Hình thức: CASH / MOMO"
+        varchar status "Trạng thái: PENDING, PAID, FAILED"
+        int amount "Số tiền thanh toán"
+        nvarchar gatewayPayload "Dữ liệu phản hồi JSON từ cổng"
+        datetime2 paidAt "Thời điểm thanh toán thành công"
+        int createdById FK "Thu ngân tiếp nhận (User id)"
+    }
+```
 
 ---
 
-## 5. Kết Quả Kiểm Thử Tự Động (Automated Test Suite)
+### 1.2. Danh Sách 8 Bảng Sao Lưu Dự Phòng (*Deleted Tables)
 
-Tất cả **33 test cases** đều chạy thành công 100%:
+Mỗi bảng chính đều có một bảng bản sao tương ứng với hậu tố `Deleted` để lưu trữ dữ liệu bị xóa kèm các trường vết kiểm toán (Audit fields):
 
-- **Backend Unit Tests (`apps/api`)**: **7/7 PASSED** (AuthService, EnvValidation, AppController).
-- **Backend E2E Tests (`apps/api/test`)**: **2/2 PASSED** (Health, OpenAPI contract).
-- **Frontend Unit & Integration Tests (`apps/web`)**: **24/24 PASSED** (bao gồm test đăng nhập chuyển route `navigates to reception workspace upon successful login submission`, role routing, auth session, và luồng dữ liệu 5 bước tiếp nhận).
-- **Kiểm tra cú pháp & Linting**: **0 errors, 0 warnings** trên toàn bộ workspace.
-- **Biên dịch Production (`npm run build`)**: **Thành công 100%**.
+| Bảng Chính | Bảng Sao Lưu Dự Phòng | Các Trường Bổ Sung / Đặc Tính Kỹ Thuật |
+| :--- | :--- | :--- |
+| `Role` | `RoleDeleted` | `originalId` (ID gốc), `deletedAt` (thời điểm xóa), `deletedBy` (người xóa), `deleteReason` (lý do xóa) |
+| `User` | `UserDeleted` | Sao lưu toàn bộ thông tin tài khoản, `originalId`, `deletedAt`, `deletedBy`, `deleteReason` |
+| `Patient` | `PatientDeleted` | Lưu vết hồ sơ bệnh nhân khi xóa, không chặn trùng số điện thoại trong bảng xóa, có index tra cứu nhanh |
+| `ClinicRoom` | `ClinicRoomDeleted` | Lưu vết phòng khám bị xóa hoặc ngừng khai thác |
+| `DentalService` | `DentalServiceDeleted` | Lưu vết danh mục dịch vụ bị xóa |
+| `Intake` | `IntakeDeleted` | Lưu vết phiếu khám bị xóa, lưu kèm `patientCode` để dễ dàng đối soát lịch sử |
+| `IntakeService` | `IntakeServiceDeleted` | Lưu vết các dịch vụ đã chỉ định trong phiếu khám bị xóa |
+| `Payment` | `PaymentDeleted` | Lưu vết giao dịch thu tiền / cổng thanh toán bị xóa hoặc hủy bỏ |
+
+> [!NOTE]
+> **Đặc tính kỹ thuật của các bảng `*Deleted`:**
+> 1. **Khóa chính độc lập**: Mỗi bảng `*Deleted` sở hữu khóa chính `id` tự tăng riêng, cho phép một thực thể có thể được tạo rồi xóa nhiều lần mà không bao giờ gặp lỗi xung đột khóa chính.
+> 2. **Chuyển Unique thành Index thông thường**: Các cột như số điện thoại, mã phiếu, mã đơn hàng được chuyển từ `Unique` sang `Index`, đảm bảo việc lưu trữ bản sao dự phòng không bao giờ bị từ chối do trùng giá trị lịch sử.
+> 3. **Tự động lưu vết**: Cột `deletedAt` được gắn mặc định `@default(now()) @db.DateTime2` để tự động đóng dấu thời gian chính xác tới microsecond.
+
+---
+
+### 1.3. Bảng Ràng Buộc Khóa Chính (PK), Khóa Ngoại (FK) & Khóa Duy Nhất (UK) Trong SQL Server
+
+| Bảng CSDL | Tên Ràng Buộc (Constraint) | Loại | Cột Áp Dụng | Tham Chiếu / Ý Nghĩa Nghiệp Vụ |
+| :--- | :--- | :---: | :--- | :--- |
+| `Patient` | `Patient_pkey` | **PK** | `id` (INT) | Khóa chính tự tăng |
+| `Patient` | `Patient_code_key` | **UK** | `code` (VARCHAR) | Mã bệnh nhân `MBNYYYYDDMM/xxxx` không trùng lặp |
+| `Patient` | `Patient_phone_key` | **UK** | `phone` (VARCHAR) | Chống đăng ký trùng số điện thoại giữa các bệnh nhân |
+| `ClinicRoom` | `ClinicRoom_pkey` | **PK** | `id` (INT) | Khóa chính tự tăng |
+| `ClinicRoom` | `ClinicRoom_code_key` | **UK** | `code` (VARCHAR) | Mã phòng khám duy nhất (`room-01`, `room-02`, `room-03`) |
+| `DentalService` | `DentalService_pkey` | **PK** | `id` (INT) | Khóa chính tự tăng |
+| `DentalService` | `DentalService_code_key` | **UK** | `code` (VARCHAR) | Mã dịch vụ danh mục duy nhất (`cleaning`, `filling`,...) |
+| `Intake` | `Intake_pkey` | **PK** | `id` (INT) | Khóa chính tự tăng |
+| `Intake` | `Intake_code_key` | **UK** | `code` (VARCHAR) | Mã tiếp nhận `TNKYYYYDDMM/xxxx` duy nhất trong ngày |
+| `Intake` | `Intake_patientId_fkey` | **FK** | `patientId` | Bắt buộc tham chiếu `Patient.id` (Không thể tạo phiếu nếu không có bệnh nhân) |
+| `Intake` | `Intake_roomId_fkey` | **FK** | `roomId` | Tham chiếu `ClinicRoom.id` |
+| `Intake` | `Intake_doctorId_fkey` | **FK** | `doctorId` | Tham chiếu `User.id` (Bác sĩ phụ trách) |
+| `Intake` | `Intake_createdById_fkey` | **FK** | `createdById` | Tham chiếu `User.id` (Nhân viên tiếp nhận lập phiếu) |
+| `IntakeService` | `IntakeService_pkey` | **PK** | `id` (INT) | Khóa chính tự tăng |
+| `IntakeService` | `IntakeService_intakeId_serviceId_key` | **UK** | `(intakeId, serviceId)` | Mỗi dịch vụ chỉ xuất hiện 1 dòng trong 1 phiếu khám (tránh trùng lặp) |
+| `IntakeService` | `IntakeService_intakeId_fkey` | **FK** | `intakeId` | Tham chiếu `Intake.id` (**ON DELETE CASCADE**: Xóa phiếu thì tự xóa chi tiết) |
+| `IntakeService` | `IntakeService_serviceId_fkey` | **FK** | `serviceId` | Tham chiếu `DentalService.id` |
+| `Payment` | `Payment_pkey` | **PK** | `id` (INT) | Khóa chính tự tăng |
+| `Payment` | `Payment_orderId_key` | **UK** | `orderId` | Mã giao dịch đơn hàng duy nhất |
+| `Payment` | `Payment_requestId_key` | **UK** | `requestId` | Mã định danh yêu cầu thanh toán duy nhất |
+| `Payment` | `Payment_intakeId_fkey` | **FK** | `intakeId` | Tham chiếu `Intake.id` |
+| `Payment` | `Payment_createdById_fkey` | **FK** | `createdById` | Tham chiếu `User.id` (Thu ngân phụ trách) |
+| `*Deleted` (8 bảng) | `*_pkey` | **PK** | `id` (INT) | Khóa chính tự tăng độc lập cho mỗi bản sao lưu dự phòng |
+
+---
+
+## 2. Danh Sách API Backend Phục Vụ Toàn Bộ Luồng Tiếp Nhận & Xóa An Toàn
+
+Tất cả các endpoint tiếp nhận đều được bảo vệ bởi `ReceptionAccessGuard` (yêu cầu JWT token hợp lệ với vai trò `RECEPTION_STAFF` hoặc `ADMIN`).
+
+| Phương thức | Endpoint | Nghiệp vụ CSDL | Trạng thái test |
+| :--- | :--- | :--- | :---: |
+| `GET` | `/api/reception/master-data` | Lấy danh mục phòng (`ClinicRoom`), dịch vụ (`DentalService`), bác sĩ (`User` role `DOCTOR`) | ✅ **PASS** |
+| `GET` | `/api/reception/patients` | Lấy danh sách hồ sơ từ bảng `Patient`, sắp xếp theo `createdAt DESC` | ✅ **PASS** |
+| `POST` | `/api/reception/patients` | Thêm mới bệnh nhân vào `Patient`, kiểm tra duy nhất SĐT, sinh mã `MBN` | ✅ **PASS** |
+| `PUT` | `/api/reception/patients/:code` | Cập nhật hồ sơ bệnh nhân trong `Patient` theo mã `MBN` | ✅ **PASS** |
+| `DELETE` | `/api/reception/patients/:code` | **Xóa bệnh nhân**: Tự động sao chép toàn bộ hồ sơ sang `PatientDeleted` (kèm theo các phiếu và dịch vụ liên đới sang `IntakeDeleted`, `IntakeServiceDeleted`) trước khi xóa khỏi bảng chính | ✅ **PASS** |
+| `GET` | `/api/reception/intakes` | Lấy danh sách phiếu kèm thông tin bệnh nhân, dịch vụ, phòng khám, bác sĩ, thanh toán | ✅ **PASS** |
+| `POST` | `/api/reception/intakes` | Tạo mới phiếu vào `Intake` (`DRAFT`), liên kết `patientId`, sinh mã `TNK` | ✅ **PASS** |
+| `PUT` | `/api/reception/intakes/:code/services` | Xóa/tạo mới dòng chi tiết `IntakeService`, cập nhật đơn giá chụp nhanh, gán phòng & bác sĩ, chuyển `READY` | ✅ **PASS** |
+| `DELETE` | `/api/reception/intakes/:code` | **Xóa phiếu tiếp nhận**: Tự động sao chép sang `IntakeDeleted` và `IntakeServiceDeleted` trước khi xóa khỏi bảng chính | ✅ **PASS** |
+| `POST` | `/api/reception/intakes/:code/pay-cash` | Lưu giao dịch tiền mặt vào `Payment`, cập nhật `Intake.status = 'PAID'` | ✅ **PASS** |
+| `POST` | `/api/payments/momo` | Tạo phiên thanh toán trực tuyến MoMo sandbox, lưu `Payment` (`PENDING`) | ✅ **PASS** |
+| `POST` | `/api/payments/momo/ipn` | Webhook MoMo xác thực chữ ký, cập nhật `Payment.status = 'PAID'` và tự động chuyển `Intake.status = 'PAID'` | ✅ **PASS** |
+| `POST` | `/api/reception/intakes/:code/transfer` | Kiểm tra điều kiện `PAID`, cập nhật `status = 'TRANSFERRED'`, ghi nhận `transferredAt` và khóa hồ sơ | ✅ **PASS** |
+| `GET` | `/api/reception/backup/deleted` | Tra cứu danh sách các bản ghi đã xóa được lưu trữ trong các bảng sao lưu `*Deleted` | ✅ **PASS** |
+
+---
+
+## 3. Bảng Tổng Hợp Kết Quả Kiểm Thử (66/66 PASSED)
+
+```
+Test Suites: 15 passed, 15 total
+Tests:       66 passed, 66 total
+Linter:      0 errors, 0 warnings (across all 72 source files)
+```
+
+### 3.1. Backend Unit Tests (`apps/api`) — 28/28 PASSED
+| File kiểm thử | Số test | Nội dung kiểm thử | Kết quả |
+| :--- | :---: | :--- | :---: |
+| `src/reception/reception.service.spec.ts` | **14** | Đọc danh mục, sinh mã `MBN`/`TNK`, chống trùng SĐT, chỉ định dịch vụ có lưu đơn giá chụp nhanh, thu tiền mặt, bàn giao bác sĩ, **kiểm thử xóa bệnh nhân tự động sao lưu vào `PatientDeleted` và xóa phiếu tự động sao lưu vào `IntakeDeleted`** | ✅ **PASS** |
+| `src/payments/payments.service.spec.ts` | 5 | Tạo thanh toán MoMo, xác thực IPN/Return, tra cứu giao dịch | ✅ **PASS** |
+| `src/config/env.validation.spec.ts` | 4 | Kiểm tra biến môi trường, chuỗi kết nối SQL Server, độ dài JWT | ✅ **PASS** |
+| `src/payments/momo-signature.spec.ts` | 2 | Tính toán và xác thực chữ ký HMAC SHA256 cho giao dịch MoMo | ✅ **PASS** |
+| `src/auth/auth.service.spec.ts` | 2 | Đăng nhập cấp JWT 8h, từ chối mật khẩu không khớp | ✅ **PASS** |
+| `src/app.controller.spec.ts` | 1 | Health check endpoint phản hồi `ok` | ✅ **PASS** |
+
+### 3.2. Backend E2E Integration Tests (`apps/api/test`) — 4/4 PASSED
+| File kiểm thử | Số test | Nội dung kiểm thử | Kết quả |
+| :--- | :---: | :--- | :---: |
+| `test/app.e2e-spec.ts` | **4** | Chạy toàn bộ quy trình tiếp nhận trực tiếp trên MS SQL Server: Đăng nhập -> Lấy danh mục -> Tạo bệnh nhân -> Tạo tiếp nhận -> Gán dịch vụ/phòng/bác sĩ -> Thu tiền mặt -> Bàn giao bác sĩ | ✅ **PASS** |
+
+### 3.3. Frontend Unit & Integration Tests (`apps/web`) — 34/34 PASSED
+| File kiểm thử | Số test | Nội dung kiểm thử | Kết quả |
+| :--- | :---: | :--- | :---: |
+| `src/features/reception/reception-pages.test.tsx` | 3 | Kiểm thử tích hợp UI: Tạo bệnh nhân sinh mã `MBN`, tạo phiếu `TNK`, chọn dịch vụ & xuất file Excel | ✅ **PASS** |
+| `src/features/reception/payment-page.test.tsx` | 4 | Giao diện thanh toán, xác nhận tiền mặt, chuyển hướng cổng MoMo, xử lý MoMo callback | ✅ **PASS** |
+| `src/features/reception/reception-context.test.ts` | 4 | Quản lý state toàn bộ luồng tiếp nhận, đồng bộ trạng thái `PAID` và khóa khi `TRANSFERRED` | ✅ **PASS** |
+| `src/features/reception/receipt-excel.test.ts` | 4 | Khởi tạo cấu trúc workbook `.xlsx`, định dạng bảng tính, kiểm tra công thức và ngày Việt Nam | ✅ **PASS** |
+| `src/features/reception/reception-data.test.ts` | 5 | Sinh mã định dạng ngày, chống trùng lặp SĐT, tính tổng tiền dịch vụ | ✅ **PASS** |
+| `src/lib/role-routes.test.ts` | 6 | Phân quyền route theo vai trò `RECEPTION_STAFF` và các vai trò khác | ✅ **PASS** |
+| `src/App.test.tsx` | 5 | Đăng nhập, phân quyền bảo vệ route `/reception`, chuyển trang | ✅ **PASS** |
+| `src/lib/auth-session.test.ts` | 3 | Quản lý phiên làm việc trong `localStorage` và xử lý hết hạn token | ✅ **PASS** |
+
+---
+
+## 4. Kiểm Tra Trực Tiếp Trong SQL Server
+
+Có thể chạy lệnh sau trong PowerShell để liệt kê toàn bộ 16 bảng đã được khởi tạo trong CSDL:
+
+```powershell
+sqlcmd -S "127.0.0.1,1433" -E -C -d "Graduation-Project" -Q "
+  SELECT TABLE_NAME FROM INFORMATION_SCHEMA.TABLES WHERE TABLE_TYPE='BASE TABLE' ORDER BY TABLE_NAME;
+"
+```
+
+Kết quả trả về:
+```
+ClinicRoom
+ClinicRoomDeleted
+DentalService
+DentalServiceDeleted
+Intake
+IntakeDeleted
+IntakeService
+IntakeServiceDeleted
+Patient
+PatientDeleted
+Payment
+PaymentDeleted
+Role
+RoleDeleted
+User
+UserDeleted
+
+(16 rows affected)
+```

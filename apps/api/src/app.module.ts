@@ -7,16 +7,20 @@ import { AppService } from './app.service.js';
 import { validateEnvironment } from './config/env.validation.js';
 import { DatabaseModule } from './infrastructure/database/database.module.js';
 import { AuthModule } from './auth/auth.module.js';
+import { PaymentsModule } from './payments/payments.module.js';
+import { ReceptionModule } from './reception/reception.module.js';
 
 @Module({
   imports: [
     ConfigModule.forRoot({
       isGlobal: true,
-      envFilePath: ['.env', '../../.env'],
+      envFilePath: ['../../.env', '.env.momo', '.env'],
       validate: validateEnvironment,
     }),
     DatabaseModule,
     AuthModule,
+    PaymentsModule,
+    ReceptionModule,
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
   ],
   controllers: [AppController],

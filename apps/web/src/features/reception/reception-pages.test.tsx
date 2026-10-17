@@ -30,12 +30,22 @@ describe('reception pages', () => {
     const user = userEvent.setup()
     window.localStorage.setItem('dental-erp.reception-workspace', JSON.stringify({
       patients: [{ id: 'MBN20261610/0001', fullName: 'Nguyễn Văn An', dateOfBirth: '1990-01-01', gender: 'Nam', phone: '0901', address: '', note: '', createdAt: '2026-10-16T00:00:00.000Z', updatedAt: '2026-10-16T00:00:00.000Z' }],
-      intakes: [{ id: 'TNK20261610/0001', patientId: 'MBN20261610/0001', symptoms: 'Đau răng', priority: 'Thường', services: [{ serviceId: 'filling', quantity: 1 }], roomId: 'room-01', doctorId: 'doctor-minh', status: 'READY', createdAt: '2026-10-16T00:00:00.000Z' }],
+      intakes: [{ id: 'TNK20261610/0001', patientId: 'MBN20261610/0001', symptoms: 'Đau răng', priority: 'Thường', services: [{ serviceId: 'filling', quantity: 1 }], roomId: 'room-01', doctorId: 'doctor-minh', status: 'PAID', payment: { method: 'CASH', status: 'PAID', paidAt: '2026-10-16T00:10:00.000Z' }, createdAt: '2026-10-16T00:00:00.000Z' }],
     }))
     render(<MemoryRouter><ReceptionProvider><ReceiptPage /></ReceptionProvider></MemoryRouter>)
 
     await user.click(screen.getByRole('button', { name: /in phiếu/i }))
     expect(downloadReceiptWorkbook).toHaveBeenCalledOnce()
     expect(screen.getByRole('status')).toHaveTextContent(/đã tạo file Excel/i)
+  })
+
+  it('does not expose receipt printing before payment is completed', () => {
+    window.localStorage.setItem('dental-erp.reception-workspace', JSON.stringify({
+      patients: [{ id: 'MBN1', fullName: 'Nguyễn Văn An', dateOfBirth: '1990-01-01', gender: 'Nam', phone: '0901', address: '', note: '', createdAt: '', updatedAt: '' }],
+      intakes: [{ id: 'TNK1', patientId: 'MBN1', symptoms: 'Đau răng', priority: 'Thường', services: [{ serviceId: 'filling', quantity: 1 }], roomId: 'room-01', doctorId: 'doctor-minh', status: 'READY', createdAt: '' }],
+    }))
+    render(<MemoryRouter><ReceptionProvider><ReceiptPage /></ReceptionProvider></MemoryRouter>)
+    expect(screen.queryByRole('button', { name: /in phiếu/i })).not.toBeInTheDocument()
+    expect(screen.getByText(/chưa có phiếu đã thanh toán/i)).toBeInTheDocument()
   })
 })
