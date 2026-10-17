@@ -13,6 +13,8 @@ import { TransferPage } from '@/features/reception/transfer-page'
 import { getSession } from '@/lib/auth-session'
 import { getRoleRoute } from '@/lib/role-routes'
 
+import { DoctorLayout } from '@/features/doctor/doctor-layout'
+
 function RequireRole({ role, children }: { role: string; children: ReactNode }) {
   const session = getSession()
 
@@ -39,6 +41,15 @@ function ProtectedReceptionRoute() {
   return <ReceptionLayout session={session} />
 }
 
+function ProtectedDoctorRoute() {
+  const session = getSession()
+  if (!session) return <Navigate to="/login" replace />
+  if (session.user.role !== 'DOCTOR' && session.user.role !== 'ADMIN') {
+    return <Navigate to={getRoleRoute(session.user.role)} replace />
+  }
+  return <DoctorLayout session={session} />
+}
+
 function PublicLoginRoute() {
   const session = getSession()
   if (session) return <Navigate to={getRoleRoute(session.user.role)} replace />
@@ -59,7 +70,7 @@ function AppRoutes() {
         <Route path="receipt" element={<ReceiptPage />} />
         <Route path="transfer" element={<TransferPage />} />
       </Route>
-      <Route path="/doctor" element={<ProtectedRoleRoute role="DOCTOR" title="Bác sĩ thực hiện" />} />
+      <Route path="/doctor" element={<ProtectedDoctorRoute />} />
       <Route path="/warehouse" element={<ProtectedRoleRoute role="WAREHOUSE_MANAGEMENT" title="Quản lý kho" />} />
       <Route path="/accounting" element={<ProtectedRoleRoute role="ACCOUNTING_STAFF" title="Nhân viên kế toán" />} />
       <Route path="*" element={<Navigate to="/login" replace />} />

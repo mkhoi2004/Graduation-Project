@@ -64,8 +64,8 @@ export function LoginPage() {
                 <HeartPulse className="size-6" aria-hidden="true" />
               </div>
               <div>
-                <p className="text-lg font-bold tracking-[-0.03em]">DentalERP</p>
-                <p className="text-xs font-medium text-slate-400">Clinic management system</p>
+                <p className="text-lg font-bold tracking-[-0.03em]">KhoiDent</p>
+                <p className="text-xs font-medium text-slate-400">Hệ Thống Quản Lý Phòng Khám</p>
               </div>
             </div>
 
@@ -74,8 +74,8 @@ export function LoginPage() {
                 <Sparkles className="size-3.5" aria-hidden="true" />
                 Không gian làm việc an toàn
               </div>
-              <h1 className="text-4xl font-bold tracking-[-0.05em] text-[#17182b] sm:text-5xl">Chào mừng trở lại</h1>
-              <p className="mt-4 leading-7 text-slate-500">Đăng nhập để tiếp tục quản lý hoạt động phòng khám nha khoa.</p>
+              <h1 className="text-4xl font-bold tracking-[-0.05em] text-[#17182b] sm:text-5xl">Chào Mừng Đã Đến </h1>
+              <p className="mt-4 leading-7 text-slate-500">Phòng Khám KhoiDent, vui lòng đăng nhập để tiếp tục quản lý hoạt động phòng khám nha khoa.</p>
             </div>
 
             <form className="space-y-5" onSubmit={handleSubmit}>
@@ -129,7 +129,7 @@ export function LoginPage() {
           <div className="absolute left-16 top-1/2 h-36 w-36 -translate-y-1/2 rounded-full bg-[#ff747b]/85 blur-3xl" />
           <div className="relative z-10 flex items-center justify-between text-sm">
             <span className="rounded-full border border-white/20 bg-white/10 px-4 py-2 backdrop-blur">DentalPro inspired</span>
-            <span className="text-white/60">Light experience · v1.0</span>
+            <span className="text-white/60">KhoiDent - v1.0</span>
           </div>
 
           <div className="relative z-10 mx-auto w-full max-w-xl">

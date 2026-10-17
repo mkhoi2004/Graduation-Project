@@ -21,7 +21,7 @@ describe('Dental ERP login', () => {
     render(<App />)
 
     expect(
-      screen.getByRole('heading', { name: /chào mừng trở lại/i }),
+      screen.getByRole('heading', { name: /chào mừng/i }),
     ).toBeInTheDocument()
     expect(screen.getByLabelText(/tên đăng nhập/i)).toBeInTheDocument()
     expect(screen.getByLabelText(/^mật khẩu$/i)).toBeInTheDocument()
@@ -42,10 +42,22 @@ describe('Dental ERP login', () => {
     expect(screen.getByRole('link', { name: /^thanh toán$/i })).toHaveAttribute('href', '/reception/payment')
   })
 
+  it('renders the doctor workspace for doctor staff', () => {
+    const session = receptionSession()
+    session.user = { ...session.user, username: 'doctor', role: 'DOCTOR', roleName: 'Bác sĩ lâm sàng' }
+    window.localStorage.setItem('dental-erp.session', JSON.stringify(session))
+    window.history.pushState({}, '', '/doctor')
+
+    render(<App />)
+
+    expect(screen.getByText(/phân hệ bác sĩ lâm sàng/i)).toBeInTheDocument()
+    expect(screen.getByRole('button', { name: /bước 1: hàng đợi tiếp nhận/i })).toBeInTheDocument()
+  })
+
   it('redirects an unauthenticated reception route to login', () => {
     window.history.pushState({}, '', '/reception/patients')
     render(<App />)
-    expect(screen.getByRole('heading', { name: /chào mừng trở lại/i })).toBeInTheDocument()
+    expect(screen.getByRole('heading', { name: /chào mừng/i })).toBeInTheDocument()
   })
 
   it('redirects a wrong role away from reception', () => {

@@ -30,39 +30,44 @@ model User {
   createdAt    DateTime @default(now()) @db.DateTime2
   updatedAt    DateTime @updatedAt @db.DateTime2
 
-  doctorIntakes  Intake[]  @relation("DoctorIntakes")
-  createdIntakes Intake[]  @relation("StaffCreatedIntakes")
-  payments       Payment[] @relation("CashierPayments")
+  doctorIntakes      Intake[]                  @relation("DoctorIntakes")
+  createdIntakes     Intake[]                  @relation("StaffCreatedIntakes")
+  payments           Payment[]                 @relation("CashierPayments")
+  doctorExaminations DoctorExamination[]       @relation("DoctorExaminations")
+  printedHistories   ExaminationPrintHistory[] @relation("DoctorPrintHistories")
+  auditLogs          ExaminationAuditLog[]     @relation("ExaminationAuditActors")
 
   @@index([roleId])
 }
 
 model Patient {
-  id          Int      @id @default(autoincrement())
-  code        String   @unique @db.VarChar(50)
-  fullName    String   @db.NVarChar(150)
-  dateOfBirth DateTime @db.Date
-  gender      String   @db.NVarChar(10)
-  phone       String   @unique @db.VarChar(20)
-  address     String?  @db.NVarChar(500)
-  note        String?  @db.NVarChar(1000)
-  intakes     Intake[]
-  createdAt   DateTime @default(now()) @db.DateTime2
-  updatedAt   DateTime @updatedAt @db.DateTime2
+  id                 Int                 @id @default(autoincrement())
+  code               String              @unique @db.VarChar(50)
+  fullName           String              @db.NVarChar(150)
+  dateOfBirth        DateTime            @db.Date
+  gender             String              @db.NVarChar(10)
+  phone              String              @unique @db.VarChar(20)
+  address            String?             @db.NVarChar(500)
+  note               String?             @db.NVarChar(1000)
+  intakes            Intake[]
+  doctorExaminations DoctorExamination[]
+  createdAt          DateTime            @default(now()) @db.DateTime2
+  updatedAt          DateTime            @updatedAt @db.DateTime2
 
   @@index([phone])
   @@index([fullName])
 }
 
 model ClinicRoom {
-  id          Int      @id @default(autoincrement())
-  code        String   @unique @db.VarChar(50)
-  name        String   @db.NVarChar(100)
-  description String?  @db.NVarChar(500)
-  isActive    Boolean  @default(true)
-  intakes     Intake[]
-  createdAt   DateTime @default(now()) @db.DateTime2
-  updatedAt   DateTime @updatedAt @db.DateTime2
+  id                 Int                 @id @default(autoincrement())
+  code               String              @unique @db.VarChar(50)
+  name               String              @db.NVarChar(100)
+  description        String?             @db.NVarChar(500)
+  isActive           Boolean             @default(true)
+  intakes            Intake[]
+  doctorExaminations DoctorExamination[]
+  createdAt          DateTime            @default(now()) @db.DateTime2
+  updatedAt          DateTime            @updatedAt @db.DateTime2
 }
 
 model DentalService {
@@ -81,24 +86,25 @@ model DentalService {
 }
 
 model Intake {
-  id            Int             @id @default(autoincrement())
-  code          String          @unique @db.VarChar(50)
+  id            Int                @id @default(autoincrement())
+  code          String             @unique @db.VarChar(50)
   patientId     Int
-  patient       Patient         @relation(fields: [patientId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  symptoms      String          @db.NVarChar(1000)
-  priority      String          @default("NORMAL") @db.VarChar(20)
-  status        String          @default("DRAFT") @db.VarChar(20)
+  patient       Patient            @relation(fields: [patientId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  symptoms      String             @db.NVarChar(1000)
+  priority      String             @default("NORMAL") @db.NVarChar(50)
+  status        String             @default("DRAFT") @db.VarChar(20)
   roomId        Int?
-  room          ClinicRoom?     @relation(fields: [roomId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  room          ClinicRoom?        @relation(fields: [roomId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   doctorId      Int?
-  doctor        User?           @relation("DoctorIntakes", fields: [doctorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  doctor        User?              @relation("DoctorIntakes", fields: [doctorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   createdById   Int?
-  createdBy     User?           @relation("StaffCreatedIntakes", fields: [createdById], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  transferredAt DateTime?       @db.DateTime2
+  createdBy     User?              @relation("StaffCreatedIntakes", fields: [createdById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  transferredAt DateTime?          @db.DateTime2
   services      IntakeService[]
   payments      Payment[]
-  createdAt     DateTime        @default(now()) @db.DateTime2
-  updatedAt     DateTime        @updatedAt @db.DateTime2
+  examination   DoctorExamination?
+  createdAt     DateTime           @default(now()) @db.DateTime2
+  updatedAt     DateTime           @updatedAt @db.DateTime2
 
   @@index([patientId])
   @@index([status])
@@ -256,7 +262,7 @@ model IntakeDeleted {
   patientId     Int
   patientCode   String?   @db.VarChar(50)
   symptoms      String    @db.NVarChar(1000)
-  priority      String    @default("NORMAL") @db.VarChar(20)
+  priority      String    @default("NORMAL") @db.NVarChar(50)
   status        String    @default("DRAFT") @db.VarChar(20)
   roomId        Int?
   doctorId      Int?
@@ -321,4 +327,313 @@ model PaymentDeleted {
   @@index([originalId])
   @@index([deletedAt])
 }
+
+// ==========================================
+// DOCTOR CLINICAL EXAMINATION MODELS
+// ==========================================
+
+model DoctorExamination {
+  id               Int                       @id @default(autoincrement())
+  code             String                    @unique @db.VarChar(50)
+  intakeId         Int                       @unique
+  intake           Intake                    @relation(fields: [intakeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  patientId        Int
+  patient          Patient                   @relation(fields: [patientId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  doctorId         Int
+  doctor           User                      @relation("DoctorExaminations", fields: [doctorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  roomId           Int
+  room             ClinicRoom                @relation(fields: [roomId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  status           String                    @default("IN_PROGRESS") @db.VarChar(20) // IN_PROGRESS | COMPLETED | CANCELLED
+  startedAt        DateTime                  @default(now()) @db.DateTime2
+  completedAt      DateTime?                 @db.DateTime2
+  cancelReason     String?                   @db.NVarChar(500)
+  isLocked         Boolean                   @default(false)
+  supplies         ExaminationSupply[]
+  reservations     SupplyReservation[]
+  result           ExaminationResult?
+  printHistories   ExaminationPrintHistory[]
+  accountingOutbox AccountingOutbox?
+  auditLogs        ExaminationAuditLog[]
+  createdAt        DateTime                  @default(now()) @db.DateTime2
+  updatedAt        DateTime                  @updatedAt @db.DateTime2
+
+  @@index([doctorId, status])
+  @@index([roomId, status])
+  @@index([patientId])
+  @@index([status])
+}
+
+model MedicalSupply {
+  id                  Int                 @id @default(autoincrement())
+  code                String              @unique @db.VarChar(50)
+  name                String              @db.NVarChar(150)
+  group               String              @db.VarChar(20) // 'THUONG' | 'VO_CAM'
+  baseUnit            String              @db.NVarChar(50) // 'Cái', 'Tuýp', 'Kim', 'Bơm', 'Ống'
+  conversionUnit      String?             @db.NVarChar(50) // 'Hộp'
+  conversionRate      Int?                // e.g. 60, 100, 50
+  costPrice           Int                 // Giá vốn nội bộ (VND) - không hiển thị cho bác sĩ
+  inStock             Int                 @default(1000)
+  isActive            Boolean             @default(true)
+  examinationSupplies ExaminationSupply[]
+  reservations        SupplyReservation[]
+  createdAt           DateTime            @default(now()) @db.DateTime2
+  updatedAt           DateTime            @updatedAt @db.DateTime2
+
+  @@index([group])
+}
+
+model ExaminationSupply {
+  id                 Int               @id @default(autoincrement())
+  examinationId      Int
+  examination        DoctorExamination @relation(fields: [examinationId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  supplyId           Int
+  supply             MedicalSupply     @relation(fields: [supplyId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  conversionUnitUsed String?           @db.NVarChar(50)
+  quantityInBaseUnit Int
+  costPriceSnapshot  Int
+  createdAt          DateTime          @default(now()) @db.DateTime2
+  updatedAt          DateTime          @updatedAt @db.DateTime2
+
+  @@index([examinationId])
+  @@index([supplyId])
+}
+
+model SupplyReservation {
+  id            Int               @id @default(autoincrement())
+  examinationId Int
+  examination   DoctorExamination @relation(fields: [examinationId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  supplyId      Int
+  supply        MedicalSupply     @relation(fields: [supplyId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  quantity      Int
+  status        String            @default("RESERVED") @db.VarChar(20) // RESERVED | DEDUCTED | RELEASED
+  createdAt     DateTime          @default(now()) @db.DateTime2
+  updatedAt     DateTime          @updatedAt @db.DateTime2
+
+  @@index([examinationId])
+  @@index([supplyId])
+  @@index([status])
+}
+
+model ExaminationResult {
+  id                   Int               @id @default(autoincrement())
+  examinationId        Int               @unique
+  examination          DoctorExamination @relation(fields: [examinationId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  summary              String            @db.NVarChar(2000)
+  treatmentMethod      String            @db.NVarChar(2000)
+  treatmentOrientation String            @db.NVarChar(2000)
+  nextAppointmentDate  DateTime?         @db.Date
+  createdAt            DateTime          @default(now()) @db.DateTime2
+  updatedAt            DateTime          @updatedAt @db.DateTime2
+}
+
+model ExaminationPrintHistory {
+  id              Int               @id @default(autoincrement())
+  examinationId   Int
+  examination     DoctorExamination @relation(fields: [examinationId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  printedById     Int?
+  printedBy       User?             @relation("DoctorPrintHistories", fields: [printedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  printedAt       DateTime          @default(now()) @db.DateTime2
+  contentSnapshot String            @db.NVarChar(Max)
+
+  @@index([examinationId])
+  @@index([printedById])
+}
+
+model AccountingOutbox {
+  id             Int               @id @default(autoincrement())
+  examinationId  Int               @unique
+  examination    DoctorExamination @relation(fields: [examinationId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  serviceRevenue Int
+  supplyCost     Int
+  isCancelled    Boolean           @default(false)
+  status         String            @default("PENDING") @db.VarChar(20) // PENDING | SENT | FAILED
+  payload        String?           @db.NVarChar(Max)
+  sentAt         DateTime?         @db.DateTime2
+  createdAt      DateTime          @default(now()) @db.DateTime2
+  updatedAt      DateTime          @updatedAt @db.DateTime2
+
+  @@index([status])
+}
+
+model ExaminationAuditLog {
+  id            Int               @id @default(autoincrement())
+  examinationId Int
+  examination   DoctorExamination @relation(fields: [examinationId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  action        String            @db.VarChar(50)
+  actorId       Int?
+  actor         User?             @relation("ExaminationAuditActors", fields: [actorId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  reason        String            @db.NVarChar(500)
+  changesJson   String?           @db.NVarChar(Max)
+  createdAt     DateTime          @default(now()) @db.DateTime2
+
+  @@index([examinationId])
+  @@index([actorId])
+}
+
+// ==========================================
+// DOCTOR BACKUP / AUDIT DELETED TABLES
+// ==========================================
+
+model DoctorExaminationDeleted {
+  id           Int       @id @default(autoincrement())
+  originalId   Int?
+  code         String    @db.VarChar(50)
+  intakeId     Int
+  patientId    Int
+  doctorId     Int
+  roomId       Int
+  status       String    @db.VarChar(20)
+  startedAt    DateTime  @db.DateTime2
+  completedAt  DateTime? @db.DateTime2
+  cancelReason String?   @db.NVarChar(500)
+  isLocked     Boolean   @default(false)
+  createdAt    DateTime? @db.DateTime2
+  updatedAt    DateTime? @db.DateTime2
+  deletedAt    DateTime  @default(now()) @db.DateTime2
+  deletedBy    String?   @db.NVarChar(100)
+  deleteReason String?   @db.NVarChar(500)
+
+  @@index([code])
+  @@index([originalId])
+  @@index([doctorId])
+  @@index([status])
+  @@index([deletedAt])
+}
+
+model MedicalSupplyDeleted {
+  id             Int       @id @default(autoincrement())
+  originalId     Int?
+  code           String    @db.VarChar(50)
+  name           String    @db.NVarChar(150)
+  group          String    @db.VarChar(20)
+  baseUnit       String    @db.NVarChar(50)
+  conversionUnit String?   @db.NVarChar(50)
+  conversionRate Int?
+  costPrice      Int
+  inStock        Int
+  isActive       Boolean   @default(true)
+  createdAt      DateTime? @db.DateTime2
+  updatedAt      DateTime? @db.DateTime2
+  deletedAt      DateTime  @default(now()) @db.DateTime2
+  deletedBy      String?   @db.NVarChar(100)
+  deleteReason   String?   @db.NVarChar(500)
+
+  @@index([code])
+  @@index([originalId])
+  @@index([deletedAt])
+}
+
+model ExaminationSupplyDeleted {
+  id                 Int       @id @default(autoincrement())
+  originalId         Int?
+  examinationId      Int
+  supplyId           Int
+  conversionUnitUsed String?   @db.NVarChar(50)
+  quantityInBaseUnit Int
+  costPriceSnapshot  Int
+  createdAt          DateTime? @db.DateTime2
+  updatedAt          DateTime? @db.DateTime2
+  deletedAt          DateTime  @default(now()) @db.DateTime2
+  deletedBy          String?   @db.NVarChar(100)
+  deleteReason       String?   @db.NVarChar(500)
+
+  @@index([examinationId])
+  @@index([supplyId])
+  @@index([originalId])
+  @@index([deletedAt])
+}
+
+model SupplyReservationDeleted {
+  id            Int       @id @default(autoincrement())
+  originalId    Int?
+  examinationId Int
+  supplyId      Int
+  quantity      Int
+  status        String    @db.VarChar(20)
+  createdAt     DateTime? @db.DateTime2
+  updatedAt     DateTime? @db.DateTime2
+  deletedAt     DateTime  @default(now()) @db.DateTime2
+  deletedBy     String?   @db.NVarChar(100)
+  deleteReason  String?   @db.NVarChar(500)
+
+  @@index([examinationId])
+  @@index([supplyId])
+  @@index([originalId])
+  @@index([deletedAt])
+}
+
+model ExaminationResultDeleted {
+  id                   Int       @id @default(autoincrement())
+  originalId           Int?
+  examinationId        Int
+  summary              String    @db.NVarChar(2000)
+  treatmentMethod      String    @db.NVarChar(2000)
+  treatmentOrientation String    @db.NVarChar(2000)
+  nextAppointmentDate  DateTime? @db.Date
+  createdAt            DateTime? @db.DateTime2
+  updatedAt            DateTime? @db.DateTime2
+  deletedAt            DateTime  @default(now()) @db.DateTime2
+  deletedBy            String?   @db.NVarChar(100)
+  deleteReason         String?   @db.NVarChar(500)
+
+  @@index([examinationId])
+  @@index([originalId])
+  @@index([deletedAt])
+}
+
+model ExaminationPrintHistoryDeleted {
+  id              Int       @id @default(autoincrement())
+  originalId      Int?
+  examinationId   Int
+  printedById     Int?
+  printedAt       DateTime? @db.DateTime2
+  contentSnapshot String    @db.NVarChar(Max)
+  deletedAt       DateTime  @default(now()) @db.DateTime2
+  deletedBy       String?   @db.NVarChar(100)
+  deleteReason    String?   @db.NVarChar(500)
+
+  @@index([examinationId])
+  @@index([originalId])
+  @@index([deletedAt])
+}
+
+model AccountingOutboxDeleted {
+  id             Int       @id @default(autoincrement())
+  originalId     Int?
+  examinationId  Int
+  serviceRevenue Int
+  supplyCost     Int
+  isCancelled    Boolean   @default(false)
+  status         String    @db.VarChar(20)
+  payload        String?   @db.NVarChar(Max)
+  sentAt         DateTime? @db.DateTime2
+  createdAt      DateTime? @db.DateTime2
+  updatedAt      DateTime? @db.DateTime2
+  deletedAt      DateTime  @default(now()) @db.DateTime2
+  deletedBy      String?   @db.NVarChar(100)
+  deleteReason   String?   @db.NVarChar(500)
+
+  @@index([examinationId])
+  @@index([originalId])
+  @@index([deletedAt])
+}
+
+model ExaminationAuditLogDeleted {
+  id            Int       @id @default(autoincrement())
+  originalId    Int?
+  examinationId Int
+  action        String    @db.VarChar(50)
+  actorId       Int?
+  reason        String    @db.NVarChar(500)
+  changesJson   String?   @db.NVarChar(Max)
+  createdAt     DateTime? @db.DateTime2
+  deletedAt     DateTime  @default(now()) @db.DateTime2
+  deletedBy     String?   @db.NVarChar(100)
+  deleteReason  String?   @db.NVarChar(500)
+
+  @@index([examinationId])
+  @@index([originalId])
+  @@index([deletedAt])
+}
+
 

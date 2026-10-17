@@ -90,6 +90,111 @@ const dentalServices = [
   { code: 'aligner', category: 'Chỉnh nha & Implant', name: 'Niềng khay trong suốt', price: 70_000_000, unit: '2 hàm' },
 ];
 
+const medicalSupplies = [
+  // Nhóm VTYT thường
+  {
+    code: 'gloves-vglove',
+    name: 'Găng tay cao su có bột Vglove (Khải Hoàn, Việt Nam)',
+    group: 'THUONG',
+    baseUnit: 'Cái',
+    conversionUnit: null,
+    conversionRate: null,
+    costPrice: 1_500,
+    inStock: 2_000,
+  },
+  {
+    code: 'composite-3m',
+    name: 'Composite đặc 3M Filtek Z350 XT (Mỹ)',
+    group: 'THUONG',
+    baseUnit: 'Tuýp',
+    conversionUnit: null,
+    conversionRate: null,
+    costPrice: 750_000,
+    inStock: 20,
+  },
+  {
+    code: 'composite-mani',
+    name: 'Composite đặc MANI Nano (Nhật)',
+    group: 'THUONG',
+    baseUnit: 'Tuýp',
+    conversionUnit: null,
+    conversionRate: null,
+    costPrice: 550_000,
+    inStock: 25,
+  },
+  {
+    code: 'gutta-meta',
+    name: 'Côn gutta máy Meta Biomed 4%–6% (Hàn Quốc)',
+    group: 'THUONG',
+    baseUnit: 'Cái',
+    conversionUnit: 'Hộp',
+    conversionRate: 60,
+    costPrice: 180_000,
+    inStock: 600,
+  },
+  {
+    code: 'cement-relyx',
+    name: 'Xi măng gắn RelyX U200 (3M)',
+    group: 'THUONG',
+    baseUnit: 'Tuýp',
+    conversionUnit: null,
+    conversionRate: null,
+    costPrice: 950_000,
+    inStock: 15,
+  },
+  // Nhóm VTYT vô cảm
+  {
+    code: 'needle-septoject',
+    name: 'Kim tiêm Septoject (Septodont, Pháp)',
+    group: 'VO_CAM',
+    baseUnit: 'Kim',
+    conversionUnit: 'Hộp',
+    conversionRate: 100,
+    costPrice: 150_000,
+    inStock: 1_000,
+  },
+  {
+    code: 'needle-shinject',
+    name: 'Kim tiêm gây tê Shinject (Shinhung)',
+    group: 'VO_CAM',
+    baseUnit: 'Kim',
+    conversionUnit: 'Hộp',
+    conversionRate: 100,
+    costPrice: 130_000,
+    inStock: 1_000,
+  },
+  {
+    code: 'needle-terumo',
+    name: 'Kim tiêm tê Terumo',
+    group: 'VO_CAM',
+    baseUnit: 'Kim',
+    conversionUnit: 'Hộp',
+    conversionRate: 100,
+    costPrice: 140_000,
+    inStock: 1_000,
+  },
+  {
+    code: 'syringe-osung',
+    name: 'Bơm tiêm áp lực Osung 1.8cc',
+    group: 'VO_CAM',
+    baseUnit: 'Bơm',
+    conversionUnit: null,
+    conversionRate: null,
+    costPrice: 350_000,
+    inStock: 30,
+  },
+  {
+    code: 'anesthetic-septanest',
+    name: 'Septanest with Adrenaline 1/100.000 (Septodont, Pháp), articaine 4%',
+    group: 'VO_CAM',
+    baseUnit: 'Ống',
+    conversionUnit: 'Hộp',
+    conversionRate: 50,
+    costPrice: 450_000,
+    inStock: 500,
+  },
+];
+
 const demoPatients = [
   {
     code: 'MBN20261710/0001',
@@ -214,6 +319,23 @@ async function main() {
         unit: service.unit,
       },
       create: service,
+    });
+  }
+
+  // 4.1. Medical Supplies (VTYT - Role Bác Sĩ)
+  for (const supply of medicalSupplies) {
+    await prisma.medicalSupply.upsert({
+      where: { code: supply.code },
+      update: {
+        name: supply.name,
+        group: supply.group,
+        baseUnit: supply.baseUnit,
+        conversionUnit: supply.conversionUnit,
+        conversionRate: supply.conversionRate,
+        costPrice: supply.costPrice,
+        inStock: supply.inStock,
+      },
+      create: supply,
     });
   }
 

@@ -9,6 +9,7 @@ import { DatabaseModule } from './infrastructure/database/database.module.js';
 import { AuthModule } from './auth/auth.module.js';
 import { PaymentsModule } from './payments/payments.module.js';
 import { ReceptionModule } from './reception/reception.module.js';
+import { DoctorModule } from './doctor/doctor.module.js';
 
 @Module({
   imports: [
@@ -21,6 +22,7 @@ import { ReceptionModule } from './reception/reception.module.js';
     AuthModule,
     PaymentsModule,
     ReceptionModule,
+    DoctorModule,
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
   ],
   controllers: [AppController],
