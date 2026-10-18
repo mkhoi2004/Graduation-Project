@@ -193,6 +193,26 @@ const medicalSupplies = [
     costPrice: 450_000,
     inStock: 500,
   },
+  {
+    code: 'paper-a4',
+    name: 'Giấy in A4 Double A 70gsm',
+    group: 'VAN_PHONG',
+    baseUnit: 'Ram',
+    conversionUnit: 'Thùng',
+    conversionRate: 5,
+    costPrice: 78_000,
+    inStock: 8,
+  },
+  {
+    code: 'receipt-roll-k80',
+    name: 'Giấy in hóa đơn nhiệt K80',
+    group: 'VAN_PHONG',
+    baseUnit: 'Cuộn',
+    conversionUnit: 'Thùng',
+    conversionRate: 50,
+    costPrice: 18_000,
+    inStock: 120,
+  },
 ];
 
 const demoPatients = [
@@ -333,9 +353,40 @@ async function main() {
         conversionUnit: supply.conversionUnit,
         conversionRate: supply.conversionRate,
         costPrice: supply.costPrice,
-        inStock: supply.inStock,
       },
       create: supply,
+    });
+  }
+
+  // 4.2. Warehouse demo data: suppliers, thresholds, batches and draft documents
+  const suppliers = [
+    { code: 'NCC-001', name: 'Công ty Thiết bị Nha khoa Đông Á', phone: '02873001234', taxCode: '0312345678', address: 'TP. Hồ Chí Minh' },
+    { code: 'NCC-002', name: 'Công ty Dược phẩm Septodont Việt Nam', phone: '02473005678', taxCode: '0109876543', address: 'Hà Nội' },
+    { code: 'NCC-003', name: 'Nhà cung cấp Văn phòng phẩm An Phát', phone: '02363778899', taxCode: '0401234567', address: 'Đà Nẵng' },
+  ];
+  const supplierIds = new Map<string, number>();
+  for (const item of suppliers) {
+    const supplier = await prisma.supplier.upsert({ where: { code: item.code }, update: item, create: item });
+    supplierIds.set(item.code, supplier.id);
+  }
+
+  await prisma.medicalSupply.update({ where: { code: 'paper-a4' }, data: { minimumStock: 20, expiryWarningDays: 90 } });
+  await prisma.medicalSupply.update({ where: { code: 'composite-3m' }, data: { minimumStock: 10, expiryWarningDays: 90 } });
+  const seededSupplies = await prisma.medicalSupply.findMany({ where: { code: { in: medicalSupplies.map((item) => item.code) } } });
+  for (const supply of seededSupplies) {
+    const existingBatch = await prisma.inventoryBatch.findFirst({ where: { supplyId: supply.id } });
+    if (!existingBatch) {
+      const expiryDate = supply.code === 'composite-3m' ? new Date(Date.now() + 45 * 86_400_000) : supply.code === 'anesthetic-septanest' ? new Date(Date.now() - 30 * 86_400_000) : null;
+      await prisma.inventoryBatch.create({ data: { supplyId: supply.id, batchNo: `LOT-${supply.code.toUpperCase()}`, expiryDate, quantity: supply.inStock, unitCost: supply.costPrice, originalReceiptCode: 'SEED-OPENING', receivedAt: new Date('2026-09-01') } });
+    }
+  }
+
+  const paper = seededSupplies.find((item) => item.code === 'paper-a4');
+  if (paper) {
+    await prisma.stockDocument.upsert({
+      where: { code: 'MVT20261018/0001' },
+      update: {},
+      create: { code: 'MVT20261018/0001', type: 'IN', status: 'DRAFT', supplierId: supplierIds.get('NCC-003'), reason: 'Nhập bổ sung văn phòng phẩm', goodsAmount: 780000, vatAmount: 62400, totalAmount: 842400, lines: { create: { supplyId: paper.id, inputQuantity: 2, inputUnit: 'Thùng', conversionFactor: 5, convertedQuantity: 10, batchNo: 'PAPER-1026', inputUnitPrice: 390000, vatRate: 8, goodsAmount: 780000, vatAmount: 62400, totalAmount: 842400 } } },
     });
   }
 

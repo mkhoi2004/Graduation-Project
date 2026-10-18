@@ -39,6 +39,19 @@
   --sidebar-ring: oklch(0.708 0 0);
 }
 
+@media print {
+  body * { visibility: hidden; }
+  #warehouse-print,
+  #warehouse-print * { visibility: visible; }
+  #warehouse-print {
+    display: block !important;
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    background: white;
+  }
+}
+
 .dark {
   --background: oklch(0.145 0 0);
   --foreground: oklch(0.985 0 0);

@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
+import { allocateStock } from '../../warehouse/warehouse-domain.js';
 
 export interface CheckStockResult {
   available: boolean;
@@ -16,8 +17,7 @@ export interface ReserveStockInput {
 /**
  * WarehouseServiceStub
  * 
- * NOTE: /warehouse module is not yet implemented.
- * This stub acts as the boundary interface between /doctor and /warehouse.
+ * Compatibility adapter between the doctor workflow and the warehouse ledger.
  * 
  * Business rules:
  * - Stock is checked before adding supplies.
@@ -31,7 +31,6 @@ export class WarehouseServiceStub {
 
   /**
    * Kiểm tra tồn kho trước khi chỉ định VTYT.
-   * TODO: Khi phân hệ /warehouse sẵn sàng, thay thế bằng lời gọi RPC hoặc REST tới WarehouseService.
    */
   async checkStock(supplyCode: string, quantityInBaseUnit: number): Promise<CheckStockResult> {
     const supply = await this.prisma.medicalSupply.findUnique({
@@ -82,42 +81,49 @@ export class WarehouseServiceStub {
    * Trừ kho chính thức khi Ghi sổ (Hoàn thành hoặc Ngừng khám có tiêu hao).
    */
   async deductStock(examinationId: number): Promise<{ success: boolean; deductedItems: number }> {
-    const reservations = await this.prisma.supplyReservation.findMany({
-      where: { examinationId, status: 'RESERVED' },
-      include: { supply: true },
-    });
-
-    let count = 0;
-    for (const res of reservations) {
-      const supply = await this.prisma.medicalSupply.findUnique({
-        where: { id: res.supplyId },
-      });
-      if (!supply) continue;
-
-      if (supply.inStock < res.quantity) {
-        throw new BadRequestException(
-          `Không đủ tồn kho để trừ cho ${supply.name}. Yêu cầu trừ: ${res.quantity} ${supply.baseUnit}, tồn kho hiện tại: ${supply.inStock} ${supply.baseUnit}. Tồn kho không được phép âm!`,
-        );
-      }
-
-      await this.prisma.$transaction([
-        this.prisma.medicalSupply.update({
-          where: { id: res.supplyId },
-          data: {
-            inStock: {
-              decrement: res.quantity,
-            },
-          },
-        }),
-        this.prisma.supplyReservation.update({
-          where: { id: res.id },
-          data: { status: 'DEDUCTED' },
-        }),
+    return this.prisma.$transaction(async (tx) => {
+      const idempotencyKey = `doctor-examination-${examinationId}`;
+      const existing = await tx.stockDocument.findFirst({ where: { idempotencyKey } });
+      if (existing) return { success: true, deductedItems: 0 };
+      const [reservations, examination] = await Promise.all([
+        tx.supplyReservation.findMany({ where: { examinationId, status: 'RESERVED' }, include: { supply: true } }),
+        tx.doctorExamination.findUnique({ where: { id: examinationId } }),
       ]);
-      count += 1;
-    }
+      if (!examination) throw new NotFoundException(`Không tìm thấy ca khám #${examinationId}.`);
+      if (!reservations.length) return { success: true, deductedItems: 0 };
 
-    return { success: true, deductedItems: count };
+      const stamp = new Date().toISOString().slice(0, 10).replaceAll('-', '');
+      const document = await tx.stockDocument.create({
+        data: {
+          code: `XVT${stamp}/K${String(examinationId).padStart(5, '0')}`,
+          type: 'OUT', outboundType: 'PATIENT', status: 'POSTED', patientId: examination.patientId,
+          examinationId, recipientDepartment: 'Điều trị bệnh nhân', reason: `Vật tư tiêu hao ca khám ${examination.code}`,
+          idempotencyKey, postedAt: new Date(),
+          lines: { create: reservations.map((res) => ({ supplyId: res.supplyId, inputQuantity: res.quantity, inputUnit: res.supply.baseUnit, conversionFactor: 1, convertedQuantity: res.quantity, inputUnitPrice: 0, vatRate: 0 })) },
+        }, include: { lines: true },
+      });
+
+      for (const reservation of reservations) {
+        if (reservation.supply.inStock < reservation.quantity) throw new BadRequestException(`Không đủ tồn kho để trừ cho ${reservation.supply.name}. Tồn kho không được phép âm!`);
+        const batches = await tx.inventoryBatch.findMany({ where: { supplyId: reservation.supplyId, quantity: { gt: 0 } } });
+        let allocations;
+        try { allocations = allocateStock(batches.map((b) => ({ id: b.id, quantity: Number(b.quantity), receivedAt: b.receivedAt, expiryDate: b.expiryDate })), reservation.quantity, new Date(), false); }
+        catch (error) { throw new BadRequestException(`${reservation.supply.name}: ${(error as Error).message}`); }
+        const line = document.lines.find((item) => item.supplyId === reservation.supplyId)!;
+        for (const allocation of allocations) {
+          const batch = batches.find((item) => item.id === allocation.batchId)!;
+          const amount = Math.round(allocation.quantity * Number(batch.unitCost));
+          await tx.inventoryBatch.update({ where: { id: batch.id }, data: { quantity: { decrement: allocation.quantity } } });
+          await tx.stockAllocation.create({ data: { documentLineId: line.id, batchId: batch.id, quantity: allocation.quantity, unitCost: batch.unitCost, amount } });
+          await tx.stockLedgerEntry.create({ data: { documentId: document.id, documentLineId: line.id, supplyId: reservation.supplyId, batchId: batch.id, direction: 'OUT', quantity: allocation.quantity, unitCost: batch.unitCost, amount, balanceAfter: reservation.supply.inStock - reservation.quantity } });
+        }
+        await tx.medicalSupply.update({ where: { id: reservation.supplyId }, data: { inStock: { decrement: reservation.quantity } } });
+        await tx.supplyReservation.update({ where: { id: reservation.id }, data: { status: 'DEDUCTED' } });
+      }
+      await tx.accountingWarehouseEntry.create({ data: { documentId: document.id, eventType: 'PATIENT_USAGE', goodsAmount: reservations.reduce((sum, r) => sum + r.supply.costPrice * r.quantity, 0), totalAmount: reservations.reduce((sum, r) => sum + r.supply.costPrice * r.quantity, 0), payloadJson: JSON.stringify({ examinationId, examinationCode: examination.code }) } });
+      await tx.warehouseAuditLog.create({ data: { documentId: document.id, action: 'AUTO_POST_FROM_EXAMINATION', changesJson: JSON.stringify({ examinationId }) } });
+      return { success: true, deductedItems: reservations.length };
+    }, { timeout: 15000 });
   }
 
   /**

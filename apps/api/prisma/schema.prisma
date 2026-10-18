@@ -373,13 +373,192 @@ model MedicalSupply {
   conversionRate      Int?                // e.g. 60, 100, 50
   costPrice           Int                 // Giá vốn nội bộ (VND) - không hiển thị cho bác sĩ
   inStock             Int                 @default(1000)
+  minimumStock        Int                 @default(10)
+  expiryWarningDays   Int                 @default(90)
+  isBaseUnitDivisible Boolean             @default(false)
   isActive            Boolean             @default(true)
   examinationSupplies ExaminationSupply[]
   reservations        SupplyReservation[]
+  inventoryBatches    InventoryBatch[]
+  stockDocumentLines  StockDocumentLine[]
+  stockLedgerEntries  StockLedgerEntry[]
   createdAt           DateTime            @default(now()) @db.DateTime2
   updatedAt           DateTime            @updatedAt @db.DateTime2
 
   @@index([group])
+}
+
+model Supplier {
+  id          Int             @id @default(autoincrement())
+  code        String          @unique @db.VarChar(30)
+  name        String          @db.NVarChar(200)
+  phone       String?         @db.VarChar(30)
+  address     String?         @db.NVarChar(500)
+  taxCode     String?         @db.VarChar(30)
+  isActive    Boolean         @default(true)
+  documents   StockDocument[]
+  createdAt   DateTime        @default(now()) @db.DateTime2
+  updatedAt   DateTime        @updatedAt @db.DateTime2
+}
+
+model InventoryBatch {
+  id                  Int               @id @default(autoincrement())
+  supplyId            Int
+  supply              MedicalSupply     @relation(fields: [supplyId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  batchNo             String?           @db.VarChar(80)
+  expiryDate          DateTime?         @db.Date
+  quantity            Decimal           @default(0) @db.Decimal(18, 4)
+  unitCost            Decimal           @default(0) @db.Decimal(18, 4)
+  originalReceiptCode String?           @db.VarChar(40)
+  receivedAt          DateTime          @default(now()) @db.DateTime2
+  allocations         StockAllocation[]
+  ledgerEntries       StockLedgerEntry[]
+
+  @@index([supplyId, expiryDate, receivedAt])
+  @@index([quantity])
+}
+
+model StockDocument {
+  id                    Int                        @id @default(autoincrement())
+  code                  String                     @unique @db.VarChar(40)
+  type                  String                     @db.VarChar(10)
+  outboundType          String?                    @db.VarChar(20)
+  status                String                     @default("DRAFT") @db.VarChar(20)
+  supplierId            Int?
+  supplier              Supplier?                  @relation(fields: [supplierId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  patientId             Int?
+  examinationId         Int?
+  doctorId              Int?
+  roomId                Int?
+  intakeId              Int?
+  recipientDepartment   String?                    @db.NVarChar(150)
+  reason                String?                    @db.NVarChar(500)
+  nonFefoReason         String?                    @db.NVarChar(500)
+  idempotencyKey        String?                    @db.VarChar(100)
+  originalDocumentId    Int?
+  originalDocument      StockDocument?             @relation("StockDocumentReversal", fields: [originalDocumentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  reversalDocuments     StockDocument[]            @relation("StockDocumentReversal")
+  goodsAmount           Int                        @default(0)
+  vatAmount             Int                        @default(0)
+  totalAmount           Int                        @default(0)
+  contentHash           String?                    @db.VarChar(128)
+  printCount            Int                        @default(0)
+  isLocked              Boolean                    @default(false)
+  createdById           Int?
+  postedById            Int?
+  printedAt             DateTime?                  @db.DateTime2
+  postedAt              DateTime?                  @db.DateTime2
+  cancelledAt           DateTime?                  @db.DateTime2
+  createdAt             DateTime                   @default(now()) @db.DateTime2
+  updatedAt             DateTime                   @updatedAt @db.DateTime2
+  lines                 StockDocumentLine[]
+  ledgerEntries         StockLedgerEntry[]
+  printLogs             WarehousePrintLog[]
+  auditLogs             WarehouseAuditLog[]
+  accountingEntries     AccountingWarehouseEntry[]
+
+  @@index([type, status, createdAt])
+  @@index([examinationId])
+  @@index([patientId])
+  @@index([idempotencyKey])
+}
+
+model StockDocumentLine {
+  id                  Int               @id @default(autoincrement())
+  documentId          Int
+  document            StockDocument     @relation(fields: [documentId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  supplyId            Int
+  supply              MedicalSupply     @relation(fields: [supplyId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  inputQuantity       Decimal           @db.Decimal(18, 4)
+  inputUnit           String            @db.NVarChar(50)
+  conversionFactor    Decimal           @default(1) @db.Decimal(18, 4)
+  convertedQuantity   Decimal           @db.Decimal(18, 4)
+  batchNo             String?           @db.VarChar(80)
+  expiryDate          DateTime?         @db.Date
+  inputUnitPrice      Decimal           @default(0) @db.Decimal(18, 2)
+  vatRate             Decimal           @default(0) @db.Decimal(5, 2)
+  goodsAmount         Int               @default(0)
+  vatAmount           Int               @default(0)
+  totalAmount         Int               @default(0)
+  allocations         StockAllocation[]
+  ledgerEntries       StockLedgerEntry[]
+
+  @@index([documentId])
+  @@index([supplyId])
+}
+
+model StockAllocation {
+  id              Int               @id @default(autoincrement())
+  documentLineId  Int
+  documentLine    StockDocumentLine @relation(fields: [documentLineId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  batchId         Int
+  batch           InventoryBatch    @relation(fields: [batchId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  quantity        Decimal           @db.Decimal(18, 4)
+  unitCost        Decimal           @db.Decimal(18, 4)
+  amount          Int
+
+  @@index([batchId])
+}
+
+model StockLedgerEntry {
+  id              Int                @id @default(autoincrement())
+  documentId      Int
+  document        StockDocument      @relation(fields: [documentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  documentLineId  Int
+  documentLine    StockDocumentLine  @relation(fields: [documentLineId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  supplyId        Int
+  supply          MedicalSupply      @relation(fields: [supplyId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  batchId         Int?
+  batch           InventoryBatch?    @relation(fields: [batchId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  direction       String              @db.VarChar(10)
+  quantity        Decimal             @db.Decimal(18, 4)
+  unitCost        Decimal             @db.Decimal(18, 4)
+  amount          Int
+  balanceAfter    Decimal             @db.Decimal(18, 4)
+  createdAt       DateTime            @default(now()) @db.DateTime2
+
+  @@index([supplyId, createdAt])
+  @@index([documentId])
+}
+
+model WarehousePrintLog {
+  id              Int           @id @default(autoincrement())
+  documentId      Int
+  document        StockDocument @relation(fields: [documentId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  printedById     Int?
+  contentHash     String         @db.VarChar(128)
+  isCopy          Boolean        @default(false)
+  printedAt       DateTime       @default(now()) @db.DateTime2
+
+  @@index([documentId, printedAt])
+}
+
+model WarehouseAuditLog {
+  id              Int           @id @default(autoincrement())
+  documentId      Int
+  document        StockDocument @relation(fields: [documentId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  action          String         @db.VarChar(50)
+  actorId         Int?
+  changesJson     String?        @db.NVarChar(Max)
+  createdAt       DateTime       @default(now()) @db.DateTime2
+
+  @@index([documentId, createdAt])
+}
+
+model AccountingWarehouseEntry {
+  id              Int           @id @default(autoincrement())
+  documentId      Int
+  document        StockDocument @relation(fields: [documentId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  eventType       String         @db.VarChar(40)
+  goodsAmount     Int            @default(0)
+  vatAmount       Int            @default(0)
+  totalAmount     Int            @default(0)
+  payloadJson     String         @db.NVarChar(Max)
+  status          String         @default("PENDING") @db.VarChar(20)
+  createdAt       DateTime       @default(now()) @db.DateTime2
+  sentAt          DateTime?      @db.DateTime2
+
+  @@index([status, createdAt])
 }
 
 model ExaminationSupply {
@@ -635,5 +814,209 @@ model ExaminationAuditLogDeleted {
   @@index([originalId])
   @@index([deletedAt])
 }
+
+// ==========================================
+// WAREHOUSE BACKUP / AUDIT DELETED TABLES
+// ==========================================
+
+model SupplierDeleted {
+  id           Int       @id @default(autoincrement())
+  originalId   Int?
+  code         String    @db.VarChar(30)
+  name         String    @db.NVarChar(200)
+  phone        String?   @db.VarChar(30)
+  address      String?   @db.NVarChar(500)
+  taxCode      String?   @db.VarChar(30)
+  isActive     Boolean   @default(true)
+  createdAt    DateTime? @db.DateTime2
+  updatedAt    DateTime? @db.DateTime2
+  deletedAt    DateTime  @default(now()) @db.DateTime2
+  deletedBy    String?   @db.NVarChar(100)
+  deleteReason String?   @db.NVarChar(500)
+
+  @@index([code])
+  @@index([originalId])
+  @@index([deletedAt])
+}
+
+model InventoryBatchDeleted {
+  id                  Int       @id @default(autoincrement())
+  originalId          Int?
+  supplyId            Int
+  batchNo             String?   @db.VarChar(80)
+  expiryDate          DateTime? @db.Date
+  quantity            Decimal   @db.Decimal(18, 4)
+  unitCost            Decimal   @db.Decimal(18, 4)
+  originalReceiptCode String?   @db.VarChar(40)
+  receivedAt          DateTime? @db.DateTime2
+  deletedAt           DateTime  @default(now()) @db.DateTime2
+  deletedBy           String?   @db.NVarChar(100)
+  deleteReason        String?   @db.NVarChar(500)
+
+  @@index([supplyId])
+  @@index([originalId])
+  @@index([deletedAt])
+}
+
+model StockDocumentDeleted {
+  id                  Int       @id @default(autoincrement())
+  originalId          Int?
+  code                String    @db.VarChar(40)
+  type                String    @db.VarChar(10)
+  outboundType        String?   @db.VarChar(20)
+  status              String    @db.VarChar(20)
+  supplierId          Int?
+  patientId           Int?
+  examinationId       Int?
+  doctorId            Int?
+  roomId              Int?
+  intakeId            Int?
+  recipientDepartment String?   @db.NVarChar(150)
+  reason              String?   @db.NVarChar(500)
+  nonFefoReason       String?   @db.NVarChar(500)
+  goodsAmount         Int       @default(0)
+  vatAmount           Int       @default(0)
+  totalAmount         Int       @default(0)
+  contentHash         String?   @db.VarChar(128)
+  printCount          Int       @default(0)
+  isLocked            Boolean   @default(false)
+  createdById         Int?
+  postedById          Int?
+  printedAt           DateTime? @db.DateTime2
+  postedAt            DateTime? @db.DateTime2
+  cancelledAt         DateTime? @db.DateTime2
+  createdAt           DateTime? @db.DateTime2
+  updatedAt           DateTime? @db.DateTime2
+  deletedAt           DateTime  @default(now()) @db.DateTime2
+  deletedBy           String?   @db.NVarChar(100)
+  deleteReason        String?   @db.NVarChar(500)
+
+  @@index([code])
+  @@index([originalId])
+  @@index([deletedAt])
+}
+
+model StockDocumentLineDeleted {
+  id                Int       @id @default(autoincrement())
+  originalId        Int?
+  documentId        Int
+  supplyId          Int
+  inputQuantity     Decimal   @db.Decimal(18, 4)
+  inputUnit         String    @db.NVarChar(50)
+  conversionFactor  Decimal   @db.Decimal(18, 4)
+  convertedQuantity Decimal   @db.Decimal(18, 4)
+  batchNo           String?   @db.VarChar(80)
+  expiryDate        DateTime? @db.Date
+  inputUnitPrice    Decimal   @db.Decimal(18, 2)
+  vatRate           Decimal   @db.Decimal(5, 2)
+  goodsAmount       Int       @default(0)
+  vatAmount         Int       @default(0)
+  totalAmount       Int       @default(0)
+  deletedAt         DateTime  @default(now()) @db.DateTime2
+  deletedBy         String?   @db.NVarChar(100)
+  deleteReason      String?   @db.NVarChar(500)
+
+  @@index([documentId])
+  @@index([supplyId])
+  @@index([originalId])
+  @@index([deletedAt])
+}
+
+model StockAllocationDeleted {
+  id             Int       @id @default(autoincrement())
+  originalId     Int?
+  documentLineId Int
+  batchId        Int
+  quantity       Decimal   @db.Decimal(18, 4)
+  unitCost       Decimal   @db.Decimal(18, 4)
+  amount         Int
+  deletedAt      DateTime  @default(now()) @db.DateTime2
+  deletedBy      String?   @db.NVarChar(100)
+  deleteReason   String?   @db.NVarChar(500)
+
+  @@index([documentLineId])
+  @@index([batchId])
+  @@index([originalId])
+  @@index([deletedAt])
+}
+
+model StockLedgerEntryDeleted {
+  id             Int       @id @default(autoincrement())
+  originalId     Int?
+  documentId     Int
+  documentLineId Int
+  supplyId       Int
+  batchId        Int?
+  direction      String    @db.VarChar(10)
+  quantity       Decimal   @db.Decimal(18, 4)
+  unitCost       Decimal   @db.Decimal(18, 4)
+  amount         Int
+  balanceAfter   Decimal   @db.Decimal(18, 4)
+  createdAt      DateTime? @db.DateTime2
+  deletedAt      DateTime  @default(now()) @db.DateTime2
+  deletedBy      String?   @db.NVarChar(100)
+  deleteReason   String?   @db.NVarChar(500)
+
+  @@index([supplyId])
+  @@index([documentId])
+  @@index([originalId])
+  @@index([deletedAt])
+}
+
+model WarehousePrintLogDeleted {
+  id           Int       @id @default(autoincrement())
+  originalId   Int?
+  documentId   Int
+  printedById  Int?
+  contentHash  String    @db.VarChar(128)
+  isCopy       Boolean   @default(false)
+  printedAt    DateTime? @db.DateTime2
+  deletedAt    DateTime  @default(now()) @db.DateTime2
+  deletedBy    String?   @db.NVarChar(100)
+  deleteReason String?   @db.NVarChar(500)
+
+  @@index([documentId])
+  @@index([originalId])
+  @@index([deletedAt])
+}
+
+model WarehouseAuditLogDeleted {
+  id           Int       @id @default(autoincrement())
+  originalId   Int?
+  documentId   Int
+  action       String    @db.VarChar(50)
+  actorId      Int?
+  changesJson  String?   @db.NVarChar(Max)
+  createdAt    DateTime? @db.DateTime2
+  deletedAt    DateTime  @default(now()) @db.DateTime2
+  deletedBy    String?   @db.NVarChar(100)
+  deleteReason String?   @db.NVarChar(500)
+
+  @@index([documentId])
+  @@index([originalId])
+  @@index([deletedAt])
+}
+
+model AccountingWarehouseEntryDeleted {
+  id           Int       @id @default(autoincrement())
+  originalId   Int?
+  documentId   Int
+  eventType    String    @db.VarChar(40)
+  goodsAmount  Int       @default(0)
+  vatAmount    Int       @default(0)
+  totalAmount  Int       @default(0)
+  payloadJson  String    @db.NVarChar(Max)
+  status       String    @db.VarChar(20)
+  createdAt    DateTime? @db.DateTime2
+  sentAt       DateTime? @db.DateTime2
+  deletedAt    DateTime  @default(now()) @db.DateTime2
+  deletedBy    String?   @db.NVarChar(100)
+  deleteReason String?   @db.NVarChar(500)
+
+  @@index([documentId])
+  @@index([originalId])
+  @@index([deletedAt])
+}
+
 
 

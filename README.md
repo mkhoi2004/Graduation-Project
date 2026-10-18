@@ -271,3 +271,11 @@ Graduation-Project/
   ```powershell
   npm run db:generate
   ```
+
+---
+
+## 10. Phân hệ Quản lý kho
+
+Sau khi đăng nhập bằng `warehouse` / `Dental@123`, mở `/warehouse` để dùng ba màn hình: Tổng quan, Chi tiết vật tư và Nhập/Xuất kho. Dữ liệu được quản lý theo lô/hạn dùng; xuất thường áp dụng FEFO rồi FIFO và không lấy lô hết hạn. Phiếu phải được in trước khi ghi sổ; mỗi lần ghi sổ cập nhật lô, sổ kho, số dư tương thích và outbox kế toán trong một transaction.
+
+API kho nằm trong nhóm `Warehouse` trên APIdog/Swagger tại `http://localhost:3000/api/docs`; hướng dẫn kiểm thử chi tiết ở `TestWarehouse.md`.

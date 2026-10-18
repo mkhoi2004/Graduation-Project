@@ -192,7 +192,7 @@ export class DoctorService {
    */
   async getSuppliesCatalog() {
     const supplies = await this.prisma.medicalSupply.findMany({
-      where: { isActive: true },
+      where: { isActive: true, group: { in: ['THUONG', 'VO_CAM'] } },
       orderBy: [{ group: 'asc' }, { id: 'asc' }],
     });
 

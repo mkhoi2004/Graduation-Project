@@ -54,6 +54,28 @@ describe('Dental ERP login', () => {
     expect(screen.getByRole('button', { name: /bước 1: hàng đợi tiếp nhận/i })).toBeInTheDocument()
   })
 
+  it('renders the three warehouse tabs for warehouse management staff', async () => {
+    const session = receptionSession()
+    session.user = { ...session.user, username: 'warehouse', role: 'WAREHOUSE_MANAGEMENT', roleName: 'Quản lý kho' }
+    window.localStorage.setItem('dental-erp.session', JSON.stringify(session))
+    window.history.pushState({}, '', '/warehouse')
+    const originalFetch = globalThis.fetch
+    globalThis.fetch = async () => new Response(JSON.stringify({
+      metrics: { itemCount: 12, inventoryValue: 12500000, lowStockCount: 2, expiringCount: 1 },
+      lowStock: [], expiring: [], groups: [], recentDocuments: [],
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+
+    try {
+      render(<App />)
+      expect(await screen.findByRole('heading', { name: /tổng quan kho/i })).toBeInTheDocument()
+      expect(screen.getByRole('link', { name: /chi tiết vật tư/i })).toHaveAttribute('href', '/warehouse/details')
+      expect(screen.getByRole('link', { name: /nhập.*xuất kho/i })).toHaveAttribute('href', '/warehouse/transactions')
+      expect(screen.getByText('12')).toBeInTheDocument()
+    } finally {
+      globalThis.fetch = originalFetch
+    }
+  })
+
   it('redirects an unauthenticated reception route to login', () => {
     window.history.pushState({}, '', '/reception/patients')
     render(<App />)

@@ -14,6 +14,10 @@ import { getSession } from '@/lib/auth-session'
 import { getRoleRoute } from '@/lib/role-routes'
 
 import { DoctorLayout } from '@/features/doctor/doctor-layout'
+import { WarehouseLayout } from '@/features/warehouse/warehouse-layout'
+import { WarehouseOverviewPage } from '@/features/warehouse/warehouse-overview-page'
+import { WarehouseDetailsPage } from '@/features/warehouse/warehouse-details-page'
+import { WarehouseTransactionsPage } from '@/features/warehouse/warehouse-transactions-page'
 
 function RequireRole({ role, children }: { role: string; children: ReactNode }) {
   const session = getSession()
@@ -50,6 +54,13 @@ function ProtectedDoctorRoute() {
   return <DoctorLayout session={session} />
 }
 
+function ProtectedWarehouseRoute() {
+  const session = getSession()
+  if (!session) return <Navigate to="/login" replace />
+  if (session.user.role !== 'WAREHOUSE_MANAGEMENT' && session.user.role !== 'ADMIN') return <Navigate to={getRoleRoute(session.user.role)} replace />
+  return <WarehouseLayout session={session} />
+}
+
 function PublicLoginRoute() {
   const session = getSession()
   if (session) return <Navigate to={getRoleRoute(session.user.role)} replace />
@@ -71,7 +82,11 @@ function AppRoutes() {
         <Route path="transfer" element={<TransferPage />} />
       </Route>
       <Route path="/doctor" element={<ProtectedDoctorRoute />} />
-      <Route path="/warehouse" element={<ProtectedRoleRoute role="WAREHOUSE_MANAGEMENT" title="Quản lý kho" />} />
+      <Route path="/warehouse" element={<ProtectedWarehouseRoute />}>
+        <Route index element={<WarehouseOverviewPage />} />
+        <Route path="details" element={<WarehouseDetailsPage />} />
+        <Route path="transactions" element={<WarehouseTransactionsPage />} />
+      </Route>
       <Route path="/accounting" element={<ProtectedRoleRoute role="ACCOUNTING_STAFF" title="Nhân viên kế toán" />} />
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
