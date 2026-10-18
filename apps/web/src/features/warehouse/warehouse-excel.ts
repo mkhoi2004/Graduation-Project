@@ -86,6 +86,7 @@ function buildSimpleXlsx(sheetName: string, headers: string[], rows: (string | n
   // xl/worksheets/sheet1.xml
   let sheetXml = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
 <worksheet xmlns="http://schemas.openxmlformats.org/spreadsheetml/2006/main">
+  <sheetPr><pageSetUpPr fitToPage="1"/></sheetPr>
   <sheetData>`
 
   // Header row (r=1)
@@ -111,7 +112,7 @@ function buildSimpleXlsx(sheetName: string, headers: string[], rows: (string | n
     sheetXml += `</row>`
   })
 
-  sheetXml += `</sheetData></worksheet>`
+  sheetXml += `</sheetData><pageMargins left="0.4" right="0.4" top="0.4" bottom="0.4" header="0.2" footer="0.2"/><pageSetup paperSize="11" orientation="portrait" fitToWidth="1" fitToHeight="1"/></worksheet>`
   zip.file('xl/worksheets/sheet1.xml', sheetXml)
 
   return zip.generateAsync({ type: 'uint8array', compression: 'DEFLATE' })

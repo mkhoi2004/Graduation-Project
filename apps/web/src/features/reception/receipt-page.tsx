@@ -1,11 +1,12 @@
 import { useState } from 'react'
-import { FileText, Printer } from 'lucide-react'
+import { FileSpreadsheet, FileText, Printer } from 'lucide-react'
 import { Link, useSearchParams } from 'react-router-dom'
 import { Button } from '@/components/ui/button'
 import { calculateIntakeTotal, clinicRooms, dentalServices, doctors, formatCurrency } from './reception-data'
 import { useReception } from './reception-context'
 import { downloadReceiptWorkbook } from './receipt-excel'
 import { EmptyState, inputClass, labelClass, PageTitle, StatusPill } from './reception-ui'
+import { ReceptionPrintView } from './reception-print-view'
 
 export function ReceiptPage() {
   const { patients, intakes } = useReception()
@@ -15,24 +16,160 @@ export function ReceiptPage() {
   const [selectedId, setSelectedId] = useState(paidIntakes.some((item) => item.id === requestedId) ? requestedId ?? '' : paidIntakes.at(-1)?.id ?? '')
   const [notice, setNotice] = useState('')
   const [isPrinting, setIsPrinting] = useState(false)
+  const [showPrintModal, setShowPrintModal] = useState(false)
   const intake = paidIntakes.find((item) => item.id === selectedId)
   const patient = patients.find((item) => item.id === intake?.patientId)
-  async function printReceipt() {
+
+  async function handleExportExcel() {
     if (!patient || !intake) return
     setNotice('')
     setIsPrinting(true)
     try {
       await downloadReceiptWorkbook(patient, intake)
-      setNotice('Đã tạo file Excel phiếu thu tiền. Bạn có thể mở file để in.')
+      setNotice('Đã tải xuống file Excel phiếu thu tiền theo mẫu.')
     } catch (error) {
       setNotice(error instanceof Error ? error.message : 'Không thể tạo file Excel phiếu thu tiền.')
     } finally {
       setIsPrinting(false)
     }
   }
-  return <>
-    <PageTitle eyebrow="Bước 5" title="Phiếu tiếp nhận" description="Kiểm tra lại thông tin trước khi chuyển hồ sơ sang khu vực bác sĩ." action={intake ? <Button type="button" onClick={printReceipt} disabled={isPrinting} variant="outline" className="h-11 rounded-xl"><Printer className="size-4" />{isPrinting ? 'Đang tạo Excel...' : 'In phiếu'}</Button> : undefined} />
-    {notice ? <p role="status" className="mb-5 rounded-xl bg-blue-50 px-4 py-3 text-sm text-blue-700">{notice}</p> : null}
-    {!intake ? <EmptyState icon={<FileText className="size-6" />} title="Chưa có phiếu đã thanh toán" description="Hãy hoàn tất bước Thanh toán trước khi in phiếu tiếp nhận." action={<Link to="/reception/payment" className="inline-flex h-10 items-center rounded-xl bg-[#5546e8] px-4 text-sm font-semibold text-white">Đến thanh toán</Link>} /> : <div className="mx-auto max-w-4xl"><label className="mb-5 block rounded-2xl border border-slate-200 bg-white p-4"><span className={labelClass}>Chọn phiếu</span><select value={selectedId} onChange={(event) => setSelectedId(event.target.value)} className={inputClass}>{paidIntakes.map((item) => <option key={item.id} value={item.id}>{item.id} · {patients.find((p) => p.id === item.patientId)?.fullName}</option>)}</select></label><article className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm"><div className="flex flex-wrap items-center justify-between gap-3 bg-[#5546e8] px-6 py-5 text-white"><div><p className="text-xs font-semibold uppercase tracking-[0.15em] text-white/60">DentalERP · Phiếu tiếp nhận</p><h3 className="mt-2 text-xl font-bold">{intake.id}</h3></div><StatusPill status={intake.status} /></div><div className="grid gap-6 p-6 sm:grid-cols-2"><div><p className="text-xs font-bold uppercase tracking-wider text-slate-400">Bệnh nhân</p><p className="mt-2 text-lg font-bold">{patient?.fullName}</p><p className="mt-1 text-sm text-slate-500">{patient?.id} · {patient?.phone}</p></div><div><p className="text-xs font-bold uppercase tracking-wider text-slate-400">Lý do tiếp nhận</p><p className="mt-2 text-sm leading-6 text-slate-700">{intake.symptoms}</p><p className="mt-1 text-xs text-slate-400">Ưu tiên: {intake.priority}</p></div><div><p className="text-xs font-bold uppercase tracking-wider text-slate-400">Điều phối</p><p className="mt-2 text-sm font-semibold">{clinicRooms.find((room) => room.id === intake.roomId)?.name ?? 'Chưa chọn phòng'}</p><p className="mt-1 text-sm text-slate-500">{doctors.find((doctor) => doctor.id === intake.doctorId)?.name ?? 'Chưa chọn bác sĩ'}</p></div><div><p className="text-xs font-bold uppercase tracking-wider text-slate-400">Ngày tạo</p><p className="mt-2 text-sm font-semibold">{new Date(intake.createdAt).toLocaleString('vi-VN')}</p></div></div><div className="border-t border-slate-100 px-6 py-5"><p className="text-xs font-bold uppercase tracking-wider text-slate-400">Dịch vụ đã chọn</p><div className="mt-3 space-y-2">{intake.services.map((selection) => { const service = dentalServices.find((item) => item.id === selection.serviceId); return <div key={selection.serviceId} className="flex items-center justify-between gap-4 rounded-xl bg-slate-50 px-4 py-3 text-sm"><span>{service?.name} <span className="text-slate-400">× {selection.quantity}</span></span><strong>{formatCurrency((service?.price ?? 0) * selection.quantity)}</strong></div> })}</div><div className="mt-5 flex items-end justify-between border-t border-dashed border-slate-200 pt-5"><span className="text-sm text-slate-500">Tổng dự kiến</span><strong className="text-2xl text-[#5546e8]">{formatCurrency(calculateIntakeTotal(intake.services))}</strong></div></div><div className="flex justify-end border-t border-slate-100 bg-slate-50 px-6 py-4"><Link to={`/reception/transfer?intake=${encodeURIComponent(intake.id)}`} className="inline-flex h-11 items-center rounded-xl bg-[#ff6f76] px-5 text-sm font-semibold text-white">Tiếp tục chuyển bác sĩ</Link></div></article></div>}
-  </>
+
+  function handleOpenPrint() {
+    if (!patient || !intake) return
+    setShowPrintModal(true)
+  }
+
+  return (
+    <>
+      <PageTitle
+        eyebrow="Bước 5"
+        title="Phiếu tiếp nhận & Thu tiền"
+        description="Kiểm tra lại thông tin, in phiếu PDF hoặc xuất Excel trước khi chuyển hồ sơ sang khu vực bác sĩ."
+        action={
+          intake ? (
+            <div className="flex items-center gap-2">
+              <Button
+                type="button"
+                onClick={handleExportExcel}
+                disabled={isPrinting}
+                variant="outline"
+                className="h-11 rounded-xl text-emerald-700 border-emerald-200 hover:bg-emerald-50"
+              >
+                <FileSpreadsheet className="size-4 text-emerald-600" />
+                {isPrinting ? 'Đang tạo Excel...' : 'Xuất Excel'}
+              </Button>
+              <Button
+                type="button"
+                onClick={handleOpenPrint}
+                className="h-11 rounded-xl bg-[#5546e8] text-white hover:bg-[#4335d6]"
+              >
+                <Printer className="size-4" />
+                In phiếu (PDF)
+              </Button>
+            </div>
+          ) : undefined
+        }
+      />
+      {notice ? <p role="status" className="mb-5 rounded-xl bg-blue-50 px-4 py-3 text-sm text-blue-700">{notice}</p> : null}
+      {!intake ? (
+        <EmptyState
+          icon={<FileText className="size-6" />}
+          title="Chưa có phiếu đã thanh toán"
+          description="Hãy hoàn tất bước Thanh toán trước khi in phiếu tiếp nhận."
+          action={<Link to="/reception/payment" className="inline-flex h-10 items-center rounded-xl bg-[#5546e8] px-4 text-sm font-semibold text-white">Đến thanh toán</Link>}
+        />
+      ) : (
+        <div className="mx-auto max-w-4xl">
+          <label className="mb-5 block rounded-2xl border border-slate-200 bg-white p-4">
+            <span className={labelClass}>Chọn phiếu</span>
+            <select
+              value={selectedId}
+              onChange={(event) => setSelectedId(event.target.value)}
+              className={inputClass}
+            >
+              {paidIntakes.map((item) => (
+                <option key={item.id} value={item.id}>
+                  {item.id} · {patients.find((p) => p.id === item.patientId)?.fullName}
+                </option>
+              ))}
+            </select>
+          </label>
+          <article className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
+            <div className="flex flex-wrap items-center justify-between gap-3 bg-[#5546e8] px-6 py-5 text-white">
+              <div>
+                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-white/60">DentalERP · Phiếu tiếp nhận</p>
+                <h3 className="mt-2 text-xl font-bold">{intake.id}</h3>
+              </div>
+              <StatusPill status={intake.status} />
+            </div>
+            <div className="grid gap-6 p-6 sm:grid-cols-2">
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Bệnh nhân</p>
+                <p className="mt-2 text-lg font-bold">{patient?.fullName}</p>
+                <p className="mt-1 text-sm text-slate-500">{patient?.id} · {patient?.phone}</p>
+              </div>
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Lý do tiếp nhận</p>
+                <p className="mt-2 text-sm leading-6 text-slate-700">{intake.symptoms}</p>
+                <p className="mt-1 text-xs text-slate-400">Ưu tiên: {intake.priority}</p>
+              </div>
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Điều phối</p>
+                <p className="mt-2 text-sm font-semibold">{clinicRooms.find((room) => room.id === intake.roomId)?.name ?? 'Chưa chọn phòng'}</p>
+                <p className="mt-1 text-sm text-slate-500">{doctors.find((doctor) => doctor.id === intake.doctorId)?.name ?? 'Chưa chọn bác sĩ'}</p>
+              </div>
+              <div>
+                <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Ngày tạo</p>
+                <p className="mt-2 text-sm font-semibold">{new Date(intake.createdAt).toLocaleString('vi-VN')}</p>
+              </div>
+            </div>
+            <div className="border-t border-slate-100 px-6 py-5">
+              <p className="text-xs font-bold uppercase tracking-wider text-slate-400">Dịch vụ đã chọn</p>
+              <div className="mt-3 space-y-2">
+                {intake.services.map((selection) => {
+                  const service = dentalServices.find((item) => item.id === selection.serviceId)
+                  return (
+                    <div key={selection.serviceId} className="flex items-center justify-between gap-4 rounded-xl bg-slate-50 px-4 py-3 text-sm">
+                      <span>{service?.name} <span className="text-slate-400">× {selection.quantity}</span></span>
+                      <strong>{formatCurrency((service?.price ?? 0) * selection.quantity)}</strong>
+                    </div>
+                  )
+                })}
+              </div>
+              <div className="mt-5 flex items-end justify-between border-t border-dashed border-slate-200 pt-5">
+                <span className="text-sm text-slate-500">Tổng dự kiến</span>
+                <strong className="text-2xl text-[#5546e8]">{formatCurrency(calculateIntakeTotal(intake.services))}</strong>
+              </div>
+            </div>
+            <div className="flex justify-end gap-3 border-t border-slate-100 bg-slate-50 px-6 py-4">
+              <Button
+                type="button"
+                onClick={handleOpenPrint}
+                className="inline-flex h-11 items-center gap-2 rounded-xl bg-[#5546e8] px-5 text-sm font-semibold text-white shadow-md shadow-[#5546e8]/20 hover:bg-[#4335d6]"
+              >
+                <Printer className="size-4" />
+                Xem &amp; In phiếu (PDF)
+              </Button>
+              <Link
+                to={`/reception/transfer?intake=${encodeURIComponent(intake.id)}`}
+                className="inline-flex h-11 items-center rounded-xl bg-[#ff6f76] px-5 text-sm font-semibold text-white hover:bg-[#f35b63]"
+              >
+                Tiếp tục chuyển bác sĩ
+              </Link>
+            </div>
+          </article>
+        </div>
+      )}
+
+      {/* MODAL XEM TRƯỚC VÀ IN PHIẾU PDF CHUẨN NHA KHOA */}
+      {showPrintModal && patient && intake && (
+        <ReceptionPrintView
+          patient={patient}
+          intake={intake}
+          onClose={() => setShowPrintModal(false)}
+          onExportExcel={handleExportExcel}
+        />
+      )}
+    </>
+  )
 }

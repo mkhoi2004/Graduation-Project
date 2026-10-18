@@ -40,15 +40,76 @@
 }
 
 @media print {
-  body * { visibility: hidden; }
-  #warehouse-print,
-  #warehouse-print * { visibility: visible; }
-  #warehouse-print {
+  @page {
+    size: A5 portrait;
+    margin: 6mm 8mm 6mm 8mm;
+  }
+
+  html,
+  body {
+    background: #ffffff !important;
+    color: #0f172a !important;
+    -webkit-print-color-adjust: exact !important;
+    print-color-adjust: exact !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    min-height: 0 !important;
+    height: auto !important;
+  }
+
+  /* Khi in phiếu từ modal, ẩn toàn bộ #root để tránh chiều cao ma và trang trắng phía trước */
+  body.print-preview-active #root,
+  body:has(#dental-print-portal) #root {
+    display: none !important;
+  }
+
+  .no-print {
+    display: none !important;
+  }
+
+  #dental-print-portal {
     display: block !important;
-    position: absolute;
-    inset: 0;
-    width: 100%;
-    background: white;
+    position: static !important;
+    width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    overflow: visible !important;
+  }
+
+  #dental-print-portal > div {
+    display: block !important;
+    position: static !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    min-height: 0 !important;
+  }
+
+  .printable-document {
+    display: block !important;
+    position: relative !important;
+    width: 100% !important;
+    max-width: 100% !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    background: #ffffff !important;
+    border: none !important;
+    box-shadow: none !important;
+    border-radius: 0 !important;
+    break-inside: avoid;
+    page-break-inside: avoid;
+  }
+
+  .printable-document table {
+    width: 100% !important;
+    border-collapse: collapse !important;
+  }
+
+  .printable-document tr {
+    break-inside: avoid;
+    page-break-inside: avoid;
   }
 }
 

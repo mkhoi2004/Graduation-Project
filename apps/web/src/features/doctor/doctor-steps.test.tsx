@@ -183,9 +183,15 @@ describe('Doctor UI Workflow Steps', () => {
     expect(screen.getByDisplayValue('Răng 46 viêm tủy cấp')).toBeInTheDocument()
     expect(screen.getByDisplayValue('Làm sạch xoang tủy, đặt thuốc diệt tủy')).toBeInTheDocument()
 
-    // Trigger Print
+    // Trigger Print Modal
     const printBtn = screen.getByRole('button', { name: /in phiếu kết quả tổng kết/i })
     await user.click(printBtn)
+
+    expect(screen.getByText('PHIẾU KẾT QUẢ KHÁM & ĐIỀU TRỊ NHA KHOA')).toBeInTheDocument()
+
+    // Export Excel from print modal
+    const excelBtn = screen.getByRole('button', { name: /xuất excel/i })
+    await user.click(excelBtn)
 
     expect(summaryExcel.downloadSummaryWorkbook).toHaveBeenCalled()
   })

@@ -188,7 +188,15 @@ export async function createSummaryWorkbook(template: ArrayBuffer, data: Summary
   const sheetFile = zip.file(sheetPath)
   if (!sheetFile) throw new Error('Mẫu Excel không có dữ liệu trang phiếu kết quả.')
   const sheetXml = await sheetFile.async('string')
-  zip.file(sheetPath, fillSummarySheetXml(sheetXml, data))
+  let filledXml = fillSummarySheetXml(sheetXml, data)
+  if (!filledXml.includes('paperSize="11"')) {
+    if (filledXml.includes('<x:pageSetup')) {
+      filledXml = filledXml.replace(/<x:pageSetup[^>]*\/>/, '<x:pageSetup paperSize="11" orientation="portrait" fitToWidth="1" fitToHeight="1"/>')
+    } else if (filledXml.includes('<x:pageMargins')) {
+      filledXml = filledXml.replace(/<x:pageMargins[^>]*\/>/, '$&<x:pageSetup paperSize="11" orientation="portrait" fitToWidth="1" fitToHeight="1"/>')
+    }
+  }
+  zip.file(sheetPath, filledXml)
 
   const workbookPath = 'xl/workbook.xml'
   const workbookFile = zip.file(workbookPath)

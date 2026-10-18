@@ -34,9 +34,12 @@ describe('reception pages', () => {
     }))
     render(<MemoryRouter><ReceptionProvider><ReceiptPage /></ReceptionProvider></MemoryRouter>)
 
-    await user.click(screen.getByRole('button', { name: /in phiếu/i }))
+    await user.click(screen.getByRole('button', { name: /xuất excel/i }))
     expect(downloadReceiptWorkbook).toHaveBeenCalledOnce()
-    expect(screen.getByRole('status')).toHaveTextContent(/đã tạo file Excel/i)
+    expect(screen.getByRole('status')).toHaveTextContent(/tải xuống file Excel/i)
+
+    await user.click(screen.getByRole('button', { name: /^in phiếu \(pdf\)$/i }))
+    expect(screen.getByRole('heading', { level: 1, name: /phiếu tiếp nhận & thu tiền/i })).toBeInTheDocument()
   })
 
   it('does not expose receipt printing before payment is completed', () => {

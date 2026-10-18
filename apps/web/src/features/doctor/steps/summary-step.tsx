@@ -3,7 +3,6 @@ import {
   AlertCircle,
   ArrowRight,
   CheckCircle2,
-  FileSpreadsheet,
   History,
   Printer,
   Save,
@@ -12,6 +11,7 @@ import { recordPrintHistoryApi, updateResultApi, fetchExaminationById } from '..
 import { useDoctor } from '../doctor-context'
 import { downloadSummaryWorkbook } from '../summary-excel'
 import { PatientBanner } from '../components/patient-banner'
+import { DoctorPrintView } from '../doctor-print-view'
 import { PageTitle, inputClass, labelClass } from '../../reception/reception-ui'
 
 export function SummaryStep() {
@@ -25,6 +25,7 @@ export function SummaryStep() {
   const [printing, setPrinting] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
+  const [showPrintModal, setShowPrintModal] = useState(false)
 
   const [lastExamId, setLastExamId] = useState<number | null>(null)
 
@@ -92,21 +93,29 @@ export function SummaryStep() {
     }
   }
 
-  const handlePrintSummary = async () => {
-    try {
-      setPrinting(true)
-      setErrorMessage(null)
-
-      // Ensure latest inputs are included in export
-      const examForPrint = {
+  const examForPrint = currentExam
+    ? {
         ...currentExam,
+        printCount: currentExam.printHistories?.length ?? 0,
         result: {
           summary: summary || currentExam.result?.summary || 'Chưa cập nhật',
           treatmentMethod: treatmentMethod || currentExam.result?.treatmentMethod || 'Chưa cập nhật',
-          treatmentOrientation: treatmentOrientation || currentExam.result?.treatmentOrientation || 'Chưa cập nhật',
+          treatmentOrientation:
+            treatmentOrientation || currentExam.result?.treatmentOrientation || 'Chưa cập nhật',
           nextAppointmentDate: nextAppointmentDate || currentExam.result?.nextAppointmentDate,
         },
       }
+    : null
+
+  const handleOpenPrintModal = () => {
+    setShowPrintModal(true)
+  }
+
+  const handleExportExcel = async () => {
+    if (!currentExam || !examForPrint) return
+    try {
+      setPrinting(true)
+      setErrorMessage(null)
 
       await downloadSummaryWorkbook(examForPrint, undefined, async () => {
         // Record print history in DB
@@ -115,9 +124,20 @@ export function SummaryStep() {
         dispatch({ type: 'SET_CURRENT_EXAM', exam: refreshed })
       })
     } catch (err: any) {
-      setErrorMessage(err.message ?? 'Không thể in phiếu kết quả tổng kết.')
+      setErrorMessage(err.message ?? 'Không thể xuất file Excel kết quả tổng kết.')
     } finally {
       setPrinting(false)
+    }
+  }
+
+  const handlePrintRecorded = async () => {
+    if (!currentExam) return
+    try {
+      await recordPrintHistoryApi(currentExam.id)
+      const refreshed = await fetchExaminationById(currentExam.id)
+      dispatch({ type: 'SET_CURRENT_EXAM', exam: refreshed })
+    } catch (err: any) {
+      console.error('Không thể ghi nhận lịch sử in:', err)
     }
   }
 
@@ -132,12 +152,12 @@ export function SummaryStep() {
             <button
               type="button"
               disabled={printing}
-              onClick={handlePrintSummary}
+              onClick={handleOpenPrintModal}
               className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50 disabled:opacity-50"
-              title="Xuất file Excel Phiếu Kết quả tổng kết điều trị"
+              title="Xem trước & In Phiếu Kết quả tổng kết điều trị (PDF)"
             >
               <Printer className="size-4 text-[#5546e8]" />
-              {printing ? 'Đang xuất phiếu...' : 'In Phiếu Kết quả tổng kết'}
+              In Phiếu Kết quả tổng kết
             </button>
             <button
               type="button"
@@ -248,10 +268,10 @@ export function SummaryStep() {
               <button
                 type="button"
                 disabled={printing}
-                onClick={handlePrintSummary}
+                onClick={handleOpenPrintModal}
                 className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 px-4 py-2 text-xs font-semibold text-slate-700 hover:bg-slate-50 transition"
               >
-                <FileSpreadsheet className="size-4 text-emerald-600" />
+                <Printer className="size-4 text-[#5546e8]" />
                 <span>Xem & In Phiếu Kết quả</span>
               </button>
 
@@ -310,6 +330,15 @@ export function SummaryStep() {
           </div>
         </div>
       </div>
+      {/* MODAL XEM TRƯỚC VÀ IN PHIẾU PDF CHUẨN NHA KHOA */}
+      {showPrintModal && examForPrint && (
+        <DoctorPrintView
+          examination={examForPrint}
+          onClose={() => setShowPrintModal(false)}
+          onExportExcel={handleExportExcel}
+          onPrintRecorded={handlePrintRecorded}
+        />
+      )}
     </div>
   )
 }

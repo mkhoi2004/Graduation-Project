@@ -2245,6 +2245,7 @@ export function WarehouseTransactionsPage() {
         <WarehousePrintView
           document={printingDoc}
           onClose={() => setPrintingDoc(null)}
+          onExportExcel={() => exportDocumentsToExcel([printingDoc])}
         />
       )}
     </section>

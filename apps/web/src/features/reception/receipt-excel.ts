@@ -122,7 +122,15 @@ export async function createReceiptWorkbook(template: ArrayBuffer, data: Receipt
   const sheetFile = zip.file(sheetPath)
   if (!sheetFile) throw new Error('Mẫu Excel không có dữ liệu trang phiếu thu tiền.')
   const sheetXml = await sheetFile.async('string')
-  zip.file(sheetPath, fillReceiptSheetXml(sheetXml, data))
+  let filledXml = fillReceiptSheetXml(sheetXml, data)
+  if (!filledXml.includes('paperSize="11"')) {
+    if (filledXml.includes('<x:pageSetup')) {
+      filledXml = filledXml.replace(/<x:pageSetup[^>]*\/>/, '<x:pageSetup paperSize="11" orientation="portrait" fitToWidth="1" fitToHeight="1"/>')
+    } else if (filledXml.includes('<x:pageMargins')) {
+      filledXml = filledXml.replace(/<x:pageMargins[^>]*\/>/, '$&<x:pageSetup paperSize="11" orientation="portrait" fitToWidth="1" fitToHeight="1"/>')
+    }
+  }
+  zip.file(sheetPath, filledXml)
 
   const workbookPath = 'xl/workbook.xml'
   const workbookFile = zip.file(workbookPath)
