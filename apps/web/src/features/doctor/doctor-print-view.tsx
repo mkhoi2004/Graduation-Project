@@ -1,6 +1,6 @@
 import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
-import { FileSpreadsheet, HeartPulse, Printer, Stethoscope, X } from 'lucide-react'
+import { FileSpreadsheet, Printer, Stethoscope, X } from 'lucide-react'
 import { getSession } from '@/lib/auth-session'
 
 function formatDate(dateStr?: string) {
@@ -140,12 +140,10 @@ export function DoctorPrintView({
           {/* Top Header Phòng Khám Nha Khoa */}
           <div className="flex items-start justify-between border-b border-slate-200 pb-3">
             <div className="flex items-start gap-2.5">
-              <div className="grid size-10 shrink-0 place-items-center rounded-2xl bg-[#5546e8] text-white shadow-md shadow-[#5546e8]/25 print:border print:border-[#5546e8]">
-                <HeartPulse className="size-5" />
-              </div>
+              <img src="/Logo.png" alt="DentalKhoi" className="h-10 w-auto shrink-0 object-contain" />
               <div>
                 <h2 className="text-sm font-extrabold tracking-tight text-[#5546e8]">
-                  PHÒNG KHÁM NHA KHOA DENTALCARE
+                  PHÒNG KHÁM NHA KHOA DENTALKHOI
                 </h2>
                 <p className="text-[11px] text-slate-500">
                   Chuyên khoa Răng - Hàm - Mặt &amp; Phục hình thẩm mỹ

@@ -1,7 +1,9 @@
-import { ClipboardPlus, CreditCard, Database, FileText, HeartPulse, LayoutDashboard, LogOut, Send, Sparkles, Stethoscope, UsersRound } from 'lucide-react'
+import { ClipboardPlus, CreditCard, Database, FileText, LayoutDashboard, LogOut, Send, Sparkles, Stethoscope, UsersRound } from 'lucide-react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
 import { clearSession, type AuthSession } from '@/lib/auth-session'
 import { ReceptionProvider, useReception } from './reception-context'
+
+import { AttendanceHeaderWidget } from '../personnel/attendance-header-widget'
 
 const tabs = [
   { to: '/reception', label: 'Tổng quan', icon: LayoutDashboard, end: true },
@@ -21,19 +23,18 @@ function ReceptionLayoutInner({ session, onLogout }: { session: AuthSession; onL
       <header className="border-b border-slate-200/80 bg-white">
         <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-4 px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3">
-            <div className="grid size-10 place-items-center rounded-2xl bg-[#5546e8] text-white shadow-lg shadow-[#5546e8]/20">
-              <HeartPulse className="size-5" />
-            </div>
+            <img src="/Logo.png" alt="DentalKhoi" className="h-10 w-auto object-contain" />
             <div>
-              <p className="font-bold tracking-[-0.03em]">DentalERP</p>
+              <p className="font-bold tracking-[-0.03em]">DentalKhoi</p>
               <p className="text-xs text-slate-400">Quầy tiếp nhận</p>
             </div>
           </div>
           <div className="flex items-center gap-3">
+            <AttendanceHeaderWidget session={session} />
             <button
               type="button"
               onClick={() => dispatch({ type: 'LOAD_DEMO_DATA' })}
-              className="inline-flex items-center gap-1.5 rounded-xl border border-[#dedaff] bg-[#f0efff] px-3 py-2 text-xs font-semibold text-[#5546e8] transition hover:bg-[#e4e1ff]"
+              className="hidden md:inline-flex items-center gap-1.5 rounded-xl border border-[#dedaff] bg-[#f0efff] px-3 py-2 text-xs font-semibold text-[#5546e8] transition hover:bg-[#e4e1ff]"
               title="Nạp 5 bệnh nhân và 4 phiếu tiếp nhận mẫu"
             >
               <Sparkles className="size-3.5" />
@@ -42,7 +43,7 @@ function ReceptionLayoutInner({ session, onLogout }: { session: AuthSession; onL
             <button
               type="button"
               onClick={() => dispatch({ type: 'CLEAR_DATA' })}
-              className="hidden sm:inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-500 transition hover:bg-slate-50 hover:text-slate-700"
+              className="hidden lg:inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-2 text-xs font-medium text-slate-500 transition hover:bg-slate-50 hover:text-slate-700"
               title="Xóa trắng dữ liệu trên trình duyệt"
             >
               <Database className="size-3.5" />

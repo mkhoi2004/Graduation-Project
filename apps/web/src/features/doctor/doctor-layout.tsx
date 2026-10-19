@@ -4,7 +4,6 @@ import {
   DoorOpen,
   FileCheck2,
   FileText,
-  HeartPulse,
   LogOut,
   Package,
   RefreshCw,
@@ -19,6 +18,7 @@ import { SuppliesStep } from './steps/supplies-step'
 import { SummaryStep } from './steps/summary-step'
 import { FinishStep } from './steps/finish-step'
 import { CancelModal } from './components/cancel-modal'
+import { AttendanceHeaderWidget } from '../personnel/attendance-header-widget'
 
 function DoctorLayoutInner({ session, onLogout }: { session: AuthSession; onLogout: () => void }) {
   const {
@@ -61,11 +61,9 @@ function DoctorLayoutInner({ session, onLogout }: { session: AuthSession; onLogo
       <header className="border-b border-slate-200/80 bg-white">
         <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3">
-            <div className="grid size-10 place-items-center rounded-2xl bg-[#5546e8] text-white shadow-lg shadow-[#5546e8]/20">
-              <HeartPulse className="size-5" />
-            </div>
+            <img src="/Logo.png" alt="DentalKhoi" className="h-10 w-auto object-contain" />
             <div>
-              <p className="font-bold tracking-[-0.03em] text-slate-900">DentalERP</p>
+              <p className="font-bold tracking-[-0.03em] text-slate-900">DentalKhoi</p>
               <p className="text-xs text-slate-400">Phân hệ Bác sĩ lâm sàng</p>
             </div>
           </div>
@@ -102,6 +100,9 @@ function DoctorLayoutInner({ session, onLogout }: { session: AuthSession; onLogo
                 <span>Từ chối / Ngừng khám</span>
               </button>
             )}
+
+            {/* Attendance Check-in / Check-out */}
+            <AttendanceHeaderWidget session={session} />
 
             {/* Doctor Info */}
             <div className="hidden text-right sm:block">

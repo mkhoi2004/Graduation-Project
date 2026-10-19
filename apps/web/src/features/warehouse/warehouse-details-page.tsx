@@ -68,7 +68,7 @@ export function WarehouseDetailsPage() {
 
   // Pagination
   const [page, setPage] = useState(1)
-  const pageSize = 12
+  const pageSize = 10
 
   const handleGroupChange = (newGroup: string) => {
     setPage(1)

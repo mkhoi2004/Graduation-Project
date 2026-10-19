@@ -5,9 +5,10 @@ import { PrismaPaymentRepository } from './payment.repository.js';
 import { PaymentsController } from './payments.controller.js';
 import { PaymentGateway, PaymentRepository, PaymentsService } from './payments.service.js';
 import { PaymentAccessGuard } from './payment-access.guard.js';
+import { AccountingModule } from '../accounting/accounting.module.js';
 
 @Module({
-  imports: [AuthModule],
+  imports: [AuthModule, AccountingModule],
   controllers: [PaymentsController],
   providers: [
     PaymentsService,

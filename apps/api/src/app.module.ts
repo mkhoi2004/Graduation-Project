@@ -11,6 +11,8 @@ import { PaymentsModule } from './payments/payments.module.js';
 import { ReceptionModule } from './reception/reception.module.js';
 import { DoctorModule } from './doctor/doctor.module.js';
 import { WarehouseModule } from './warehouse/warehouse.module.js';
+import { AccountingModule } from './accounting/accounting.module.js';
+import { PersonnelModule } from './personnel/personnel.module.js';
 
 @Module({
   imports: [
@@ -25,6 +27,8 @@ import { WarehouseModule } from './warehouse/warehouse.module.js';
     ReceptionModule,
     DoctorModule,
     WarehouseModule,
+    AccountingModule,
+    PersonnelModule,
     ThrottlerModule.forRoot([{ ttl: 60_000, limit: 100 }]),
   ],
   controllers: [AppController],

@@ -73,7 +73,7 @@ const mockExam: ExaminationDetail = {
     priority: 'Khẩn cấp',
     roomCode: 'room-01',
     roomName: 'Phòng khám 01',
-    services: [{ code: 'cleaning', name: 'Cạo vôi răng', quantity: 1, unit: '2 hàm' }],
+    services: [{ intakeServiceId: 11, code: 'cleaning', name: 'Cạo vôi răng', quantity: 1, unit: '2 hàm' }],
   },
   supplies: [],
   result: {
@@ -165,6 +165,27 @@ describe('Doctor UI Workflow Steps', () => {
     // Verify no price or currency shown in supplies catalog
     expect(screen.queryByText(/đơn giá/i)).not.toBeInTheDocument()
     expect(screen.queryByText(/vnđ/i)).not.toBeInTheDocument()
+  })
+
+  it('assigns every selected supply to a service line before saving', async () => {
+    const user = userEvent.setup()
+    vi.spyOn(doctorApi, 'fetchCurrentExamining').mockResolvedValue(mockExam)
+
+    render(
+      <MemoryRouter>
+        <DoctorLayout session={mockDoctorSession} />
+      </MemoryRouter>,
+    )
+
+    await user.click(await screen.findByRole('button', { name: /bước 2: vật tư y tế tiêu hao/i }))
+    await user.click(screen.getByText('Găng tay cao su Vglove'))
+    expect(screen.getByLabelText('Dịch vụ sử dụng vật tư')).toHaveValue('11')
+    await user.click(screen.getByRole('button', { name: /^thêm$/i }))
+    await user.click(screen.getByRole('button', { name: /lưu danh sách vtyt đã chọn/i }))
+
+    expect(doctorApi.updateSuppliesApi).toHaveBeenCalledWith(101, [
+      expect.objectContaining({ supplyCode: 'gloves-vglove', intakeServiceId: 11 }),
+    ])
   })
 
   it('renders Step 3 (Summary) and triggers print', async () => {

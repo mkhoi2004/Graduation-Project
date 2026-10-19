@@ -1,12 +1,28 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../../infrastructure/database/prisma.service.js';
+import { AccountingService } from '../../accounting/accounting.service.js';
 
 export interface EnqueueJournalEntryInput {
   examinationId: number;
   examinationCode: string;
+  patientId: number;
+  intakeId: number;
+  intakeCode: string;
+  doctorId: number;
+  roomId: number;
+  completedAt: Date;
   serviceRevenue: number;
   supplyCost: number;
   isCancelled: boolean;
+  serviceLines: Array<{
+    intakeServiceId: number;
+    serviceId: number;
+    serviceType: string;
+    revenue: number;
+    taxRate?: number;
+    taxClassification?: string;
+    supplyCost: number;
+  }>;
 }
 
 /**
@@ -26,7 +42,10 @@ export interface EnqueueJournalEntryInput {
  */
 @Injectable()
 export class AccountingServiceStub {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly accounting?: AccountingService,
+  ) {}
 
   /**
    * Đẩy bút toán sang hàng đợi Outbox của phân hệ Kế toán.
@@ -36,6 +55,13 @@ export class AccountingServiceStub {
     const payload = JSON.stringify({
       examinationCode: input.examinationCode,
       examinationId: input.examinationId,
+      patientId: input.patientId,
+      intakeId: input.intakeId,
+      intakeCode: input.intakeCode,
+      doctorId: input.doctorId,
+      roomId: input.roomId,
+      completedAt: input.completedAt.toISOString(),
+      serviceLines: input.serviceLines,
       serviceRevenue: input.isCancelled ? 0 : input.serviceRevenue,
       supplyCost: input.supplyCost,
       isCancelled: input.isCancelled,
@@ -61,6 +87,21 @@ export class AccountingServiceStub {
       },
     });
 
+    await this.accounting?.ingestDoctorEvent(outbox.id, `doctor-outbox-${outbox.id}-${outbox.updatedAt.getTime()}`);
     return { outboxId: outbox.id, status: outbox.status };
+  }
+
+  async enqueueReversal(input: {
+    examinationId: number;
+    examinationCode: string;
+    reason: string;
+    actorId: number;
+  }): Promise<{ eventId: number; status: string }> {
+    if (this.accounting) return this.accounting.reverseExamination(input);
+    const event = await this.prisma.accountingEvent.create({ data: {
+      sourceType: 'DOCTOR_EXAMINATION', sourceCode: input.examinationCode, eventType: 'EXAMINATION_REVERSED',
+      idempotencyKey: `unlock-${input.examinationId}`, payloadJson: JSON.stringify(input), status: 'PENDING',
+    } });
+    return { eventId: event.id, status: event.status };
   }
 }

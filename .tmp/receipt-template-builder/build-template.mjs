@@ -102,7 +102,7 @@ sheet.getRange('G30:H30').format.numberFormat = '#,##0 "₫"'
 sheet.getRange('A30:I30').format.rowHeight = 28
 
 sheet.mergeCells('A32:I32')
-sheet.getRange('A32').values = [['Cảm ơn quý khách đã sử dụng dịch vụ tại DentalERP.']]
+sheet.getRange('A32').values = [['Cảm ơn quý khách đã sử dụng dịch vụ tại DentalKhoi.']]
 sheet.getRange('A32:I32').format = {
   font: { name: 'Arial', size: 9, italic: true, color: '#64748B' },
   horizontalAlignment: 'center',

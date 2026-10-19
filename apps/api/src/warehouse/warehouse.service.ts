@@ -1,6 +1,7 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
 import { PrismaService } from '../infrastructure/database/prisma.service.js';
+import { AccountingService } from '../accounting/accounting.service.js';
 import {
   allocateStock,
   calculateReceiptLine,
@@ -39,7 +40,10 @@ const documentInclude = {
 
 @Injectable()
 export class WarehouseService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly accounting?: AccountingService,
+  ) {}
 
   async overview() {
     const [supplies, batches, recentDocuments] = await Promise.all([
@@ -770,7 +774,7 @@ export class WarehouseService {
   }
 
   async post(id: number, actorId?: number, idempotencyKey?: string) {
-    return this.prisma.$transaction(
+    const document = await this.prisma.$transaction(
       async (tx) => {
         const doc = await tx.stockDocument.findUnique({
           where: { id },
@@ -1018,6 +1022,18 @@ export class WarehouseService {
       },
       { isolationLevel: Prisma.TransactionIsolationLevel.Serializable, timeout: 15000 },
     );
+
+    const accountingEntry = await this.prisma.accountingWarehouseEntry.findFirst({
+      where: { documentId: id },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (accountingEntry) {
+      await this.accounting?.ingestWarehouseEvent(
+        accountingEntry.id,
+        idempotencyKey ?? `warehouse-entry-${accountingEntry.id}`,
+      );
+    }
+    return document;
   }
 
   async cancel(id: number, actorId?: number, reason?: string) {
@@ -1038,6 +1054,18 @@ export class WarehouseService {
 
       if (!doc) throw new NotFoundException('Không tìm thấy chứng từ.');
       if (doc.status === 'CANCELLED') throw new BadRequestException('Chứng từ này đã bị hủy trước đó.');
+
+      if (doc.status === 'POSTED' && doc.type === 'IN') {
+        const payable = await tx.debt.findFirst({
+          where: { sourceType: 'STOCK_DOCUMENT', sourceCode: doc.code },
+          include: { payments: true },
+        });
+        if (payable?.payments.some((payment) => !payment.reversedAt)) {
+          throw new BadRequestException(
+            'Không thể hủy phiếu nhập vì khoản phải trả đã phát sinh thanh toán. Vui lòng xử lý tại Kế toán trước.',
+          );
+        }
+      }
 
       if (doc.status === 'DRAFT' || doc.status === 'PRINTED') {
         await tx.warehouseAuditLog.create({

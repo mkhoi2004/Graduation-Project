@@ -8,6 +8,8 @@ describe('getRoleRoute', () => {
     ['DOCTOR', '/doctor'],
     ['WAREHOUSE_MANAGEMENT', '/warehouse'],
     ['ACCOUNTING_STAFF', '/accounting'],
+    ['HR', '/hr'],
+    ['MANAGER', '/hr'],
   ])('maps %s to %s', (role, expectedRoute) => {
     expect(getRoleRoute(role)).toBe(expectedRoute)
   })

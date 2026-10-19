@@ -141,16 +141,20 @@ describe('DoctorController (e2e)', () => {
     expect(suppliesRes.body[0].costPrice).toBeUndefined(); // CONFIDENTIAL
 
     // 7. As Doctor: Update Supplies Used (Step 2)
+    const intakeServiceId = callRes.body.intake.services[0].intakeServiceId;
     const updateSuppliesRes = await request(app.getHttpServer())
       .put(`/api/doctor/examinations/${examinationId}/supplies`)
       .set('Authorization', `Bearer ${docToken}`)
       .send({
         supplies: [
-          { supplyCode: 'needle-septoject', quantityInBaseUnit: 2, conversionUnitUsed: 'Kim' },
-          { supplyCode: 'composite-3m', quantityInBaseUnit: 1 },
+          { intakeServiceId, supplyCode: 'needle-septoject', quantityInBaseUnit: 2, conversionUnitUsed: 'Kim' },
+          { intakeServiceId, supplyCode: 'composite-3m', quantityInBaseUnit: 1 },
         ],
-      })
-      .expect(200);
+      });
+    if (updateSuppliesRes.status !== 200) {
+      console.error('UPDATE SUPPLIES ERROR:', updateSuppliesRes.status, updateSuppliesRes.body);
+    }
+    expect(updateSuppliesRes.status).toBe(200);
     expect(updateSuppliesRes.body.supplies.length).toBe(2);
 
     // 8. As Doctor: Update Clinical Result (Step 3)

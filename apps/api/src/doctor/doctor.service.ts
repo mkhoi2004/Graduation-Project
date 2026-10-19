@@ -216,12 +216,18 @@ export class DoctorService {
   async updateSupplies(examinationId: number, dto: UpdateSuppliesDto) {
     const exam = await this.prisma.doctorExamination.findUnique({
       where: { id: examinationId },
+      include: { intake: { include: { services: true } } },
     });
     if (!exam) {
       throw new NotFoundException(`Không tìm thấy ca khám #${examinationId}.`);
     }
     if (exam.isLocked || exam.status !== 'IN_PROGRESS') {
       throw new BadRequestException('Hồ sơ khám đã Ghi sổ hoặc đã kết thúc, không thể chỉnh sửa vật tư.');
+    }
+
+    const intakeServiceIds = new Set(exam.intake.services.map((service) => service.id));
+    if (dto.supplies.some((item) => !intakeServiceIds.has(item.intakeServiceId))) {
+      throw new BadRequestException('Vật tư phải được gắn với một dòng dịch vụ của ca khám.');
     }
 
     // 1. Kiểm tra từng vật tư và tồn kho qua Warehouse Stub
@@ -268,6 +274,7 @@ export class DoctorService {
           data: {
             examinationId,
             supplyId: supply.id,
+            intakeServiceId: item.intakeServiceId,
             conversionUnitUsed: item.conversionUnitUsed ?? null,
             quantityInBaseUnit: item.quantityInBaseUnit,
             costPriceSnapshot: supply.costPrice,
@@ -392,9 +399,26 @@ export class DoctorService {
     await this.accountingStub.enqueueJournalEntry({
       examinationId: exam.id,
       examinationCode: exam.code,
+      patientId: exam.patientId,
+      intakeId: exam.intakeId,
+      intakeCode: exam.intake.code,
+      doctorId: exam.doctorId,
+      roomId: exam.roomId,
+      completedAt: now,
       serviceRevenue,
       supplyCost,
       isCancelled: false,
+      serviceLines: exam.intake.services.map((item) => ({
+        intakeServiceId: item.id,
+        serviceId: item.serviceId,
+        serviceType: item.service.serviceType,
+        revenue: item.amount,
+        taxRate: Number(item.service.defaultTaxRate ?? 0),
+        taxClassification: item.service.taxClassification ?? undefined,
+        supplyCost: exam.supplies
+          .filter((supply) => supply.intakeServiceId === item.id)
+          .reduce((sum, supply) => sum + supply.costPriceSnapshot * supply.quantityInBaseUnit, 0),
+      })),
     });
 
     // 4. Khóa và đổi trạng thái trong DB
@@ -432,6 +456,7 @@ export class DoctorService {
     const exam = await this.prisma.doctorExamination.findUnique({
       where: { id: examinationId },
       include: {
+        intake: { include: { services: { include: { service: true } } } },
         supplies: true,
       },
     });
@@ -458,9 +483,26 @@ export class DoctorService {
     await this.accountingStub.enqueueJournalEntry({
       examinationId: exam.id,
       examinationCode: exam.code,
+      patientId: exam.patientId,
+      intakeId: exam.intakeId,
+      intakeCode: exam.intake.code,
+      doctorId: exam.doctorId,
+      roomId: exam.roomId,
+      completedAt: now,
       serviceRevenue: 0,
       supplyCost,
       isCancelled: true,
+      serviceLines: exam.intake.services.map((item) => ({
+        intakeServiceId: item.id,
+        serviceId: item.serviceId,
+        serviceType: item.service.serviceType,
+        revenue: 0,
+        taxRate: Number(item.service.defaultTaxRate ?? 0),
+        taxClassification: item.service.taxClassification ?? undefined,
+        supplyCost: exam.supplies
+          .filter((supply) => supply.intakeServiceId === item.id)
+          .reduce((sum, supply) => sum + supply.costPriceSnapshot * supply.quantityInBaseUnit, 0),
+      })),
     });
 
     // 4. Khóa và đổi trạng thái sang CANCELLED
@@ -494,6 +536,13 @@ export class DoctorService {
     if (!exam) {
       throw new NotFoundException(`Không tìm thấy ca khám #${examinationId}.`);
     }
+
+    await this.accountingStub.enqueueReversal({
+      examinationId,
+      examinationCode: exam.code,
+      reason: dto.reason,
+      actorId,
+    });
 
     await this.prisma.$transaction([
       this.prisma.doctorExamination.update({
@@ -567,6 +616,7 @@ export class DoctorService {
         roomCode: exam.room.code,
         roomName: exam.room.name,
         services: exam.intake.services.map((s: any) => ({
+          intakeServiceId: s.id,
           code: s.service.code,
           name: s.service.name,
           quantity: s.quantity,
@@ -575,6 +625,7 @@ export class DoctorService {
       },
       supplies: exam.supplies.map((s: any) => ({
         id: s.id,
+        intakeServiceId: s.intakeServiceId,
         supplyCode: s.supply.code,
         supplyName: s.supply.name,
         group: s.supply.group,

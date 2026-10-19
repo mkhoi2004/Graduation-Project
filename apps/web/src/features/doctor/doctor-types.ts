@@ -39,6 +39,7 @@ export interface MedicalSupplyCatalogItem {
 }
 
 export interface SupplyUsageItem {
+  intakeServiceId: number
   supplyCode: string
   conversionUnitUsed?: string
   quantityInBaseUnit: number
@@ -46,6 +47,7 @@ export interface SupplyUsageItem {
 
 export interface ExaminationSupplyDetail {
   id: number
+  intakeServiceId: number
   supplyCode: string
   supplyName: string
   group: 'THUONG' | 'VO_CAM'
@@ -90,6 +92,7 @@ export interface ExaminationDetail {
     roomCode: string
     roomName: string
     services: Array<{
+      intakeServiceId: number
       code: string
       name: string
       quantity: number

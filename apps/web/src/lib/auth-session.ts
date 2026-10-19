@@ -18,6 +18,9 @@ const allowedRoles = new Set([
   'DOCTOR',
   'WAREHOUSE_MANAGEMENT',
   'ACCOUNTING_STAFF',
+  'HR',
+  'HR_STAFF',
+  'MANAGER',
 ])
 
 function isRecord(value: unknown): value is Record<string, unknown> {

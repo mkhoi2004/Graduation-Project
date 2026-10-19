@@ -6,6 +6,7 @@ import type { PrismaService } from '../infrastructure/database/prisma.service.js
 describe('ReceptionService', () => {
   let service: ReceptionService;
   let mockPrisma: any;
+  let mockAccounting: any;
 
   beforeEach(() => {
     mockPrisma = {
@@ -41,7 +42,7 @@ describe('ReceptionService', () => {
         create: vi.fn(),
       },
       payment: {
-        create: vi.fn(),
+        create: vi.fn().mockResolvedValue({ id: 77 }),
         deleteMany: vi.fn(),
       },
       patientDeleted: {
@@ -62,7 +63,8 @@ describe('ReceptionService', () => {
       $transaction: vi.fn(async (cb: (tx: any) => Promise<any>) => cb(mockPrisma)),
     };
 
-    service = new ReceptionService(mockPrisma as unknown as PrismaService);
+    mockAccounting = { ingestReceptionPayment: vi.fn().mockResolvedValue({ eventId: 1, entryId: 2 }) };
+    service = new ReceptionService(mockPrisma as unknown as PrismaService, mockAccounting);
   });
 
   describe('getMasterData', () => {
@@ -296,6 +298,7 @@ describe('ReceptionService', () => {
           }),
         }),
       );
+      expect(mockAccounting.ingestReceptionPayment).toHaveBeenCalledWith(77, 'reception-payment-77-paid');
     });
 
     it('rejects payment on already paid intake', async () => {

@@ -22,9 +22,17 @@ export class PrismaUsersRepository implements UsersRepository {
   constructor(private readonly prisma: PrismaService) {}
 
   findActiveByUsername(username: string): Promise<AuthUser | null> {
+    const normalized = username.trim().toLowerCase();
+    const searchUsername =
+      normalized === 'doctor'
+        ? 'doctor-minh'
+        : normalized === 'manager'
+          ? 'hr'
+          : normalized;
+
     return this.prisma.user.findFirst({
       where: {
-        username: username.trim().toLowerCase(),
+        username: searchUsername,
         isActive: true,
       },
       select: {

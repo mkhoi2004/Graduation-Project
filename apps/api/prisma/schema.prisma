@@ -10,13 +10,14 @@ datasource db {
 }
 
 model Role {
-  id          Int      @id @default(autoincrement())
-  code        String   @unique @db.VarChar(50)
-  name        String   @db.NVarChar(100)
-  description String   @db.NVarChar(1000)
-  users       User[]
-  createdAt   DateTime @default(now()) @db.DateTime2
-  updatedAt   DateTime @updatedAt @db.DateTime2
+  id              Int                  @id @default(autoincrement())
+  code            String               @unique @db.VarChar(50)
+  name            String               @db.NVarChar(100)
+  description     String               @db.NVarChar(1000)
+  users           User[]
+  roleAssignments UserRoleAssignment[] @relation("RoleAssignments")
+  createdAt       DateTime             @default(now()) @db.DateTime2
+  updatedAt       DateTime             @updatedAt @db.DateTime2
 }
 
 model User {
@@ -36,6 +37,11 @@ model User {
   doctorExaminations DoctorExamination[]       @relation("DoctorExaminations")
   printedHistories   ExaminationPrintHistory[] @relation("DoctorPrintHistories")
   auditLogs          ExaminationAuditLog[]     @relation("ExaminationAuditActors")
+
+  employee           Employee?
+  roleAssignments    UserRoleAssignment[]      @relation("UserRoleAssignments")
+  createdPayrolls    Payroll[]                 @relation("PayrollCreatedBy")
+  approvedPayrolls   Payroll[]                 @relation("PayrollApprovedBy")
 
   @@index([roleId])
 }
@@ -66,6 +72,8 @@ model ClinicRoom {
   isActive           Boolean             @default(true)
   intakes            Intake[]
   doctorExaminations DoctorExamination[]
+  employees          Employee[]
+  shiftAssignments   ShiftAssignment[]
   createdAt          DateTime            @default(now()) @db.DateTime2
   updatedAt          DateTime            @updatedAt @db.DateTime2
 }
@@ -77,6 +85,9 @@ model DentalService {
   category       String          @db.NVarChar(100)
   price          Int
   unit           String          @db.NVarChar(50)
+  serviceType    String          @default("TREATMENT") @db.VarChar(20)
+  taxClassification String?      @db.NVarChar(100)
+  defaultTaxRate Decimal?        @db.Decimal(5, 2)
   isActive       Boolean         @default(true)
   intakeServices IntakeService[]
   createdAt      DateTime        @default(now()) @db.DateTime2
@@ -118,6 +129,7 @@ model IntakeService {
   intake    Intake        @relation(fields: [intakeId], references: [id], onDelete: Cascade, onUpdate: NoAction)
   serviceId Int
   service   DentalService @relation(fields: [serviceId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  examinationSupplies ExaminationSupply[]
   quantity  Int           @default(1)
   unitPrice Int
   amount    Int
@@ -143,6 +155,7 @@ model Payment {
   gatewayPayload String?   @db.NVarChar(Max)
   paidAt         DateTime? @db.DateTime2
   createdById    Int?
+  accountingEntryId Int?
   createdBy      User?     @relation("CashierPayments", fields: [createdById], references: [id], onDelete: NoAction, onUpdate: NoAction)
   createdAt      DateTime  @default(now()) @db.DateTime2
   updatedAt      DateTime  @updatedAt @db.DateTime2
@@ -569,12 +582,15 @@ model ExaminationSupply {
   supply             MedicalSupply     @relation(fields: [supplyId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   conversionUnitUsed String?           @db.NVarChar(50)
   quantityInBaseUnit Int
+  intakeServiceId    Int?
+  intakeService      IntakeService?    @relation(fields: [intakeServiceId], references: [id], onDelete: NoAction, onUpdate: NoAction)
   costPriceSnapshot  Int
   createdAt          DateTime          @default(now()) @db.DateTime2
   updatedAt          DateTime          @updatedAt @db.DateTime2
 
   @@index([examinationId])
   @@index([supplyId])
+  @@index([intakeServiceId])
 }
 
 model SupplyReservation {
@@ -632,6 +648,243 @@ model AccountingOutbox {
   updatedAt      DateTime          @updatedAt @db.DateTime2
 
   @@index([status])
+}
+
+// ==========================================
+// ACCOUNTING MODELS
+// ==========================================
+
+model AccountingEvent {
+  id               Int               @id @default(autoincrement())
+  sourceType       String            @db.VarChar(30)
+  sourceCode       String            @db.VarChar(80)
+  eventType        String            @db.VarChar(50)
+  idempotencyKey   String            @db.VarChar(120)
+  payloadJson      String            @db.NVarChar(Max)
+  status           String            @default("PENDING") @db.VarChar(20)
+  errorMessage     String?           @db.NVarChar(1000)
+  processedAt      DateTime?         @db.DateTime2
+  createdAt        DateTime          @default(now()) @db.DateTime2
+  entries          AccountingEntry[]
+  performanceLines PerformanceLine[]
+
+  @@unique([sourceType, sourceCode, eventType, idempotencyKey])
+  @@index([status, createdAt])
+}
+
+model AccountingEntry {
+  id                 Int                       @id @default(autoincrement())
+  eventId            Int?
+  event              AccountingEvent?          @relation(fields: [eventId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  ledgerView         String                    @db.VarChar(20)
+  direction          String                    @db.VarChar(10)
+  category           String                    @db.VarChar(50)
+  effectiveDate      DateTime                  @db.DateTime2
+  roomId             Int?
+  patientId          Int?
+  supplierId         Int?
+  sourceType         String                    @db.VarChar(30)
+  sourceCode         String                    @db.VarChar(80)
+  preTaxAmount       Int                       @default(0)
+  taxRate            Decimal?                  @db.Decimal(7, 4)
+  taxAmount          Int                       @default(0)
+  totalAmount        Int                       @default(0)
+  affectsCash        Boolean                   @default(false)
+  paymentMethod      String?                   @db.VarChar(30)
+  transactionCode    String?                   @db.VarChar(120)
+  paymentStatus      String?                   @db.VarChar(30)
+  documentStatus     String?                   @db.VarChar(30)
+  status             String                    @default("POSTED") @db.VarChar(20)
+  reversalOfId       Int?
+  reason             String?                   @db.NVarChar(500)
+  actorId            Int?
+  approverId         Int?
+  taxConfirmedAt     DateTime?                 @db.DateTime2
+  createdAt          DateTime                  @default(now()) @db.DateTime2
+  debtPayments       DebtPaymentAllocation[]
+  advanceAllocations PatientAdvanceAllocation[]
+
+  @@index([ledgerView, effectiveDate])
+  @@index([sourceType, sourceCode])
+  @@index([patientId, effectiveDate])
+  @@index([supplierId, effectiveDate])
+  @@index([reversalOfId])
+}
+
+model PerformanceLine {
+  id                 Int             @id @default(autoincrement())
+  eventId            Int
+  event              AccountingEvent @relation(fields: [eventId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  examinationId      Int
+  intakeServiceId    Int
+  serviceId          Int
+  doctorId           Int
+  roomId             Int
+  serviceType        String          @db.VarChar(20)
+  taxClassification  String?         @db.NVarChar(100)
+  taxRate            Decimal?        @db.Decimal(7, 4)
+  taxAmount          Int             @default(0)
+  recognizedRevenue  Int             @default(0)
+  supplyCost         Int             @default(0)
+  status             String          @default("POSTED") @db.VarChar(20)
+  reversalOfId       Int?
+  effectiveDate      DateTime        @db.DateTime2
+  createdAt          DateTime        @default(now()) @db.DateTime2
+
+  @@index([examinationId])
+  @@index([intakeServiceId])
+  @@index([doctorId, effectiveDate])
+  @@index([roomId, effectiveDate])
+}
+
+model Debt {
+  id              Int                       @id @default(autoincrement())
+  debtType        String                    @db.VarChar(30)
+  patientId       Int?
+  supplierId      Int?
+  roomId          Int?
+  sourceType      String                    @db.VarChar(30)
+  sourceCode      String                    @db.VarChar(80)
+  principalAmount Int
+  dueDate         DateTime?                 @db.Date
+  status          String                    @default("UNPAID") @db.VarChar(20)
+  reversalOfId    Int?
+  effectiveDate   DateTime                  @db.DateTime2
+  createdAt       DateTime                  @default(now()) @db.DateTime2
+  payments        DebtPaymentAllocation[]
+
+  @@index([debtType, status, dueDate])
+  @@index([sourceType, sourceCode])
+  @@index([patientId])
+  @@index([supplierId])
+}
+
+model DebtPaymentAllocation {
+  id          Int             @id @default(autoincrement())
+  debtId      Int
+  debt        Debt            @relation(fields: [debtId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  cashEntryId Int
+  cashEntry   AccountingEntry @relation(fields: [cashEntryId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  amount      Int
+  reversedAt  DateTime?       @db.DateTime2
+  createdAt   DateTime        @default(now()) @db.DateTime2
+
+  @@index([debtId, createdAt])
+  @@index([cashEntryId])
+}
+
+model PatientAdvanceAllocation {
+  id            Int             @id @default(autoincrement())
+  cashEntryId   Int
+  cashEntry     AccountingEntry @relation(fields: [cashEntryId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  patientId     Int
+  intakeId      Int?
+  examinationId Int?
+  amount        Int
+  reversedAt    DateTime?       @db.DateTime2
+  createdAt     DateTime        @default(now()) @db.DateTime2
+
+  @@index([patientId, createdAt])
+  @@index([intakeId])
+  @@index([examinationId])
+}
+
+model SupplierInvoice {
+  id              Int       @id @default(autoincrement())
+  invoiceNumber   String    @db.VarChar(80)
+  series          String    @db.VarChar(50)
+  invoiceDate     DateTime  @db.Date
+  supplierId      Int?
+  supplierTaxCode String    @db.VarChar(30)
+  buyerName       String?   @db.NVarChar(200)
+  buyerTaxCode    String?   @db.VarChar(30)
+  buyerAddress    String?   @db.NVarChar(500)
+  goodsAmount     Int
+  taxAmount       Int
+  totalAmount     Int
+  attachmentName  String?   @db.NVarChar(255)
+  attachmentUrl   String?   @db.NVarChar(1000)
+  documentStatus  String    @default("PENDING") @db.VarChar(30)
+  differenceNote  String?   @db.NVarChar(500)
+  createdById     Int?
+  createdAt       DateTime  @default(now()) @db.DateTime2
+  links           SupplierInvoiceStockDocument[]
+
+  @@unique([invoiceNumber, series, supplierTaxCode])
+  @@index([supplierId, invoiceDate])
+}
+
+model SupplierInvoiceStockDocument {
+  id                Int             @id @default(autoincrement())
+  supplierInvoiceId Int
+  supplierInvoice   SupplierInvoice @relation(fields: [supplierInvoiceId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  stockDocumentId   Int
+  linkedAmount      Int
+  createdAt         DateTime        @default(now()) @db.DateTime2
+
+  @@unique([supplierInvoiceId, stockDocumentId])
+  @@index([stockDocumentId])
+}
+
+model RefundRequest {
+  id              Int       @id @default(autoincrement())
+  originalEntryId Int
+  refundEntryId   Int?
+  patientId       Int
+  amount          Int
+  reason          String    @db.NVarChar(500)
+  status          String    @default("PENDING_APPROVAL") @db.VarChar(30)
+  createdById     Int
+  approvedById    Int?
+  approvedAt      DateTime? @db.DateTime2
+  createdAt       DateTime  @default(now()) @db.DateTime2
+
+  @@index([status, createdAt])
+  @@index([patientId])
+}
+
+model AccountingPeriodLock {
+  id         Int      @id @default(autoincrement())
+  year       Int
+  month      Int
+  reason     String   @db.NVarChar(500)
+  lockedById Int
+  lockedAt   DateTime @default(now()) @db.DateTime2
+
+  @@unique([year, month])
+}
+
+model CashReconciliation {
+  id                Int       @id @default(autoincrement())
+  businessDate      DateTime  @db.Date
+  roomId            Int?
+  openingBalance    Int
+  calculatedBalance Int
+  countedBalance    Int
+  differenceAmount  Int
+  reason            String?   @db.NVarChar(500)
+  recordedById      Int
+  confirmedById     Int?
+  confirmedAt       DateTime? @db.DateTime2
+  createdAt         DateTime  @default(now()) @db.DateTime2
+
+  @@unique([businessDate, roomId])
+  @@index([confirmedAt])
+}
+
+model AccountingAuditLog {
+  id         Int      @id @default(autoincrement())
+  entityType String   @db.VarChar(50)
+  entityId   Int
+  action     String   @db.VarChar(50)
+  actorId    Int?
+  reason     String?  @db.NVarChar(500)
+  beforeJson String?  @db.NVarChar(Max)
+  afterJson  String?  @db.NVarChar(Max)
+  createdAt  DateTime @default(now()) @db.DateTime2
+
+  @@index([entityType, entityId, createdAt])
+  @@index([actorId, createdAt])
 }
 
 model ExaminationAuditLog {
@@ -1016,6 +1269,299 @@ model AccountingWarehouseEntryDeleted {
   @@index([documentId])
   @@index([originalId])
   @@index([deletedAt])
+}
+
+// ==========================================
+// HR & PERSONNEL ADMINISTRATION MODELS
+// ==========================================
+
+model Employee {
+  id                 Int                 @id @default(autoincrement())
+  code               String              @unique @db.VarChar(50) // "NV-0001"
+  fullName           String              @db.NVarChar(150)
+  dateOfBirth        DateTime            @db.Date
+  gender             String              @db.NVarChar(20) // "Nam" | "Nữ"
+  phone              String              @unique @db.VarChar(20)
+  email              String?             @db.VarChar(100)
+  address            String?             @db.NVarChar(500)
+  citizenId          String?             @db.VarChar(50)
+  title              String              @db.NVarChar(100)
+  department         String?             @db.NVarChar(100)
+  roomId             Int?
+  room               ClinicRoom?         @relation(fields: [roomId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  joinDate           DateTime            @db.Date
+  status             String              @default("ACTIVE") @db.VarChar(20) // ACTIVE | TERMINATED
+  terminationDate    DateTime?           @db.Date
+  terminationReason  String?             @db.NVarChar(500)
+  insuranceCode      String?             @db.VarChar(50)
+  insuranceStartDate DateTime?           @db.Date
+  bankName           String?             @db.NVarChar(100)
+  bankAccountNumber  String?             @db.VarChar(50)
+  bankAccountName    String?             @db.NVarChar(150)
+  baseSalary         Int                 @default(0)
+  fixedAllowance     Int                 @default(0)
+  userId             Int?                @unique
+  user               User?               @relation(fields: [userId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  contracts          EmployeeContract[]
+  shiftAssignments   ShiftAssignment[]
+  attendances        AttendanceRecord[]
+  payrollItems       PayrollItem[]
+  incentives         ServiceIncentive[]
+  createdAt          DateTime            @default(now()) @db.DateTime2
+  updatedAt          DateTime            @updatedAt @db.DateTime2
+
+  @@index([status, joinDate])
+  @@index([phone])
+  @@index([fullName])
+  @@index([roomId])
+}
+
+model EmployeeContract {
+  id             Int       @id @default(autoincrement())
+  employeeId     Int
+  employee       Employee  @relation(fields: [employeeId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  contractNumber String    @db.VarChar(100)
+  contractType   String    @db.VarChar(50) // THU_VIEC | XAC_DINH_THOI_HAN | KHONG_THOI_HAN | CHUYEN_GIA
+  startDate      DateTime  @db.Date
+  endDate        DateTime? @db.Date
+  attachmentUrl  String?   @db.NVarChar(1000)
+  note           String?   @db.NVarChar(500)
+  createdAt      DateTime  @default(now()) @db.DateTime2
+
+  @@index([employeeId, startDate])
+}
+
+model UserRoleAssignment {
+  id           Int       @id @default(autoincrement())
+  userId       Int
+  user         User      @relation("UserRoleAssignments", fields: [userId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  roleId       Int
+  role         Role      @relation("RoleAssignments", fields: [roleId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  isPrimary    Boolean   @default(false)
+  isApproved   Boolean   @default(true)
+  assignedById Int?
+  approvedById Int?
+  approvedAt   DateTime? @db.DateTime2
+  createdAt    DateTime  @default(now()) @db.DateTime2
+
+  @@unique([userId, roleId])
+  @@index([userId])
+  @@index([roleId])
+}
+
+model WorkShift {
+  id               Int               @id @default(autoincrement())
+  code             String            @unique @db.VarChar(50)
+  name             String            @db.NVarChar(100)
+  startTime        String            @db.VarChar(10)
+  endTime          String            @db.VarChar(10)
+  shiftType        String            @default("REGULAR") @db.VarChar(20)
+  isActive         Boolean           @default(true)
+  shiftAssignments ShiftAssignment[]
+  createdAt        DateTime          @default(now()) @db.DateTime2
+}
+
+model ShiftAssignment {
+  id         Int        @id @default(autoincrement())
+  employeeId Int
+  employee   Employee   @relation(fields: [employeeId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  shiftId    Int
+  shift      WorkShift  @relation(fields: [shiftId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  date       DateTime   @db.Date
+  roomId     Int?
+  room       ClinicRoom? @relation(fields: [roomId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  note       String?    @db.NVarChar(500)
+  createdAt  DateTime   @default(now()) @db.DateTime2
+
+  @@index([employeeId, date])
+  @@index([date, roomId])
+}
+
+model AttendanceRecord {
+  id                   Int               @id @default(autoincrement())
+  employeeId           Int
+  employee             Employee          @relation(fields: [employeeId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  date                 DateTime          @db.Date
+  status               String            @default("CHUA_CHECK_IN") @db.VarChar(30) // CHUA_CHECK_IN | DANG_LAM | DU_NGAY | CHI_SANG | CHI_CHIEU | THIEU_CHECK_OUT | VANG | NGHI_CO_LUONG | NGHI_KHONG_LUONG | PRESENT | LATE | ON_LEAVE
+  checkInTime          String?           @db.VarChar(10)
+  checkOutTime         String?           @db.VarChar(10)
+  lateMinutes          Int               @default(0)
+  leaveType            String?           @db.VarChar(30) // PAID_LEAVE | UNPAID_LEAVE
+  overtimeHours        Decimal           @default(0) @db.Decimal(4, 2)
+  sessionCount         Int               @default(0) // 0 | 1 | 2
+  workUnits            Decimal           @default(0.0) @db.Decimal(3, 1) // 0 | 0.5 | 1.0
+  source               String            @default("SELF") @db.VarChar(30) // SELF | HR
+  roleUsed             String?           @db.VarChar(50)
+  clinicRoomId         Int?
+  configSnapshot       String?           @db.NVarChar(500) // Snapshot JSON: { startTime, endTime, splitTime }
+  originalCheckInTime  String?           @db.VarChar(10)
+  originalCheckOutTime String?           @db.VarChar(10)
+  isAdjusted           Boolean           @default(false)
+  adjustmentReason     String?           @db.NVarChar(500)
+  adjustedById         Int?
+  approvalStatus       String            @default("APPROVED") @db.VarChar(30) // APPROVED | PENDING_APPROVAL | REJECTED
+  approvedById         Int?
+  approvedAt           DateTime?         @db.DateTime2
+  hasLeaveConflict     Boolean           @default(false)
+  conflictNote         String?           @db.NVarChar(500)
+  isOnDuty             Boolean           @default(false)
+  isLocked             Boolean           @default(false)
+  note                 String?           @db.NVarChar(500)
+  recordedById         Int?
+  createdAt            DateTime          @default(now()) @db.DateTime2
+  updatedAt            DateTime          @updatedAt @db.DateTime2
+
+  audits               AttendanceAudit[]
+
+  @@unique([employeeId, date])
+  @@index([date, status])
+}
+
+model AttendanceAudit {
+  id                   Int              @id @default(autoincrement())
+  attendanceRecordId   Int
+  attendanceRecord     AttendanceRecord @relation(fields: [attendanceRecordId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  action               String           @db.VarChar(50) // CHECK_IN | CHECK_OUT | HR_ADJUST | APPROVE | REJECT
+  originalCheckInTime  String?          @db.VarChar(10)
+  originalCheckOutTime String?          @db.VarChar(10)
+  newCheckInTime       String?          @db.VarChar(10)
+  newCheckOutTime      String?          @db.VarChar(10)
+  reason               String?          @db.NVarChar(500)
+  actorId              Int?
+  actorRole            String?          @db.VarChar(50)
+  createdAt            DateTime         @default(now()) @db.DateTime2
+
+  @@index([attendanceRecordId, createdAt])
+}
+
+model WorkingHoursConfig {
+  id            Int                  @id @default(autoincrement())
+  startTime     String               @default("09:00") @db.VarChar(10) // HH:mm
+  endTime       String               @default("18:00") @db.VarChar(10) // HH:mm
+  splitTime     String               @default("12:00") @db.VarChar(10) // HH:mm
+  effectiveDate DateTime             @db.Date
+  note          String?              @db.NVarChar(500)
+  createdById   Int?
+  createdAt     DateTime             @default(now()) @db.DateTime2
+  updatedAt     DateTime             @updatedAt @db.DateTime2
+
+  audits        WorkingHoursAudit[]
+
+  @@index([effectiveDate])
+}
+
+model WorkingHoursAudit {
+  id          Int                @id @default(autoincrement())
+  configId    Int
+  config      WorkingHoursConfig @relation(fields: [configId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  action      String             @db.VarChar(50) // CREATE | UPDATE
+  oldData     String?            @db.NVarChar(Max)
+  newData     String             @db.NVarChar(Max)
+  changedById Int?
+  changedAt   DateTime           @default(now()) @db.DateTime2
+
+  @@index([configId, changedAt])
+}
+
+model Payroll {
+  id                  Int           @id @default(autoincrement())
+  code                String        @unique @db.VarChar(50) // BL202610/0001
+  year                Int
+  month               Int
+  title               String        @db.NVarChar(150)
+  standardWorkingDays Decimal       @db.Decimal(4, 1)
+  status              String        @default("DRAFT") @db.VarChar(20) // DRAFT | APPROVED | LOCKED | PAID | CANCELLED
+  createdById         Int
+  createdBy           User          @relation("PayrollCreatedBy", fields: [createdById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  approvedById        Int?
+  approvedBy          User?         @relation("PayrollApprovedBy", fields: [approvedById], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  approvedAt          DateTime?     @db.DateTime2
+  lockedAt            DateTime?     @db.DateTime2
+  paidAt              DateTime?     @db.DateTime2
+  totalGross          Int           @default(0)
+  totalDeductions     Int           @default(0)
+  totalNet            Int           @default(0)
+  cancelReason        String?       @db.NVarChar(500)
+  note                String?       @db.NVarChar(500)
+  items               PayrollItem[]
+  createdAt           DateTime      @default(now()) @db.DateTime2
+  updatedAt           DateTime      @updatedAt @db.DateTime2
+
+  @@unique([year, month, code])
+  @@index([status, year, month])
+}
+
+model PayrollItem {
+  id                     Int       @id @default(autoincrement())
+  payrollId              Int
+  payroll                Payroll   @relation(fields: [payrollId], references: [id], onDelete: Cascade, onUpdate: NoAction)
+  employeeId             Int
+  employee               Employee  @relation(fields: [employeeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  baseSalary             Int
+  standardDays           Decimal   @db.Decimal(4, 1)
+  actualDays             Decimal   @db.Decimal(4, 1)
+  attendanceSalary       Int
+  allowanceAmount        Int
+  serviceIncentiveAmount Int
+  otherBonus             Int       @default(0)
+  overtimePay            Int       @default(0)
+  grossSalary            Int
+  insuranceDeduction     Int       @default(0)
+  advanceDeduction       Int       @default(0)
+  otherDeduction         Int       @default(0)
+  totalDeductions        Int
+  netSalary              Int
+  accountingPayableId    Int?
+  isPaid                 Boolean   @default(false)
+  paidAt                 DateTime? @db.DateTime2
+  createdAt              DateTime  @default(now()) @db.DateTime2
+
+  @@unique([payrollId, employeeId])
+  @@index([employeeId])
+}
+
+model ServiceIncentive {
+  id              Int       @id @default(autoincrement())
+  intakeServiceId Int
+  examinationId   Int
+  employeeId      Int
+  employee        Employee  @relation(fields: [employeeId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  roleType        String    @db.VarChar(20) // DOCTOR | RECEPTION
+  serviceName     String    @db.NVarChar(150)
+  serviceAmount   Int
+  rate            Decimal   @default(5.00) @db.Decimal(5, 2)
+  incentiveAmount Int
+  status          String    @default("VALID") @db.VarChar(20) // VALID | PAUSED | EXCLUDED | NEEDS_ATTENTION
+  payrollItemId   Int?
+  statusReason    String?   @db.NVarChar(500)
+  completedAt     DateTime  @db.DateTime2
+  createdAt       DateTime  @default(now()) @db.DateTime2
+
+  @@unique([intakeServiceId, roleType])
+  @@index([employeeId, status])
+  @@index([examinationId])
+}
+
+model HrAuditLog {
+  id          Int       @id @default(autoincrement())
+  entityType  String    @db.VarChar(50)
+  entityId    Int
+  action      String    @db.VarChar(50)
+  actorId     Int?
+  detailsJson String?   @db.NVarChar(Max)
+  createdAt   DateTime  @default(now()) @db.DateTime2
+
+  @@index([entityType, entityId, createdAt])
+  @@index([actorId, createdAt])
+}
+
+model RoleConfiguration {
+  id          Int      @id @default(autoincrement())
+  configKey   String   @unique @db.VarChar(80)
+  configValue String   @db.NVarChar(Max)
+  description String?  @db.NVarChar(500)
+  updatedById Int?
+  updatedAt   DateTime @default(now()) @db.DateTime2
 }
 
 

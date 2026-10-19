@@ -14,8 +14,12 @@ export function PatientsPage() {
   const [draft, setDraft] = useState<PatientDraft>(emptyDraft)
   const [editingId, setEditingId] = useState<string | undefined>()
   const [query, setQuery] = useState('')
+  const [page, setPage] = useState(1)
   const [message, setMessage] = useState('')
-  const filtered = useMemo(() => patients.filter((patient) => `${patient.fullName} ${patient.phone} ${patient.id}`.toLowerCase().includes(query.toLowerCase())), [patients, query])
+  const filtered = useMemo(() => {
+    setPage(1)
+    return patients.filter((patient) => `${patient.fullName} ${patient.phone} ${patient.id}`.toLowerCase().includes(query.toLowerCase()))
+  }, [patients, query])
 
   function setField<K extends keyof PatientDraft>(field: K, value: PatientDraft[K]) { setDraft((current) => ({ ...current, [field]: value })) }
   function editPatient(patient: typeof patients[number]) { setEditingId(patient.id); setDraft({ fullName: patient.fullName, dateOfBirth: patient.dateOfBirth, gender: patient.gender, phone: patient.phone, address: patient.address, note: patient.note }); setMessage(`Đang cập nhật ${patient.id}`); window.scrollTo({ top: 0, behavior: 'smooth' }) }
@@ -50,8 +54,37 @@ export function PatientsPage() {
       </form>
 
       <section className="rounded-3xl border border-slate-200/80 bg-white p-5 shadow-sm sm:p-6">
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><h3 className="font-bold">Danh sách bệnh nhân</h3><p className="mt-1 text-sm text-slate-400">{patients.length} hồ sơ đã lưu trên trình duyệt</p></div><div className="relative"><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" /><input value={query} onChange={(event) => setQuery(event.target.value)} className={`${inputClass} pl-9 sm:w-64`} placeholder="Tìm tên, SĐT, mã..." /></div></div>
-        <div className="mt-5">{filtered.length ? <div className="space-y-3">{filtered.map((patient) => <article key={patient.id} className="flex flex-col gap-4 rounded-2xl border border-slate-100 bg-slate-50/70 p-4 sm:flex-row sm:items-center sm:justify-between"><div><div className="flex flex-wrap items-center gap-2"><h4 className="font-semibold text-slate-900">{patient.fullName}</h4><span className="rounded-full bg-[#f0efff] px-2 py-1 text-[11px] font-bold text-[#5546e8]">{patient.id}</span></div><p className="mt-2 text-sm text-slate-500">{patient.phone} · {patient.gender} · {patient.dateOfBirth}</p><p className="mt-1 text-xs text-slate-400">{patient.address || 'Chưa có địa chỉ'}</p></div><div className="flex gap-2"><Button type="button" variant="outline" onClick={() => editPatient(patient)} className="h-9 rounded-xl"><Pencil className="size-4" />Sửa</Button><Button type="button" onClick={() => navigate(`/reception/intakes/new?patient=${encodeURIComponent(patient.id)}`)} className="h-9 rounded-xl bg-[#ff6f76] hover:bg-[#ef6068]">Tiếp nhận</Button></div></article>)}</div> : <EmptyState icon={<UsersRound className="size-6" />} title="Chưa có bệnh nhân" description="Tạo hồ sơ đầu tiên bằng biểu mẫu bên trái." />}</div>
+        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between"><div><h3 className="font-bold">Danh sách bệnh nhân</h3><p className="mt-1 text-sm text-slate-400">{patients.length} hồ sơ đã lưu trên trình duyệt (cố định 10 dòng/trang)</p></div><div className="relative"><Search className="absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" /><input value={query} onChange={(event) => setQuery(event.target.value)} className={`${inputClass} pl-9 sm:w-64`} placeholder="Tìm tên, SĐT, mã..." /></div></div>
+        <div className="mt-5">{filtered.length ? (
+          <div className="space-y-3">
+            {filtered.slice((page - 1) * 10, page * 10).map((patient) => (
+              <article key={patient.id} className="flex flex-col gap-4 rounded-2xl border border-slate-100 bg-slate-50/70 p-4 sm:flex-row sm:items-center sm:justify-between">
+                <div>
+                  <div className="flex flex-wrap items-center gap-2">
+                    <h4 className="font-semibold text-slate-900">{patient.fullName}</h4>
+                    <span className="rounded-full bg-[#f0efff] px-2 py-1 text-[11px] font-bold text-[#5546e8]">{patient.id}</span>
+                  </div>
+                  <p className="mt-2 text-sm text-slate-500">{patient.phone} · {patient.gender} · {patient.dateOfBirth}</p>
+                  <p className="mt-1 text-xs text-slate-400">{patient.address || 'Chưa có địa chỉ'}</p>
+                </div>
+                <div className="flex gap-2">
+                  <Button type="button" variant="outline" onClick={() => editPatient(patient)} className="h-9 rounded-xl"><Pencil className="size-4" />Sửa</Button>
+                  <Button type="button" onClick={() => navigate(`/reception/intakes/new?patient=${encodeURIComponent(patient.id)}`)} className="h-9 rounded-xl bg-[#ff6f76] hover:bg-[#ef6068]">Tiếp nhận</Button>
+                </div>
+              </article>
+            ))}
+            {filtered.length > 10 && (
+              <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 pt-3 text-xs text-slate-500">
+                <span>Hiển thị {(page - 1) * 10 + 1} - {Math.min(page * 10, filtered.length)} trên {filtered.length} bệnh nhân</span>
+                <div className="flex items-center gap-2">
+                  <button type="button" disabled={page <= 1} onClick={() => setPage((p) => p - 1)} className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-semibold hover:bg-slate-50 disabled:opacity-40">Trước</button>
+                  <span className="font-semibold text-slate-700">Trang {page} / {Math.max(1, Math.ceil(filtered.length / 10))}</span>
+                  <button type="button" disabled={page >= Math.ceil(filtered.length / 10)} onClick={() => setPage((p) => p + 1)} className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-semibold hover:bg-slate-50 disabled:opacity-40">Sau</button>
+                </div>
+              </div>
+            )}
+          </div>
+        ) : <EmptyState icon={<UsersRound className="size-6" />} title="Chưa có bệnh nhân" description="Tạo hồ sơ đầu tiên bằng biểu mẫu bên trái." />}</div>
       </section>
     </div>
   </>

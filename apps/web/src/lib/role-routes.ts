@@ -4,6 +4,9 @@ const roleRoutes: Record<string, string> = {
   DOCTOR: '/doctor',
   WAREHOUSE_MANAGEMENT: '/warehouse',
   ACCOUNTING_STAFF: '/accounting',
+  HR: '/hr',
+  HR_STAFF: '/hr',
+  MANAGER: '/hr',
 }
 
 export function getRoleRoute(role: string): string {

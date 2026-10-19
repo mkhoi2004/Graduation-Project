@@ -76,6 +76,29 @@ describe('Dental ERP login', () => {
     }
   })
 
+  it('renders the accounting workspace for accounting staff', async () => {
+    const session = receptionSession()
+    session.user = { ...session.user, username: 'accounting', role: 'ACCOUNTING_STAFF', roleName: 'Nhân viên kế toán' }
+    window.localStorage.setItem('dental-erp.session', JSON.stringify(session))
+    window.history.pushState({}, '', '/accounting')
+    const originalFetch = globalThis.fetch
+    globalThis.fetch = async () => new Response(JSON.stringify({
+      cash: { summary: { moneyIn: 1000000, moneyOut: 200000, netCash: 800000, documentCount: 2 }, byCategory: {}, byMethod: {}, enteredTaxTotal: 0 },
+      performance: { revenue: 750000, supplyCost: 150000, grossProfit: 600000 },
+      debt: { receivable: 120000, payable: 300000, aging: { '0-30': 420000, '31-60': 0, '61-90': 0, '>90': 0 } },
+      filterApplicability: {},
+    }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+
+    try {
+      render(<App />)
+      expect(await screen.findByRole('heading', { name: /tổng quan kế toán/i })).toBeInTheDocument()
+      expect(screen.getByRole('link', { name: /^thu chi$/i })).toHaveAttribute('href', '/accounting/cash')
+      expect(screen.getByRole('link', { name: /^công nợ$/i })).toHaveAttribute('href', '/accounting/debts')
+    } finally {
+      globalThis.fetch = originalFetch
+    }
+  })
+
   it('redirects an unauthenticated reception route to login', () => {
     window.history.pushState({}, '', '/reception/patients')
     render(<App />)
@@ -110,4 +133,37 @@ describe('Dental ERP login', () => {
       globalThis.fetch = originalFetch
     }
   })
+
+  it('renders the HR workspace for HR staff at /hr and redirects from /PersonnelAdministration', async () => {
+    const session = receptionSession()
+    session.user = { ...session.user, username: 'hr', role: 'HR', roleName: 'Hành chính nhân sự' }
+    window.localStorage.setItem('dental-erp.session', JSON.stringify(session))
+    window.history.pushState({}, '', '/hr')
+    const originalFetch = globalThis.fetch
+    globalThis.fetch = async (url) => {
+      const urlStr = String(url)
+      if (urlStr.includes('/overview')) {
+        return new Response(JSON.stringify({
+          employees: { totalActive: 10, totalTerminated: 0, doctorCount: 3, receptionCount: 3, warehouseCount: 1, accountingCount: 1 },
+          today: { scheduledShifts: 4, presentCount: 4, lateCount: 0, onLeaveCount: 0 },
+          governance: { pendingRoleApprovals: 0 },
+          latestPayroll: null,
+        }), { status: 200, headers: { 'Content-Type': 'application/json' } })
+      }
+      return new Response(JSON.stringify([]), { status: 200, headers: { 'Content-Type': 'application/json' } })
+    }
+
+    try {
+      render(<App />)
+      expect(await screen.findByRole('heading', { name: /quản lý hồ sơ nhân sự/i })).toBeInTheDocument()
+      expect(screen.getByRole('link', { name: /hồ sơ nhân sự/i })).toHaveAttribute('href', '/hr')
+      expect(screen.getByRole('link', { name: /tài khoản & phân quyền/i })).toHaveAttribute('href', '/hr/access')
+      expect(screen.getByRole('link', { name: /chấm công & phân ca/i })).toHaveAttribute('href', '/hr/attendance')
+      expect(screen.getByRole('link', { name: /bảng lương & chi trả/i })).toHaveAttribute('href', '/hr/payroll')
+      expect(screen.getByRole('link', { name: /thưởng theo dịch vụ/i })).toHaveAttribute('href', '/hr/incentive')
+    } finally {
+      globalThis.fetch = originalFetch
+    }
+  })
 })
+

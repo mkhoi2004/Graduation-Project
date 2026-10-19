@@ -11,6 +11,10 @@ export class CallNextPatientDto {
 }
 
 export class SupplyUsageItemDto {
+  @ApiProperty({ example: 12, description: 'Dòng dịch vụ tiếp nhận sử dụng vật tư này' })
+  @IsInt()
+  intakeServiceId!: number;
+
   @ApiProperty({ example: 'needle-septoject' })
   @IsString()
   @IsNotEmpty()

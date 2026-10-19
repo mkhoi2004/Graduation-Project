@@ -430,7 +430,7 @@ describe('Warehouse Feature Pages (Tab 1, Tab 2, Tab 3 & Print View)', () => {
       />,
     )
 
-    expect(screen.getByText(/PHÒNG KHÁM NHA KHOA DENTALCARE/i)).toBeInTheDocument()
+    expect(screen.getByText(/PHÒNG KHÁM NHA KHOA DENTALKHOI/i)).toBeInTheDocument()
     expect(screen.getByText('PHIẾU NHẬP KHO')).toBeInTheDocument()
     expect(screen.getByText(/Người lập phiếu/i)).toBeInTheDocument()
     expect(screen.getByText('Thủ kho')).toBeInTheDocument()

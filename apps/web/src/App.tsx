@@ -18,6 +18,19 @@ import { WarehouseLayout } from '@/features/warehouse/warehouse-layout'
 import { WarehouseOverviewPage } from '@/features/warehouse/warehouse-overview-page'
 import { WarehouseDetailsPage } from '@/features/warehouse/warehouse-details-page'
 import { WarehouseTransactionsPage } from '@/features/warehouse/warehouse-transactions-page'
+import { AccountingLayout } from '@/features/accounting/accounting-layout'
+import { AccountingOverviewPage } from '@/features/accounting/overview-page'
+import { AccountingCashPage } from '@/features/accounting/cash-page'
+import { AccountingDebtsPage } from '@/features/accounting/debts-page'
+import { AccountingInvoicesPage } from '@/features/accounting/invoices-page'
+import { AccountingControlsPage } from '@/features/accounting/controls-page'
+import { PersonnelLayout } from '@/features/personnel/personnel-layout'
+import { EmployeesPage } from '@/features/personnel/employees-page'
+import { AccessPage } from '@/features/personnel/access-page'
+import { AttendancePage } from '@/features/personnel/attendance-page'
+import { WorkingHoursPage } from '@/features/personnel/working-hours-page'
+import { PayrollPage } from '@/features/personnel/payroll-page'
+import { IncentivePage } from '@/features/personnel/incentive-page'
 
 function RequireRole({ role, children }: { role: string; children: ReactNode }) {
   const session = getSession()
@@ -61,6 +74,21 @@ function ProtectedWarehouseRoute() {
   return <WarehouseLayout session={session} />
 }
 
+function ProtectedAccountingRoute() {
+  const session = getSession()
+  if (!session) return <Navigate to="/login" replace />
+  if (session.user.role !== 'ACCOUNTING_STAFF' && session.user.role !== 'ADMIN') return <Navigate to={getRoleRoute(session.user.role)} replace />
+  return <AccountingLayout session={session} />
+}
+
+function ProtectedPersonnelRoute() {
+  const session = getSession()
+  if (!session) return <Navigate to="/login" replace />
+  const allowed = ['HR', 'HR_STAFF', 'MANAGER', 'ADMIN']
+  if (!allowed.includes(session.user.role)) return <Navigate to={getRoleRoute(session.user.role)} replace />
+  return <PersonnelLayout session={session} />
+}
+
 function PublicLoginRoute() {
   const session = getSession()
   if (session) return <Navigate to={getRoleRoute(session.user.role)} replace />
@@ -87,7 +115,25 @@ function AppRoutes() {
         <Route path="details" element={<WarehouseDetailsPage />} />
         <Route path="transactions" element={<WarehouseTransactionsPage />} />
       </Route>
-      <Route path="/accounting" element={<ProtectedRoleRoute role="ACCOUNTING_STAFF" title="Nhân viên kế toán" />} />
+      <Route path="/accounting" element={<ProtectedAccountingRoute />}>
+        <Route index element={<AccountingOverviewPage />} />
+        <Route path="cash" element={<AccountingCashPage />} />
+        <Route path="debts" element={<AccountingDebtsPage />} />
+        <Route path="invoices" element={<AccountingInvoicesPage />} />
+        <Route path="controls" element={<AccountingControlsPage />} />
+      </Route>
+      <Route path="/hr" element={<ProtectedPersonnelRoute />}>
+        <Route index element={<EmployeesPage />} />
+        <Route path="employees" element={<EmployeesPage />} />
+        <Route path="access" element={<AccessPage />} />
+        <Route path="attendance" element={<AttendancePage />} />
+        <Route path="working-hours" element={<WorkingHoursPage />} />
+        <Route path="payroll" element={<PayrollPage />} />
+        <Route path="incentive" element={<IncentivePage />} />
+        <Route path="incentives" element={<IncentivePage />} />
+      </Route>
+      <Route path="/PersonnelAdministration" element={<Navigate to="/hr" replace />} />
+      <Route path="/PersonnelAdministration/*" element={<Navigate to="/hr" replace />} />
       <Route path="*" element={<Navigate to="/login" replace />} />
     </Routes>
   )

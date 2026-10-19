@@ -1,6 +1,6 @@
 import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
-import { ArrowRight, Eye, EyeOff, HeartPulse, LockKeyhole, ShieldCheck, Sparkles, UserRound } from 'lucide-react'
+import { ArrowRight, Eye, EyeOff, LockKeyhole, ShieldCheck, Sparkles, UserRound } from 'lucide-react'
 import { Button } from '@/components/ui/button'
 import { saveSession, type AuthSession } from '@/lib/auth-session'
 import { getRoleRoute } from '@/lib/role-routes'
@@ -8,8 +8,9 @@ import { getRoleRoute } from '@/lib/role-routes'
 const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api'
 const demoAccounts = [
   ['admin', 'Quản trị viên'],
+  ['hr', 'Hành chính nhân sự'],
   ['reception', 'Tiếp nhận'],
-  ['doctor', 'Bác sĩ'],
+  ['doctor-minh', 'Bác sĩ'],
   ['warehouse', 'Quản lý kho'],
   ['accounting', 'Kế toán'],
 ] as const
@@ -59,12 +60,10 @@ export function LoginPage() {
       <div className="mx-auto grid min-h-[calc(100vh-1.5rem)] max-w-[1440px] overflow-hidden rounded-[2rem] bg-white shadow-[0_32px_90px_rgba(49,38,145,0.16)] sm:min-h-[calc(100vh-2.5rem)] lg:min-h-[calc(100vh-3.5rem)] lg:grid-cols-[0.95fr_1.05fr]">
         <section className="flex items-center px-6 py-10 sm:px-12 lg:px-16 xl:px-24">
           <div className="mx-auto w-full max-w-md">
-            <div className="mb-12 flex items-center gap-3">
-              <div className="grid size-11 place-items-center rounded-2xl bg-[#5546e8] text-white shadow-lg shadow-[#5546e8]/25">
-                <HeartPulse className="size-6" aria-hidden="true" />
-              </div>
+            <div className="mb-10 flex items-center gap-3.5">
+              <img src="/Logo.png" alt="DentalKhoi" className="h-12 w-auto object-contain select-none" />
               <div>
-                <p className="text-lg font-bold tracking-[-0.03em]">KhoiDent</p>
+                <p className="text-xl font-bold tracking-tight text-slate-900">DentalKhoi</p>
                 <p className="text-xs font-medium text-slate-400">Hệ Thống Quản Lý Phòng Khám</p>
               </div>
             </div>
@@ -75,7 +74,7 @@ export function LoginPage() {
                 Không gian làm việc an toàn
               </div>
               <h1 className="text-4xl font-bold tracking-[-0.05em] text-[#17182b] sm:text-5xl">Chào Mừng Đã Đến </h1>
-              <p className="mt-4 leading-7 text-slate-500">Phòng Khám KhoiDent, vui lòng đăng nhập để tiếp tục quản lý hoạt động phòng khám nha khoa.</p>
+              <p className="mt-4 leading-7 text-slate-500">Phòng Khám DentalKhoi, vui lòng đăng nhập để tiếp tục quản lý hoạt động phòng khám nha khoa.</p>
             </div>
 
             <form className="space-y-5" onSubmit={handleSubmit}>
@@ -128,27 +127,20 @@ export function LoginPage() {
           <div className="absolute -bottom-56 -left-44 size-[36rem] rounded-full bg-[#6959ef]" />
           <div className="absolute left-16 top-1/2 h-36 w-36 -translate-y-1/2 rounded-full bg-[#ff747b]/85 blur-3xl" />
           <div className="relative z-10 flex items-center justify-between text-sm">
-            <span className="rounded-full border border-white/20 bg-white/10 px-4 py-2 backdrop-blur">DentalPro inspired</span>
-            <span className="text-white/60">KhoiDent - v1.0</span>
+            <span className="rounded-full border border-white/20 bg-white/10 px-4 py-2 backdrop-blur">DentalKhoi Platform</span>
+            <span className="text-white/70">DentalKhoi - v1.0</span>
           </div>
 
           <div className="relative z-10 mx-auto w-full max-w-xl">
-            <div className="relative mx-auto aspect-square max-w-[500px]">
-              <div className="absolute inset-[9%] rounded-[38%_62%_48%_52%/48%_42%_58%_52%] bg-white/10 ring-1 ring-white/15" />
-              <div className="absolute inset-[18%] rotate-[-7deg] rounded-[2.5rem] bg-white p-8 shadow-2xl shadow-[#281a92]/35">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-3"><div className="grid size-12 place-items-center rounded-2xl bg-[#eeecff] text-[#5546e8]"><HeartPulse className="size-6" /></div><div><div className="h-2.5 w-24 rounded-full bg-[#29264b]" /><div className="mt-2 h-2 w-16 rounded-full bg-slate-200" /></div></div>
-                  <div className="size-10 rounded-full bg-[#ff747b]" />
-                </div>
-                <div className="mt-8 grid grid-cols-[0.75fr_1.25fr] gap-4">
-                  <div className="space-y-3"><div className="h-20 rounded-2xl bg-[#f0efff]" /><div className="h-28 rounded-2xl bg-[#5546e8]" /></div>
-                  <div className="rounded-2xl bg-[#f7f8fc] p-5"><div className="grid size-16 place-items-center rounded-full bg-[#ffedf0] text-[#ff6f76]"><HeartPulse className="size-8" /></div><div className="mt-6 h-2.5 w-full rounded-full bg-slate-200" /><div className="mt-3 h-2.5 w-4/5 rounded-full bg-slate-200" /><div className="mt-7 h-10 rounded-xl bg-[#6758ef]" /></div>
-                </div>
-              </div>
-              <div className="absolute bottom-[8%] right-[4%] grid size-20 place-items-center rounded-3xl bg-[#ff747b] shadow-xl shadow-[#251788]/30"><Sparkles className="size-9" /></div>
+            <div className="relative mx-auto flex max-w-[440px] items-center justify-center rounded-3xl bg-white/[0.07] p-8 backdrop-blur-md transition duration-300 hover:bg-white/[0.10]">
+              <img
+                src="/Logo_Slogan_Purple.png"
+                alt="DentalKhoi - Nâng niu nụ cười Việt"
+                className="max-h-72 w-auto object-contain select-none"
+              />
             </div>
-            <h2 className="mt-2 max-w-lg text-4xl font-semibold leading-tight tracking-[-0.04em]">Chăm sóc tốt hơn bắt đầu từ vận hành thông minh hơn.</h2>
-            <p className="mt-4 max-w-lg text-base leading-7 text-white/70">Một không gian thống nhất cho đội ngũ tiếp nhận, bác sĩ, kho và kế toán.</p>
+            <h2 className="mt-8 max-w-lg text-4xl font-semibold leading-tight tracking-[-0.04em]">Chăm sóc tốt hơn bắt đầu từ vận hành thông minh hơn.</h2>
+            <p className="mt-4 max-w-lg text-base leading-7 text-white/70">Một không gian thống nhất cho đội ngũ tiếp nhận, bác sĩ, kho, kế toán và nhân sự.</p>
           </div>
           <div className="relative z-10 flex items-center gap-3 text-sm text-white/65"><span className="h-px w-10 bg-white/30" />Phòng khám hiện đại · Quy trình liền mạch</div>
         </section>

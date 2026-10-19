@@ -52,6 +52,7 @@ describe('WarehouseService', () => {
       accountingWarehouseEntry: {
         create: vi.fn(),
       },
+      debt: { findFirst: vi.fn() },
       warehouseAuditLog: {
         create: vi.fn(),
         deleteMany: vi.fn(),
@@ -252,6 +253,15 @@ describe('WarehouseService', () => {
   });
 
   describe('cancel and reversal', () => {
+    it('blocks cancelling a posted receipt after any payable allocation', async () => {
+      prisma.stockDocument.findUnique.mockResolvedValue({
+        id: 21, code: 'MVT20261018/0001', type: 'IN', status: 'POSTED', lines: [],
+      });
+      prisma.debt.findFirst.mockResolvedValue({ id: 5, payments: [{ id: 1, amount: 100000, reversedAt: null }] });
+
+      await expect(service.cancel(21, 1, 'Hủy phiếu nhập')).rejects.toThrow('khoản phải trả đã phát sinh thanh toán');
+    });
+
     it('reverses stock and creates reversal ledger when cancelling a POSTED issue', async () => {
       const mockDoc = {
         id: 20,

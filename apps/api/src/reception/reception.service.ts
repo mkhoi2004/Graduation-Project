@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../infrastructure/database/prisma.service.js';
+import { AccountingService } from '../accounting/accounting.service.js';
 import type { CreatePatientDto, UpdatePatientDto } from './dto/patient.dto.js';
 import type { CreateIntakeDto, UpdateIntakeServicesDto } from './dto/intake.dto.js';
 
@@ -12,7 +13,10 @@ function dateStamp(date = new Date()): string {
 
 @Injectable()
 export class ReceptionService {
-  constructor(private readonly prisma: PrismaService) {}
+  constructor(
+    private readonly prisma: PrismaService,
+    private readonly accounting?: AccountingService,
+  ) {}
 
   async getMasterData() {
     const [rooms, services, doctorUsers] = await Promise.all([
@@ -338,8 +342,8 @@ export class ReceptionService {
     const orderId = `CASH-${intake.code}-${now.getTime()}`;
     const requestId = `REQ-CASH-${intake.code}-${now.getTime()}`;
 
-    await this.prisma.$transaction(async (tx) => {
-      await tx.payment.create({
+    const payment = await this.prisma.$transaction(async (tx) => {
+      const createdPayment = await tx.payment.create({
         data: {
           intakeId: intake.id,
           intakeCode: intake.code,
@@ -358,7 +362,14 @@ export class ReceptionService {
         where: { id: intake.id },
         data: { status: 'PAID' },
       });
+
+      return createdPayment;
     });
+
+    await this.accounting?.ingestReceptionPayment(
+      payment.id,
+      `reception-payment-${payment.id}-paid`,
+    );
 
     return this.getIntakeByCode(intakeCode);
   }

@@ -97,7 +97,7 @@ export function ReceiptPage() {
           <article className="overflow-hidden rounded-3xl border border-slate-200 bg-white shadow-sm">
             <div className="flex flex-wrap items-center justify-between gap-3 bg-[#5546e8] px-6 py-5 text-white">
               <div>
-                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-white/60">DentalERP · Phiếu tiếp nhận</p>
+                <p className="text-xs font-semibold uppercase tracking-[0.15em] text-white/60">DentalKhoi · Phiếu tiếp nhận</p>
                 <h3 className="mt-2 text-xl font-bold">{intake.id}</h3>
               </div>
               <StatusPill status={intake.status} />

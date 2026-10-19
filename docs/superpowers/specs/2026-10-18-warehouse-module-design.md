@@ -1,4 +1,4 @@
-# Thiết kế module Quản lý kho DentalERP
+# Thiết kế module Quản lý kho DentalKhoi
 
 ## Mục tiêu
 

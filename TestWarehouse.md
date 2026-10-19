@@ -405,11 +405,11 @@ CK_SupplyReservation_Status     CHECK_CONSTRAINT
 
 ## 5. Đặc Tả Quy Trình 3 Tab Giao Diện Quản Lý Kho (/warehouse)
 
-Giao diện Quản lý Kho được thiết kế theo đúng nhận diện thương hiệu của DentalCare: tone tím chủ đạo `#5546e8`, bo góc mềm mại `rounded-2xl` / `rounded-3xl`, typography hiện đại và hoàn toàn tương thích trên Desktop và Tablet.
+Giao diện Quản lý Kho được thiết kế theo đúng nhận diện thương hiệu của DentalKhoi: tone tím chủ đạo `#5546e8`, bo góc mềm mại `rounded-2xl` / `rounded-3xl`, typography hiện đại và hoàn toàn tương thích trên Desktop và Tablet.
 
 ```
 +------------------------------------------------------------------------------------------------------+
-| DentalERP (Quản lý Kho) | [Tab 1: Tổng quan] [Tab 2: Chi tiết danh mục & lô] [Tab 3: Nhập/Xuất kho] |
+| DentalKhoi (Quản lý Kho) | [Tab 1: Tổng quan] [Tab 2: Chi tiết danh mục & lô] [Tab 3: Nhập/Xuất kho] |
 | User: Thủ kho (warehouse) | Trạng thái: Trực tuyến | [ Đăng xuất ]                                   |
 +------------------------------------------------------------------------------------------------------+
 ```

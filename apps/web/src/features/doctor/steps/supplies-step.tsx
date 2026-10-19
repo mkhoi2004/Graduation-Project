@@ -17,6 +17,7 @@ import { PatientBanner } from '../components/patient-banner'
 import { PageTitle, inputClass, labelClass } from '../../reception/reception-ui'
 
 interface SelectedItem {
+  intakeServiceId: number
   supplyCode: string
   conversionUnitUsed?: string
   quantityInBaseUnit: number
@@ -30,6 +31,7 @@ export function SuppliesStep() {
   const [selectedSupplyCode, setSelectedSupplyCode] = useState<string>('')
   const [useConversionUnit, setUseConversionUnit] = useState<boolean>(false)
   const [inputQuantity, setInputQuantity] = useState<number>(1)
+  const [selectedIntakeServiceId, setSelectedIntakeServiceId] = useState<number>(0)
   const [saving, setSaving] = useState(false)
   const [saveSuccess, setSaveSuccess] = useState(false)
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
@@ -41,6 +43,7 @@ export function SuppliesStep() {
     setLastExamId(currentExam.id)
     setSelectedItems(
       currentExam.supplies.map((s) => ({
+        intakeServiceId: s.intakeServiceId,
         supplyCode: s.supplyCode,
         conversionUnitUsed: s.conversionUnitUsed,
         quantityInBaseUnit: s.quantityInBaseUnit,
@@ -93,6 +96,12 @@ export function SuppliesStep() {
       return
     }
 
+    const intakeServiceId = selectedIntakeServiceId || currentExam.intake.services[0]?.intakeServiceId
+    if (!intakeServiceId) {
+      setErrorMessage('Ca khám chưa có dòng dịch vụ để phân bổ vật tư.')
+      return
+    }
+
     // Calculate quantity in base unit
     let qtyInBaseUnit = inputQuantity
     let conversionUnitStr: string | undefined = undefined
@@ -114,6 +123,7 @@ export function SuppliesStep() {
     if (existingIndex >= 0) {
       const updated = [...selectedItems]
       updated[existingIndex] = {
+        intakeServiceId,
         supplyCode: activeSupply.id,
         conversionUnitUsed: conversionUnitStr,
         quantityInBaseUnit: qtyInBaseUnit,
@@ -123,6 +133,7 @@ export function SuppliesStep() {
       setSelectedItems((prev) => [
         ...prev,
         {
+          intakeServiceId,
           supplyCode: activeSupply.id,
           conversionUnitUsed: conversionUnitStr,
           quantityInBaseUnit: qtyInBaseUnit,
@@ -147,6 +158,7 @@ export function SuppliesStep() {
       setSaveSuccess(false)
 
       const payload: SupplyUsageItem[] = selectedItems.map((item) => ({
+        intakeServiceId: item.intakeServiceId,
         supplyCode: item.supplyCode,
         conversionUnitUsed: item.conversionUnitUsed,
         quantityInBaseUnit: item.quantityInBaseUnit,
@@ -340,6 +352,24 @@ export function SuppliesStep() {
                     </p>
                   </div>
 
+                  <div className="mb-4">
+                    <label htmlFor="supply-intake-service" className={labelClass}>Dịch vụ sử dụng vật tư</label>
+                    <select
+                      id="supply-intake-service"
+                      aria-label="Dịch vụ sử dụng vật tư"
+                      value={selectedIntakeServiceId || currentExam.intake.services[0]?.intakeServiceId || ''}
+                      onChange={(event) => setSelectedIntakeServiceId(Number(event.target.value))}
+                      disabled={isLocked}
+                      className={inputClass}
+                    >
+                      {currentExam.intake.services.map((service) => (
+                        <option key={service.intakeServiceId} value={service.intakeServiceId}>
+                          {service.name} × {service.quantity}
+                        </option>
+                      ))}
+                    </select>
+                  </div>
+
                   <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 items-end">
                     <div>
                       <label className={labelClass}>Đơn vị nhập</label>
@@ -449,6 +479,7 @@ export function SuppliesStep() {
                 <div className="space-y-2">
                   {selectedItems.map((item) => {
                     const supply = availableCatalog.find((s) => s.id === item.supplyCode)
+                    const service = currentExam.intake.services.find((entry) => entry.intakeServiceId === item.intakeServiceId)
                     const { remainingStock } = supply ? getSupplyStockInfo(supply) : { remainingStock: 0 }
                     return (
                       <div
@@ -460,6 +491,7 @@ export function SuppliesStep() {
                             {supply?.name ?? item.supplyCode}
                           </p>
                           <p className="text-[11px] text-slate-500">
+                            Dịch vụ: <strong>{service?.name ?? `#${item.intakeServiceId}`}</strong><br />
                             Số lượng: <strong className="text-[#5546e8]">{item.quantityInBaseUnit}</strong> {supply?.baseUnit ?? 'đơn vị'}
                             {item.conversionUnitUsed && (
                               <span className="text-slate-400 ml-1">

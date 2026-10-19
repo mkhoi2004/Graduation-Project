@@ -1,10 +1,11 @@
 import { Injectable } from '@nestjs/common';
 import { PrismaService } from '../infrastructure/database/prisma.service.js';
 import { PaymentRepository, type PaymentStatus, type StoredPayment } from './payments.service.js';
+import { AccountingService } from '../accounting/accounting.service.js';
 
 @Injectable()
 export class PrismaPaymentRepository extends PaymentRepository {
-  constructor(private readonly prisma: PrismaService) { super(); }
+  constructor(private readonly prisma: PrismaService, private readonly accounting: AccountingService) { super(); }
 
   async createPending(payment: Omit<StoredPayment, 'status'>): Promise<StoredPayment> {
     const intake = await this.prisma.intake.findUnique({ where: { code: payment.intakeCode } });
@@ -26,13 +27,14 @@ export class PrismaPaymentRepository extends PaymentRepository {
     });
     const payment = await this.prisma.payment.findUniqueOrThrow({
       where: { orderId },
-      select: { orderId: true, status: true, intakeCode: true },
+      select: { id: true, orderId: true, status: true, intakeCode: true },
     });
     if (status === 'PAID') {
       await this.prisma.intake.updateMany({
         where: { code: payment.intakeCode, status: { not: 'TRANSFERRED' } },
         data: { status: 'PAID' },
       });
+      await this.accounting.ingestReceptionPayment(payment.id, `momo-payment-${payment.id}-paid`);
     }
     return payment as { orderId: string; status: PaymentStatus };
   }

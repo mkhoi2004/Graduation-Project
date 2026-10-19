@@ -87,6 +87,7 @@ describe('DoctorService', () => {
 
     mockAccountingStub = {
       enqueueJournalEntry: vi.fn().mockResolvedValue({ id: 1, status: 'PENDING' }),
+      enqueueReversal: vi.fn().mockResolvedValue({ eventId: 2, status: 'PENDING' }),
     };
 
     service = new DoctorService(
@@ -233,6 +234,14 @@ describe('DoctorService', () => {
   });
 
   describe('updateSupplies', () => {
+    it('requires every consumed supply to identify an intake service line', async () => {
+      mockPrisma.doctorExamination.findUnique.mockResolvedValue({ id: 1, intakeId: 10, isLocked: false, status: 'IN_PROGRESS', intake: { services: [{ id: 11 }] } });
+
+      await expect(
+        service.updateSupplies(1, { supplies: [{ supplyCode: 'glove-vglove', quantityInBaseUnit: 2 }] }),
+      ).rejects.toThrow('Vật tư phải được gắn với một dòng dịch vụ');
+    });
+
     it('blocks update if examination is already locked', async () => {
       mockPrisma.doctorExamination.findUnique.mockResolvedValue({
         id: 1,
@@ -248,8 +257,10 @@ describe('DoctorService', () => {
     it('rejects update if requested quantity exceeds stock', async () => {
       mockPrisma.doctorExamination.findUnique.mockResolvedValue({
         id: 1,
+        intakeId: 10,
         isLocked: false,
         status: 'IN_PROGRESS',
+        intake: { services: [{ id: 11 }] },
       });
       mockPrisma.medicalSupply.findMany.mockResolvedValue([
         { id: 1, code: 'glove-vglove', name: 'Găng tay', baseUnit: 'Đôi', costPrice: 2000 },
@@ -257,7 +268,7 @@ describe('DoctorService', () => {
       mockWarehouseStub.checkStock.mockResolvedValue({ available: false, currentStock: 1 });
 
       await expect(
-        service.updateSupplies(1, { supplies: [{ supplyCode: 'glove-vglove', quantityInBaseUnit: 5 }] }),
+        service.updateSupplies(1, { supplies: [{ supplyCode: 'glove-vglove', quantityInBaseUnit: 5, intakeServiceId: 11 }] }),
       ).rejects.toThrow(BadRequestException);
     });
   });
@@ -269,11 +280,15 @@ describe('DoctorService', () => {
         code: 'PKB20261810/0001',
         status: 'IN_PROGRESS',
         intakeId: 10,
+        patientId: 20,
+        doctorId: 30,
+        roomId: 40,
         intake: {
-          services: [{ amount: 400000 }],
+          code: 'TN001',
+          services: [{ id: 11, serviceId: 21, amount: 400000, service: { serviceType: 'TREATMENT', taxClassification: null, defaultTaxRate: null } }],
         },
         supplies: [
-          { supplyId: 1, costPriceSnapshot: 2000, quantityInBaseUnit: 2 },
+          { supplyId: 1, intakeServiceId: 11, costPriceSnapshot: 2000, quantityInBaseUnit: 2 },
         ],
       });
       mockPrisma.doctorExamination.findUniqueOrThrow.mockResolvedValue({
@@ -294,13 +309,19 @@ describe('DoctorService', () => {
       const res = await service.completeExamination(1);
 
       expect(mockWarehouseStub.deductStock).toHaveBeenCalledWith(1);
-      expect(mockAccountingStub.enqueueJournalEntry).toHaveBeenCalledWith({
+      expect(mockAccountingStub.enqueueJournalEntry).toHaveBeenCalledWith(expect.objectContaining({
         examinationId: 1,
         examinationCode: 'PKB20261810/0001',
         serviceRevenue: 400000,
         supplyCost: 4000,
         isCancelled: false,
-      });
+        patientId: 20,
+        intakeId: 10,
+        intakeCode: 'TN001',
+        doctorId: 30,
+        roomId: 40,
+        serviceLines: [expect.objectContaining({ intakeServiceId: 11, serviceId: 21, revenue: 400000, supplyCost: 4000 })],
+      }));
       expect(res.status).toBe('COMPLETED');
     });
   });
@@ -314,8 +335,12 @@ describe('DoctorService', () => {
         code: 'PKB20261810/0001',
         status: 'IN_PROGRESS',
         intakeId: 10,
+        patientId: 20,
+        doctorId: 30,
+        roomId: 40,
+        intake: { code: 'TN001', services: [{ id: 11, serviceId: 21, amount: 400000, service: { serviceType: 'TREATMENT', taxClassification: null, defaultTaxRate: null } }] },
         supplies: [
-          { supplyId: 1, costPriceSnapshot: 2000, quantityInBaseUnit: 1 },
+          { supplyId: 1, intakeServiceId: 11, costPriceSnapshot: 2000, quantityInBaseUnit: 1 },
         ],
       });
       mockPrisma.doctorExamination.findUniqueOrThrow.mockResolvedValue({
@@ -336,13 +361,14 @@ describe('DoctorService', () => {
 
       const res = await service.cancelExamination(1, { reason: 'Bệnh nhân bỏ về' });
 
-      expect(mockAccountingStub.enqueueJournalEntry).toHaveBeenCalledWith({
+      expect(mockAccountingStub.enqueueJournalEntry).toHaveBeenCalledWith(expect.objectContaining({
         examinationId: 1,
         examinationCode: 'PKB20261810/0001',
         serviceRevenue: 0,
         supplyCost: 2000,
         isCancelled: true,
-      });
+        serviceLines: [expect.objectContaining({ intakeServiceId: 11, revenue: 0, supplyCost: 2000 })],
+      }));
       expect(res.status).toBe('CANCELLED');
     });
   });
@@ -367,6 +393,11 @@ describe('DoctorService', () => {
           }),
         }),
       );
+      expect(mockAccountingStub.enqueueReversal).toHaveBeenCalledWith(expect.objectContaining({
+        examinationId: 1,
+        reason: 'Cập nhật lại tóm tắt',
+        actorId: 99,
+      }));
     });
   });
 });
