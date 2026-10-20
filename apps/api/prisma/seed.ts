@@ -554,7 +554,7 @@ async function main() {
       code: 'TNK20261710/0002',
       patientId: patientMap.get('MBN20261710/0003')!,
       symptoms: 'Răng số 8 hàm dưới bên trái sưng tấy, đau nhức dữ dội lan lên thái dương.',
-      priority: 'Khẩn cấp',
+      priority: 'Ưu tiên',
       status: 'READY',
       roomId: room03?.id,
       doctorId: doctorHuy?.id,
