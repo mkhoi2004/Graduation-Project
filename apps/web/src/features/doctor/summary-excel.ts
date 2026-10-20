@@ -176,7 +176,10 @@ export function fillSummarySheetXml(sourceXml: string, data: SummaryExportData):
   // Bottom Footer (Row 30 & Row 32)
   xml = stringCell(xml, 'A30', `Bác sĩ khám: ${data.doctorName ?? 'Bác sĩ điều trị'}`)
   xml = clearCell(xml, 'G30')
-  xml = stringCell(xml, 'A32', 'Chúc quý khách hồi phục nhanh chóng & nụ cười luôn tự tin!')
+  if (xml.includes('r="A32"')) {
+    xml = stringCell(xml, 'A32', 'Chúc quý khách hồi phục nhanh chóng & nụ cười luôn tự tin!')
+  }
+  xml = xml.replace(/DentalERP/g, 'DentalKhoi')
 
   return xml
 }

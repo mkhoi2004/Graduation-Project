@@ -1,12 +1,28 @@
 # VAI TRÒ
-Bạn là Senior Full-stack Developer kiêm Business Analyst, có kinh nghiệm xây dựng module hành chính nhân sự (hồ sơ, phân quyền, chấm công, bảng lương) cho EMR/phòng khám nha khoa.
+Bạn là Senior Full-stack Developer kiêm Business Analyst, có kinh nghiệm xây dựng module hành chính nhân sự (hồ sơ, phân quyền, chấm công, bảng lương) cho EMR/phòng khám nha khoa DentalKhoi ERP.
 
-# BỐI CẢNH
-Hệ thống EMR nha khoa: [stack / đường dẫn repo]. Cần xây dựng chức năng cho **role Hành chính nhân sự (HR)** tại `/hr`. Hệ thống đã (hoặc sẽ) có 4 role còn lại, trong đó HR **cấp tài khoản, role, ca trực** cho họ và **chuyển bảng lương sang kế toán**:
-- **Tiếp nhận** (`/reception`): hồ sơ bệnh nhân, tiếp nhận (TNK), chọn dịch vụ kèm phòng khám và bác sĩ. Tham chiếu `Role nhan vien tiep nhan.md`.
+# BỐI CẢNH & QUY MÔ TÀI KHOẢN VẬN HÀNH
+Hệ thống EMR nha khoa **DentalKhoi ERP**. Phân hệ Hành chính nhân sự tại `/hr` chịu trách nhiệm quản lý **hồ sơ, tài khoản, phân quyền, ca trực, chấm công và bảng lương** cho toàn bộ phòng khám:
+- **Tiếp nhận** (`/reception`): hồ sơ bệnh nhân, tiếp nhận (TN), chọn dịch vụ kèm phòng khám và bác sĩ. Tham chiếu `Role_nhan_vien_tiep_nhan.md`.
 - **Bác sĩ** (`/doctor`): Đang khám → chọn VTYT → kết quả tổng kết → Ghi sổ. Tham chiếu `Role Bác Sĩ.md`.
 - **Quản lý kho** (`/warehouse`): nhập/xuất kho theo lô. Tham chiếu `Role Quản Lý Kho.md`.
-- **Kế toán** (`/accounting`): thu/chi, công nợ, tổng quan. Tham chiếu `Role Kế Toán.md`.
+- **Kế toán** (`/accounting`): thu/chi, công nợ, dòng tiền, tổng quan. Tham chiếu `Role Kế Toán.md`.
+
+## Danh Mục 6 Vai Trò (Roles) & 10 Tài Khoản Thực Tế
+Hệ thống thống nhất 6 vai trò chức năng (đã gộp chung Quản lý và HR làm một: Hành chính nhân sự), cấp phát định danh cho 10 nhân sự thực tế:
+
+| STT | Họ và Tên | Tên Đăng Nhập | Mã NV | Vai Trò Hệ Thống | Vị Trí Chuyên Môn | Khối / Phòng Ban | Quầy / Phòng Khám |
+| :---: | :--- | :---: | :---: | :---: | :--- | :--- | :--- |
+| **1** | **Trần Nguyễn Minh Khôi** | `admin` | `NV-0001` | `ADMIN` (Quản trị viên) | Giám đốc Điều hành & Quản trị Hệ thống | Ban Quản Trị | Trụ sở điều hành |
+| **2** | **Lê Thị Nhân Sự** | `hr` | `NV-0002` | `HR` (Hành chính nhân sự) | Trưởng phòng HCNS & Quản lý điều hành | Phòng Hành chính - Nhân sự | Văn phòng Nhân sự |
+| **3** | **Trần Thị Tiếp Nhận** | `reception` | `NV-0003` | `RECEPTION_STAFF` (Tiếp nhận) | Tổ trưởng Lễ tân & Thu ngân trung tâm | Phòng Tiếp nhận | Quầy đón tiếp trung tâm |
+| **4** | **Nguyễn Thanh Hoa** | `reception-hoa` | `NV-0004` | `RECEPTION_STAFF` (Tiếp nhận) | Nhân viên Lễ tân & CSKH | Phòng Tiếp nhận | Quầy đón tiếp 01 |
+| **5** | **Võ Phương Mai** | `reception-mai` | `NV-0005` | `RECEPTION_STAFF` (Tiếp nhận) | Nhân viên Tiếp nhận & Điều phối ca khám | Phòng Tiếp nhận | Quầy đón tiếp 02 |
+| **6** | **BS. CKI. Nguyễn Hoàng Minh** | `doctor-minh` | `NV-0006` | `DOCTOR` (Bác sĩ) | Bác sĩ CKI Nha khoa tổng quát & Phục hình | Khối Chuyên môn Lâm sàng | Phòng khám 01 (`room-01`) |
+| **7** | **BS. ThS. Trần Ngọc Lan** | `doctor-lan` | `NV-0007` | `DOCTOR` (Bác sĩ) | Bác sĩ Thạc sĩ Thẩm mỹ & Chỉnh nha | Khối Chuyên môn Lâm sàng | Phòng khám 02 (`room-02`) |
+| **8** | **BS. CKI. Lê Quốc Huy** | `doctor-huy` | `NV-0008` | `DOCTOR` (Bác sĩ) | Bác sĩ CKI Tiểu phẫu & Cấy ghép Implant | Khối Chuyên môn Lâm sàng | Phòng tiểu phẫu (`room-03`) |
+| **9** | **Phạm Văn Kho** | `warehouse` | `NV-0009` | `WAREHOUSE_MANAGEMENT` (Quản lý kho) | Tổ trưởng Quản lý Kho Dược & VTYT | Bộ phận Quản lý Kho | Kho Dược & VTYT |
+| **10** | **Hoàng Thị Kế Toán** | `accounting` | `NV-0010` | `ACCOUNTING_STAFF` (Kế toán) | Kế toán trưởng phụ trách Thu chi & Công nợ | Phòng Tài chính - Kế toán | Văn phòng Kế toán |
 
 # PHẠM VI: KHÔNG LÀM TRONG HỆ THỐNG
 Để tránh gán cứng các quy định pháp lý dễ thay đổi, module này **không** xử lý:

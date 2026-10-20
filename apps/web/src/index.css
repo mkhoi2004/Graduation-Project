@@ -39,10 +39,23 @@
   --sidebar-ring: oklch(0.708 0 0);
 }
 
+@page {
+  size: A5 portrait;
+  margin: 0;
+}
+
+@page {
+  margin: 0;
+}
+
 @media print {
   @page {
     size: A5 portrait;
-    margin: 6mm 8mm 6mm 8mm;
+    margin: 0;
+  }
+
+  @page {
+    margin: 0;
   }
 
   html,
@@ -54,7 +67,8 @@
     margin: 0 !important;
     padding: 0 !important;
     min-height: 0 !important;
-    height: auto !important;
+    height: 100% !important;
+    overflow: hidden !important;
   }
 
   /* Khi in phiếu từ modal, ẩn toàn bộ #root để tránh chiều cao ma và trang trắng phía trước */
@@ -63,6 +77,10 @@
     display: none !important;
   }
 
+  header,
+  nav,
+  aside,
+  button,
   .no-print {
     display: none !important;
   }
@@ -90,16 +108,20 @@
   .printable-document {
     display: block !important;
     position: relative !important;
-    width: 100% !important;
-    max-width: 100% !important;
-    margin: 0 !important;
-    padding: 0 !important;
+    box-sizing: border-box !important;
+    width: 148mm !important;
+    max-width: 148mm !important;
+    min-height: auto !important;
+    margin: 0 auto !important;
+    padding: 6mm 8mm 6mm 8mm !important;
     background: #ffffff !important;
     border: none !important;
     box-shadow: none !important;
     border-radius: 0 !important;
-    break-inside: avoid;
-    page-break-inside: avoid;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
+    break-after: avoid !important;
+    page-break-after: avoid !important;
   }
 
   .printable-document table {
@@ -108,8 +130,8 @@
   }
 
   .printable-document tr {
-    break-inside: avoid;
-    page-break-inside: avoid;
+    break-inside: avoid !important;
+    page-break-inside: avoid !important;
   }
 }
 

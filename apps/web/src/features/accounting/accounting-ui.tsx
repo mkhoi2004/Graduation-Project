@@ -20,7 +20,7 @@ export function PageHeading({
     <div className="mb-6 flex flex-wrap items-end justify-between gap-4">
       <div>
         <p className="mb-1 text-xs font-bold uppercase tracking-widest text-[#5546e8]">
-          Kế toán quản trị DentalCare
+          Kế toán quản trị DentalKhoi
         </p>
         <h1 className="text-2xl font-black tracking-tight text-slate-900">{title}</h1>
         <p className="mt-1 text-sm text-slate-500">{description}</p>

@@ -112,6 +112,10 @@ export function fillReceiptSheetXml(sourceXml: string, data: ReceiptExportData):
   })
 
   xml = formulaCell(xml, 'G30', `SUM(G${firstServiceRow}:G${lastServiceRow})`, data.total)
+  if (xml.includes('r="A32"')) {
+    xml = stringCell(xml, 'A32', 'Cảm ơn quý khách đã sử dụng dịch vụ tại DentalKhoi.')
+  }
+  xml = xml.replace(/DentalERP/g, 'DentalKhoi')
   return xml
 }
 

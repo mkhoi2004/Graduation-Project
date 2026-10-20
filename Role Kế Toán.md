@@ -1,30 +1,40 @@
 # VAI TRÒ
-Bạn là Senior Full-stack Developer kiêm Business Analyst, có kinh nghiệm xây dựng module kế toán thu/chi và công nợ cho EMR/phòng khám nha khoa.
+Bạn là Senior Full-stack Developer kiêm Business Analyst, có kinh nghiệm xây dựng module kế toán thu/chi và công nợ cho EMR/phòng khám nha khoa DentalKhoi ERP.
 
-# BỐI CẢNH
-Hệ thống EMR nha khoa: [stack / đường dẫn repo]. Cần xây dựng chức năng cho **role Kế toán** tại `/accounting`. Hệ thống gồm 4 role, trong đó /accounting là nơi **nhận dữ liệu tiền** từ 3 role còn lại:
-- **Tiếp nhận** (`/reception`): hồ sơ bệnh nhân (MBN), tiếp nhận (TNK), chọn dịch vụ kèm phòng khám và bác sĩ, thu tiền, in phiếu. Tham chiếu file `Role nhan vien tiep nhan.md`.
-- **Bác sĩ** (`/doctor`): Đang khám → chọn VTYT → kết quả tổng kết → Ghi sổ (Hoàn thành hoặc Ngừng khám). Tham chiếu file `Role Bác Sĩ.md`.
-- **Quản lý kho** (`/warehouse`): nhập/xuất kho theo lô, FEFO/FIFO, giá vốn theo lô. Tham chiếu file `Role Quản Lý Kho.md`.
+# BỐI CẢNH & TÀI KHOẢN VẬN HÀNH
+Hệ thống EMR nha khoa **DentalKhoi ERP**. Phân hệ Kế toán tại `/accounting` là nơi **nhận dữ liệu tiền** từ các phân hệ còn lại:
+- **Tài khoản Kế toán:** **Hoàng Thị Kế Toán** (`accounting`) — Kế toán trưởng phụ trách Tài chính - Thu chi (Văn phòng Kế toán).
+- **Nút Check-in / Check-out trên Header chung:**
+  - Nút Check-in / Check-out xuất hiện cố định ở thanh đầu trang (Header) của `/accounting`, hoạt động tốt trên máy tính và di động.
+  - Giờ lấy từ máy chủ phòng khám (`Asia/Ho_Chi_Minh`), mỗi ngày 1 bản ghi duy nhất, giờ đầu tiên là gốc không bị ghi đè.
+- **Nguyên tắc phân tách trách nhiệm (SoD):** Tài khoản `ACCOUNTING_STAFF` **tuyệt đối không được kiêm nhiệm Quản lý kho (`WAREHOUSE_MANAGEMENT`)** hoặc **Nhân viên tiếp nhận (`RECEPTION_STAFF`)** để ngăn ngừa rủi ro tự mua hàng/thu tiền và tự đối soát sổ quỹ.
+- **Phân trang:** Cố định **10 dòng / trang** trên tất cả bảng biểu (Sổ quỹ, Hóa đơn nhà cung cấp, Công nợ, Kiểm kê quỹ, Kỳ khóa sổ).
+
+Kết nối dữ liệu liên hoàn từ các phân hệ:
+- **Tiếp nhận** (`/reception`): hồ sơ bệnh nhân (MBN), tiếp nhận (TN), thu tiền mặt & MoMo QR.
+- **Bác sĩ** (`/doctor`): Đang khám → chọn VTYT → Ghi sổ (Hoàn thành hoặc Ngừng khám) chuyển doanh thu dịch vụ và giá vốn VTYT.
+- **Quản lý kho** (`/warehouse`): nhập/xuất kho theo lô, chuyển công nợ phải trả NCC khi phiếu nhập kho MVT ghi sổ.
+- **Hành chính nhân sự** (`/hr`): chuyển công nợ phải trả lương nhân viên khi bảng lương tháng được chốt khóa.
 
 # NGUYÊN TẮC CỐT LÕI
 1. Kế toán giữ **tiền và chứng từ**, **không đếm tồn**. Số lượng nhập/xuất lấy từ kho; kế toán chỉ ghi nhận tiền tương ứng. Không vẽ biểu đồ theo số lượng hộp/cái, số lượng thuộc màn kho.
 2. **Ba góc nhìn tách bạch, không bao giờ cộng chung:**
    - **Dòng tiền**: tiền thực thu/thực chi.
    - **Hiệu quả**: doanh thu ghi nhận − giá vốn VTYT tiêu hao = lãi gộp theo ca/dịch vụ.
-   - **Công nợ**: phần đã phát sinh nhưng chưa thanh toán (phải thu bệnh nhân, phải trả nhà cung cấp và labo).
+   - **Công nợ**: phần đã phát sinh nhưng chưa thanh toán (phải thu bệnh nhân, phải trả nhà cung cấp, labo và lương nhân viên).
 3. Lý do tách: giá vốn VTYT (bác sĩ chuyển sang khi Ghi sổ) **không phải dòng chi**. Chi vật tư chỉ tính **một lần**, khi thanh toán nhà cung cấp; nếu tính thêm lúc tiêu hao thì bị chi hai lần.
 4. Bản ghi **bất biến**: không sửa, không xóa; chỉ đảo (bút toán ngược) hoặc điều chỉnh có lý do và có audit log.
-5. Mọi chứng từ liên kết **hai chiều** với bản ghi gốc ở role khác (TNK, ca khám, phiếu kho).
+5. Mọi chứng từ liên kết **hai chiều** với bản ghi gốc ở role khác (TN, ca khám, phiếu kho, bảng lương).
 
 # DỮ LIỆU ĐỔ VÀO /ACCOUNTING
 
 | Sự kiện | Nguồn | /accounting ghi gì | Loại |
 |---|---|---|---|
-| Bệnh nhân thanh toán / tạm ứng / cọc | Tiếp nhận | **Thu trước**: hình thức, số tiền, gắn TNK/hợp đồng | Dòng tiền, ghi **ngay** lúc thu |
+| Bệnh nhân thanh toán / tạm ứng / cọc | Tiếp nhận | **Thu trước**: hình thức, số tiền, gắn TN/hợp đồng | Dòng tiền, ghi **ngay** lúc thu |
 | Ca hoàn thành (Ghi sổ) | Bác sĩ | **Doanh thu** theo từng dòng dịch vụ + **giá vốn VTYT** tiêu hao; đối trừ thu trước | Hiệu quả |
 | Ngừng khám (Ghi sổ) | Bác sĩ | Doanh thu 0 cho dòng dịch vụ chưa hoàn thành; giá vốn VTYT đã tiêu hao vẫn ghi; thu trước còn lại → hoàn tiền hoặc giữ trừ lần sau | Hiệu quả + dòng tiền nếu hoàn |
-| Nhập kho đã ghi sổ | Kho | **Khoản phải trả nhà cung cấp** (mã phiếu, NCC, tiền hàng, VAT, tổng) | Công nợ |
+| Nhập kho đã ghi sổ | Kho | **Khoản phải trả nhà cung cấp** (mã phiếu MVT, NCC, tiền hàng, VAT, tổng) | Công nợ |
+| Bảng lương tháng chốt khóa | Nhân sự (/hr) | **Khoản phải trả lương nhân viên** (mã bảng lương, kỳ, thực nhận từng người) | Công nợ |
 | Thanh toán NCC / chi labo / chi hành chính / lương | Kế toán | Chi tiền | Dòng tiền |
 | Xuất hủy đã ghi sổ | Kho | **Giá trị tổn thất** theo giá vốn lô | Không tiền |
 | Xuất kho dùng cho bệnh nhân / cấp phát nội bộ | Kho | Chỉ để xem giá trị xuất; không tạo dòng tiền, không tạo công nợ | Không tiền |

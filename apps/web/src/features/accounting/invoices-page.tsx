@@ -12,7 +12,7 @@ import type { PendingStockDocument, SupplierInvoice } from './accounting-types'
 import { Card, inputClass, Message, Modal, PageHeading, selectClass } from './accounting-ui'
 
 const CLINIC_INFO = {
-  name: 'PHÒNG KHÁM NHA KHOA DENTALCARE',
+  name: 'PHÒNG KHÁM NHA KHOA DENTALKHOI',
   taxCode: '0312345678',
   address: '123 Đường 3/2, Phường 11, Quận 10, TP. Hồ Chí Minh',
 }

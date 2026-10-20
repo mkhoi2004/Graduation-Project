@@ -58,7 +58,7 @@ function DoctorLayoutInner({ session, onLogout }: { session: AuthSession; onLogo
   return (
     <div className="min-h-screen bg-[#f6f7fb] text-slate-950">
       {/* Top Header */}
-      <header className="border-b border-slate-200/80 bg-white">
+      <header className="no-print border-b border-slate-200/80 bg-white">
         <div className="mx-auto flex max-w-[1500px] items-center justify-between gap-4 px-4 py-3 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3">
             <img src="/Logo.png" alt="DentalKhoi" className="h-10 w-auto object-contain" />
@@ -124,7 +124,7 @@ function DoctorLayoutInner({ session, onLogout }: { session: AuthSession; onLogo
       </header>
 
       {/* 4 Step Navigation Tabs */}
-      <div className="border-b border-slate-200/80 bg-white">
+      <div className="no-print border-b border-slate-200/80 bg-white">
         <nav
           aria-label="Quy trình khám bác sĩ"
           className="mx-auto flex max-w-[1500px] gap-2 overflow-x-auto px-4 sm:px-6 lg:px-8"

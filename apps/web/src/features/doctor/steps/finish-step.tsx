@@ -1,17 +1,20 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   AlertCircle,
   ArrowLeft,
   CheckCircle2,
   FileCheck2,
   Lock,
+  Printer,
   Unlock,
 } from 'lucide-react'
-import { completeExaminationApi, unlockExaminationApi } from '../doctor-api'
+import { completeExaminationApi, fetchExaminationById, recordPrintHistoryApi, unlockExaminationApi } from '../doctor-api'
 import { useDoctor } from '../doctor-context'
 import { PatientBanner } from '../components/patient-banner'
 import { PageTitle, inputClass, labelClass } from '../../reception/reception-ui'
 import { getSession } from '@/lib/auth-session'
+import { DoctorPrintView } from '../doctor-print-view'
+import { downloadSummaryWorkbook } from '../summary-excel'
 
 export function FinishStep() {
   const { currentExam, dispatch, refreshAll } = useDoctor()
@@ -21,6 +24,19 @@ export function FinishStep() {
   const [unlockReason, setUnlockReason] = useState('')
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
   const [successMessage, setSuccessMessage] = useState<string | null>(null)
+  const [showPrintModal, setShowPrintModal] = useState(false)
+  const [, setIsExportingExcel] = useState(false)
+
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === 'p') {
+        e.preventDefault()
+        setShowPrintModal(true)
+      }
+    }
+    window.addEventListener('keydown', handleKeyDown)
+    return () => window.removeEventListener('keydown', handleKeyDown)
+  }, [])
 
   const session = getSession()
   const isAdmin = session?.user.roleName === 'ADMIN' || session?.user.roleName === 'QUAN_TRI'
@@ -79,6 +95,46 @@ export function FinishStep() {
     }
   }
 
+  const examForPrint = currentExam
+    ? {
+        ...currentExam,
+        printCount: currentExam.printHistories?.length ?? 0,
+        result: {
+          summary: currentExam.result?.summary || 'Chưa cập nhật',
+          treatmentMethod: currentExam.result?.treatmentMethod || 'Chưa cập nhật',
+          treatmentOrientation: currentExam.result?.treatmentOrientation || 'Chưa cập nhật',
+          nextAppointmentDate: currentExam.result?.nextAppointmentDate,
+        },
+      }
+    : null
+
+  const handleExportExcel = async () => {
+    if (!currentExam || !examForPrint) return
+    try {
+      setIsExportingExcel(true)
+      await downloadSummaryWorkbook(examForPrint, undefined, async () => {
+        await recordPrintHistoryApi(currentExam.id)
+        const refreshed = await fetchExaminationById(currentExam.id)
+        dispatch({ type: 'SET_CURRENT_EXAM', exam: refreshed })
+      })
+    } catch (err: any) {
+      setErrorMessage(err.message ?? 'Không thể xuất file Excel.')
+    } finally {
+      setIsExportingExcel(false)
+    }
+  }
+
+  const handlePrintRecorded = async () => {
+    if (!currentExam) return
+    try {
+      await recordPrintHistoryApi(currentExam.id)
+      const refreshed = await fetchExaminationById(currentExam.id)
+      dispatch({ type: 'SET_CURRENT_EXAM', exam: refreshed })
+    } catch (err: any) {
+      console.error('Không thể ghi nhận lịch sử in:', err)
+    }
+  }
+
   return (
     <div>
       <PageTitle
@@ -95,6 +151,18 @@ export function FinishStep() {
               <ArrowLeft className="size-3.5" />
               <span>Quay lại Hàng đợi (Bước 1)</span>
             </button>
+
+            {isFinished && (
+              <button
+                type="button"
+                onClick={() => setShowPrintModal(true)}
+                className="inline-flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-4 py-2.5 text-xs font-semibold text-slate-800 shadow-sm transition hover:bg-slate-50"
+                title="Xem trước & In Phiếu Kết quả tổng kết điều trị (PDF)"
+              >
+                <Printer className="size-4 text-[#5546e8]" />
+                <span>In Phiếu Kết quả</span>
+              </button>
+            )}
 
             {!isFinished && (
               <button
@@ -320,6 +388,16 @@ export function FinishStep() {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Modal in kết quả khám (PDF) */}
+      {showPrintModal && examForPrint && (
+        <DoctorPrintView
+          examination={examForPrint}
+          onClose={() => setShowPrintModal(false)}
+          onExportExcel={handleExportExcel}
+          onPrintRecorded={handlePrintRecorded}
+        />
       )}
     </div>
   )

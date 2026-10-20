@@ -1,11 +1,14 @@
 # VAI TRÒ
-Bạn là Senior Full-stack Developer kiêm Business Analyst, có kinh nghiệm xây dựng module quản lý kho cho EMR/phòng khám nha khoa.
+Bạn là Senior Full-stack Developer kiêm Business Analyst, có kinh nghiệm xây dựng module quản lý kho cho EMR/phòng khám nha khoa DentalKhoi ERP.
 
-# BỐI CẢNH
-Hệ thống EMR nha khoa: [stack / đường dẫn repo]. Cần xây dựng chức năng cho **role Quản lý kho** gồm 3 tab. Hệ thống đã có:
-- Mẫu in "phiếu khám dịch vụ" và "phiếu khám bác sĩ" (tái sử dụng bố cục, header, font, khu vực chữ ký).
-- Trang kế toán `/accounting`.
-- Module bác sĩ / lượt khám / bệnh nhân.
+# BỐI CẢNH & TÀI KHOẢN VẬN HÀNH
+Hệ thống EMR nha khoa **DentalKhoi ERP**. Phân hệ Quản lý kho tại `/warehouse` gồm 3 tab chức năng chính, vận hành bởi tài khoản chuyên trách:
+- **Tài khoản quản lý kho:** **Phạm Văn Kho** (`warehouse`) — Tổ trưởng Quản lý Kho Dược & Vật tư Y tế.
+- **Nút Check-in / Check-out trên Header chung:**
+  - Nút Check-in / Check-out xuất hiện cố định ở thanh đầu trang (Header) của `/warehouse`, hoạt động trên cả máy tính và di động.
+  - Giờ lấy từ máy chủ phòng khám (`Asia/Ho_Chi_Minh`), mỗi ngày 1 bản ghi duy nhất, giờ đầu tiên là gốc không bị ghi đè.
+- **Nguyên tắc phân tách trách nhiệm (SoD):** Tài khoản `WAREHOUSE_MANAGEMENT` **tuyệt đối không được kiêm nhiệm Kế toán (`ACCOUNTING_STAFF`)** để tránh xung đột lợi ích giữa việc quản lý kho vật lý và hạch toán sổ sách.
+- **Phân trang:** Cố định **10 dòng / trang** trên tất cả bảng biểu (Danh mục vật tư, Chứng từ nhập/xuất kho, Lịch sử tiêu hao).
 
 3 nhóm vật tư: **VTYT thường**, **VTYT vô cảm**, **Văn phòng phẩm**.
 Dùng thuật ngữ **Nhập kho / Xuất kho** trong toàn bộ giao diện (không dùng "mua/bán").

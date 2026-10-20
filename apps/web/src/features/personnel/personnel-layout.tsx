@@ -21,7 +21,7 @@ export function PersonnelLayout({ session }: { session: AuthSession }) {
 
   return (
     <div className="min-h-screen bg-[#f8fafc] text-slate-950">
-      <header className="border-b border-slate-200 bg-white">
+      <header className="no-print border-b border-slate-200 bg-white">
         <div className="mx-auto flex max-w-[1500px] items-center justify-between px-4 py-4 sm:px-6 lg:px-8">
           <div className="flex items-center gap-3">
             <img src="/Logo.png" alt="DentalKhoi" className="h-10 w-auto object-contain" />

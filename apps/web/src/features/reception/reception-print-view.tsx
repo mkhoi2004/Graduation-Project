@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { FileSpreadsheet, HeartPulse, Printer, X } from 'lucide-react'
 import { getSession } from '@/lib/auth-session'
+import { triggerPrint } from '@/lib/print-utils'
 import {
   calculateIntakeTotal,
   clinicRooms,
@@ -54,7 +55,7 @@ export function ReceptionPrintView({
   }, [onClose])
 
   const handlePrint = () => {
-    window.print()
+    triggerPrint()
   }
 
   // Security Hash snapshot string
@@ -113,10 +114,21 @@ export function ReceptionPrintView({
           </div>
         </div>
 
+        {/* On-screen Print Guidance Banner */}
+        <div className="no-print mb-3 w-full rounded-xl border border-amber-200 bg-amber-50/95 px-3.5 py-2 text-xs text-amber-900 shadow-sm backdrop-blur flex items-center gap-2.5">
+          <span className="text-base shrink-0">💡</span>
+          <div className="leading-snug">
+            <span className="font-bold">Mẹo in sạch không dính link web / ngày giờ:</span> Trong hộp thoại in của trình duyệt (Ctrl + P), hãy bấm{' '}
+            <strong className="underline decoration-amber-500 underline-offset-2">Cài đặt khác (More settings)</strong> ➔{' '}
+            <strong>Bỏ tích ô &ldquo;Tiêu đề đầu trang và chân trang&rdquo; (Headers and footers)</strong>.{' '}
+            <span className="text-amber-700 italic">(Chỉ cần bỏ tích 1 lần, trình duyệt Chrome sẽ tự nhớ vĩnh viễn)</span>.
+          </div>
+        </div>
+
         {/* Printable Paper A5 Container */}
         <div
           id="reception-print-content"
-          className="printable-document relative w-full rounded-2xl border border-slate-200/80 bg-white p-6 sm:p-7 text-slate-900 shadow-2xl print:rounded-none print:border-none print:p-0 print:shadow-none"
+          className="printable-document relative w-full rounded-2xl border border-slate-200/80 bg-white p-6 sm:p-7 text-slate-900 shadow-2xl print:rounded-none print:border-none print:shadow-none"
         >
           {/* Watermark for Copy - Căn chính giữa tâm tờ giấy */}
           {isCopy && (
@@ -272,35 +284,35 @@ export function ReceptionPrintView({
           </div>
 
           {/* 4 Chữ ký */}
-          <div className="mt-5 grid grid-cols-4 gap-2 text-center text-xs">
+          <div className="mt-5 print:mt-3 grid grid-cols-4 gap-2 text-center text-xs">
             <div>
               <p className="font-bold uppercase text-slate-900">Bệnh nhân / Người nộp</p>
               <p className="text-[10px] text-slate-400 italic">(Ký, họ tên)</p>
-              <div className="h-12" />
+              <div className="h-12 print:h-8" />
               <p className="font-semibold text-slate-800">{patient.fullName}</p>
             </div>
             <div>
               <p className="font-bold uppercase text-slate-900">Thu ngân tiếp nhận</p>
               <p className="text-[10px] text-slate-400 italic">(Ký, họ tên)</p>
-              <div className="h-12" />
+              <div className="h-12 print:h-8" />
               <p className="font-semibold text-slate-800">{session?.user?.fullName || 'Thu ngân'}</p>
             </div>
             <div>
               <p className="font-bold uppercase text-slate-900">Bác sĩ khám</p>
               <p className="text-[10px] text-slate-400 italic">(Ký, họ tên)</p>
-              <div className="h-12" />
+              <div className="h-12 print:h-8" />
               <p className="font-semibold text-slate-800">{doctor?.name || 'Bác sĩ phụ trách'}</p>
             </div>
             <div>
               <p className="font-bold uppercase text-slate-900">Người lập phiếu</p>
               <p className="text-[10px] text-slate-400 italic">(Ký, họ tên)</p>
-              <div className="h-12" />
+              <div className="h-12 print:h-8" />
               <p className="font-semibold text-slate-800">{session?.user?.fullName || 'Nhân viên quầy'}</p>
             </div>
           </div>
 
           {/* Print Metadata Footer */}
-          <div className="mt-5 border-t border-slate-200 pt-2 flex items-center justify-between text-[10px] text-slate-400">
+          <div className="mt-5 print:mt-2.5 border-t border-slate-200 pt-2 flex items-center justify-between text-[10px] text-slate-400">
             <span>
               In bởi: <strong className="text-slate-600">{session?.user?.fullName} ({session?.user?.username})</strong> lúc {formatDateTime(intake.payment?.paidAt || intake.createdAt)}
             </span>

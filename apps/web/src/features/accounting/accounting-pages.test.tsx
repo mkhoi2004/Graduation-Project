@@ -163,7 +163,7 @@ const mockInvoices: SupplierInvoice[] = [
     series: '1C26TLL',
     invoiceDate: '2026-10-15T00:00:00.000Z',
     supplierTaxCode: '0309988771',
-    buyerName: 'PHÒNG KHÁM NHA KHOA DENTALCARE',
+    buyerName: 'PHÒNG KHÁM NHA KHOA DENTALKHOI',
     buyerTaxCode: '0312345678',
     buyerAddress: '123 Đường 3/2, Phường 11, Quận 10, TP. Hồ Chí Minh',
     goodsAmount: 10000000,

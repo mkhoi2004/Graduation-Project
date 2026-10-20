@@ -1,6 +1,7 @@
 import { useEffect } from 'react';
 import { createPortal } from 'react-dom';
 import { Printer, X } from 'lucide-react';
+import { triggerPrint } from '@/lib/print-utils';
 import type { Payroll, PayrollItem } from './personnel-types';
 import { formatDate, formatVnd } from './personnel-ui';
 
@@ -75,7 +76,7 @@ export function PersonnelPrintView({
   }, [onClose]);
 
   const handlePrint = () => {
-    window.print();
+    triggerPrint();
   };
 
   const now = new Date();
@@ -117,17 +118,34 @@ export function PersonnelPrintView({
               </div>
             </div>
 
+            {/* On-screen Print Guidance Banner */}
+            <div className="no-print mb-3 w-full rounded-xl border border-amber-200 bg-amber-50/95 px-3.5 py-2 text-xs text-amber-900 shadow-sm backdrop-blur flex items-center gap-2.5">
+              <span className="text-base shrink-0">💡</span>
+              <div className="leading-snug">
+                <span className="font-bold">Mẹo in sạch không dính link web / ngày giờ:</span> Trong hộp thoại in của trình duyệt (Ctrl + P), hãy bấm{' '}
+                <strong className="underline decoration-amber-500 underline-offset-2">Cài đặt khác (More settings)</strong> ➔{' '}
+                <strong>Bỏ tích ô &ldquo;Tiêu đề đầu trang và chân trang&rdquo; (Headers and footers)</strong>.{' '}
+                <span className="text-amber-700 italic">(Chỉ cần bỏ tích 1 lần, trình duyệt Chrome sẽ tự nhớ vĩnh viễn)</span>.
+              </div>
+            </div>
+
             {/* PRINT CONTENT - STRICT DENTAL A5 PORTRAIT (148mm x 210mm) */}
             <div
               id="payroll-print-content"
-              className="printable-document relative w-full rounded-2xl border border-slate-200/80 bg-white p-6 sm:p-8 text-slate-900 shadow-2xl print:rounded-none print:border-none print:p-0 print:shadow-none"
+              className="printable-document relative w-full rounded-2xl border border-slate-200/80 bg-white p-6 sm:p-8 text-slate-900 shadow-2xl print:rounded-none print:border-none print:shadow-none"
             >
               {/* Header */}
               <div className="flex items-start justify-between border-b-2 border-slate-900 pb-3">
-                <div>
-                  <p className="text-xs font-bold uppercase tracking-wider text-indigo-700">PHÒNG KHÁM NHA KHOA KHOIDENT</p>
-                  <p className="text-[11px] text-slate-500">123 Nguyễn Trãi, Phường Bến Thành, Quận 1, TP. Hồ Chí Minh</p>
-                  <p className="text-[11px] text-slate-500">Hotline: 1900 6868 • MST: 0312345678</p>
+                <div className="flex items-start gap-2.5">
+                  <img src="/Logo.png" alt="DentalKhoi" className="h-10 w-auto shrink-0 object-contain" />
+                  <div>
+                    <h2 className="text-sm font-extrabold tracking-tight text-[#5546e8]">
+                      PHÒNG KHÁM NHA KHOA DENTALKHOI
+                    </h2>
+                    <p className="text-[11px] text-slate-500">123 Đường 3/2, Phường 11, Quận 10, TP. Hồ Chí Minh</p>
+                    <p className="text-[10px] text-slate-500">Hotline: 1900 6868 · MST: 0312345678</p>
+                    <p className="text-[10px] font-semibold text-slate-600">Phòng Hành chính - Nhân sự &amp; Tiền lương</p>
+                  </div>
                 </div>
                 <div className="text-right">
                   <p className="font-mono text-xs font-bold text-indigo-700">{payroll.code}</p>
@@ -252,31 +270,31 @@ export function PersonnelPrintView({
               </p>
 
               {/* Signatures */}
-              <div className="mt-6 grid grid-cols-3 text-center text-xs">
+              <div className="mt-6 print:mt-3 grid grid-cols-3 text-center text-xs">
                 <div>
                   <p className="font-bold text-slate-800">Người lập biểu</p>
                   <p className="italic text-[10px] text-slate-400">(Ký, họ tên)</p>
-                  <div className="h-14"></div>
+                  <div className="h-14 print:h-8"></div>
                   <p className="font-semibold text-slate-700">{payroll.createdBy?.fullName || 'Lê Thị Nhân Sự'}</p>
                 </div>
 
                 <div>
                   <p className="font-bold text-slate-800">Kế toán trưởng</p>
                   <p className="italic text-[10px] text-slate-400">(Ký, họ tên)</p>
-                  <div className="h-14"></div>
+                  <div className="h-14 print:h-8"></div>
                   <p className="font-semibold text-slate-700">Hoàng Thị Kế Toán</p>
                 </div>
 
                 <div>
                   <p className="font-bold text-slate-800">Người nhận tiền</p>
                   <p className="italic text-[10px] text-slate-400">(Ký, xác nhận)</p>
-                  <div className="h-14"></div>
+                  <div className="h-14 print:h-8"></div>
                   <p className="font-semibold text-slate-700">{item.employee.fullName}</p>
                 </div>
               </div>
 
               {/* Footer Security Hash */}
-              <div className="mt-8 flex items-center justify-between border-t border-dashed border-slate-300 pt-2 font-mono text-[10px] text-slate-400">
+              <div className="mt-8 print:mt-2.5 flex items-center justify-between border-t border-dashed border-slate-300 pt-2 font-mono text-[10px] text-slate-400">
                 <span>In lúc: {printTimeStr}</span>
                 <span>Mã bảo mật: {mockSecurityHash}</span>
               </div>

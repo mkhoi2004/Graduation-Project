@@ -2,6 +2,7 @@ import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { FileSpreadsheet, Printer, Stethoscope, X } from 'lucide-react'
 import { getSession } from '@/lib/auth-session'
+import { triggerPrint } from '@/lib/print-utils'
 
 function formatDate(dateStr?: string) {
   if (!dateStr) return '—'
@@ -63,8 +64,7 @@ export function DoctorPrintView({
   }, [onClose])
 
   const handlePrint = () => {
-    window.print()
-    onPrintRecorded?.()
+    triggerPrint(onPrintRecorded)
   }
 
   // Hash snapshot
@@ -123,10 +123,21 @@ export function DoctorPrintView({
           </div>
         </div>
 
+        {/* On-screen Print Guidance Banner */}
+        <div className="no-print mb-3 w-full rounded-xl border border-amber-200 bg-amber-50/95 px-3.5 py-2 text-xs text-amber-900 shadow-sm backdrop-blur flex items-center gap-2.5">
+          <span className="text-base shrink-0">💡</span>
+          <div className="leading-snug">
+            <span className="font-bold">Mẹo in sạch không dính link web / ngày giờ:</span> Trong hộp thoại in của trình duyệt (Ctrl + P), hãy bấm{' '}
+            <strong className="underline decoration-amber-500 underline-offset-2">Cài đặt khác (More settings)</strong> ➔{' '}
+            <strong>Bỏ tích ô &ldquo;Tiêu đề đầu trang và chân trang&rdquo; (Headers and footers)</strong>.{' '}
+            <span className="text-amber-700 italic">(Chỉ cần bỏ tích 1 lần, trình duyệt Chrome sẽ tự nhớ vĩnh viễn)</span>.
+          </div>
+        </div>
+
         {/* Printable Paper A5 Container */}
         <div
           id="doctor-print-content"
-          className="printable-document relative w-full rounded-2xl border border-slate-200/80 bg-white p-6 sm:p-7 text-slate-900 shadow-2xl print:rounded-none print:border-none print:p-0 print:shadow-none"
+          className="printable-document relative w-full rounded-2xl border border-slate-200/80 bg-white p-6 sm:p-7 text-slate-900 shadow-2xl print:rounded-none print:border-none print:shadow-none"
         >
           {/* Watermark for Copy - Căn chính giữa tâm tờ giấy */}
           {isCopy && (
@@ -166,8 +177,8 @@ export function DoctorPrintView({
           </div>
 
           {/* Title */}
-          <div className="mt-4 text-center">
-            <h1 className="text-xl font-black uppercase tracking-wide text-slate-900">
+          <div className="mt-4 print:mt-2 text-center">
+            <h1 className="text-xl print:text-lg font-black uppercase tracking-wide text-slate-900">
               PHIẾU KẾT QUẢ KHÁM &amp; ĐIỀU TRỊ NHA KHOA
             </h1>
             <p className="mt-1 text-xs text-slate-500">
@@ -181,7 +192,7 @@ export function DoctorPrintView({
           </div>
 
           {/* Thông tin hành chính bệnh nhân */}
-          <div className="mt-4 grid grid-cols-2 gap-x-6 gap-y-1.5 text-xs text-slate-700">
+          <div className="mt-4 print:mt-2 grid grid-cols-2 gap-x-6 gap-y-1.5 text-xs text-slate-700">
             <div>
               <span className="font-semibold text-slate-900">Họ và tên bệnh nhân:</span>{' '}
               <strong className="text-xs font-bold text-slate-900">{examination.patient.fullName}</strong>
@@ -214,7 +225,7 @@ export function DoctorPrintView({
 
           {/* Dịch vụ & Thủ thuật thực hiện */}
           {examination.intake?.services && examination.intake.services.length > 0 && (
-            <div className="mt-4">
+            <div className="mt-4 print:mt-2">
               <h3 className="mb-1.5 text-xs font-bold uppercase tracking-wider text-slate-700">
                 1. Dịch vụ &amp; Thủ thuật nha khoa đã thực hiện:
               </h3>
@@ -244,7 +255,7 @@ export function DoctorPrintView({
           )}
 
           {/* Kết quả chuyên môn và kết luận bác sĩ */}
-          <div className="mt-4 space-y-2.5 rounded-xl border border-slate-200 bg-slate-50/70 p-3 text-xs">
+          <div className="mt-4 print:mt-2 space-y-2.5 print:space-y-1.5 rounded-xl border border-slate-200 bg-slate-50/70 p-3 print:p-2 text-xs">
             <h3 className="text-xs font-bold uppercase tracking-wider text-[#5546e8]">
               2. Kết luận chuyên môn &amp; Kế hoạch điều trị:
             </h3>
@@ -284,29 +295,29 @@ export function DoctorPrintView({
           </div>
 
           {/* 3 Chữ ký trách nhiệm */}
-          <div className="mt-5 grid grid-cols-3 gap-4 text-center text-xs">
+          <div className="mt-5 print:mt-3 grid grid-cols-3 gap-4 text-center text-xs">
             <div>
               <p className="font-bold uppercase text-slate-900">Bệnh nhân / Người nhà</p>
               <p className="text-[10px] text-slate-400 italic">(Ký, ghi rõ họ tên)</p>
-              <div className="h-14" />
+              <div className="h-14 print:h-8" />
               <p className="font-semibold text-slate-800">{examination.patient.fullName}</p>
             </div>
             <div>
               <p className="font-bold uppercase text-slate-900">Bác sĩ điều trị</p>
               <p className="text-[10px] text-slate-400 italic">(Ký, ghi rõ họ tên)</p>
-              <div className="h-14" />
+              <div className="h-14 print:h-8" />
               <p className="font-semibold text-slate-800">{session?.user?.fullName || 'BS. Điều trị'}</p>
             </div>
             <div>
               <p className="font-bold uppercase text-slate-900">Giám đốc chuyên môn</p>
               <p className="text-[10px] text-slate-400 italic">(Ký, đóng dấu)</p>
-              <div className="h-14" />
+              <div className="h-14 print:h-8" />
               <p className="font-semibold text-slate-800">BS. CKI Nha Khoa</p>
             </div>
           </div>
 
           {/* Print Metadata Footer */}
-          <div className="mt-5 border-t border-slate-200 pt-2 flex items-center justify-between text-[10px] text-slate-400">
+          <div className="mt-5 print:mt-2.5 border-t border-slate-200 pt-2 flex items-center justify-between text-[10px] text-slate-400">
             <span>
               In bởi: <strong className="text-slate-600">{session?.user?.fullName} ({session?.user?.username})</strong> lúc {formatDateTime(examination.startedAt)}
             </span>

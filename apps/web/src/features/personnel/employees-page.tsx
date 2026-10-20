@@ -391,7 +391,7 @@ export function EmployeesPage() {
                   type="email"
                   value={form.email}
                   onChange={(e) => setForm({ ...form, email: e.target.value })}
-                  placeholder="email@dentalcare.vn"
+                  placeholder="email@dentalkhoi.vn"
                   className={inputClass}
                 />
               </div>
