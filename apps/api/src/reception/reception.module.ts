@@ -4,11 +4,12 @@ import { ReceptionController } from './reception.controller.js';
 import { ReceptionService } from './reception.service.js';
 import { ReceptionAccessGuard } from './reception-access.guard.js';
 import { AccountingModule } from '../accounting/accounting.module.js';
+import { ReceptionQueueService } from './reception-queue.service.js';
 
 @Module({
   imports: [AuthModule, AccountingModule],
   controllers: [ReceptionController],
-  providers: [ReceptionService, ReceptionAccessGuard],
+  providers: [ReceptionService, ReceptionQueueService, ReceptionAccessGuard],
   exports: [ReceptionService],
 })
 export class ReceptionModule {}

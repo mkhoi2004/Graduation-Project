@@ -15,11 +15,11 @@ export class CreateIntakeDto {
   @MaxLength(1000)
   symptoms!: string;
 
-  @ApiPropertyOptional({ example: 'Thường', enum: ['Thường', 'Ưu tiên', 'Khẩn cấp'], default: 'Thường' })
+  @ApiPropertyOptional({ example: 'Thường', enum: ['Thường', 'Ưu tiên'], default: 'Thường' })
   @IsOptional()
   @IsString()
-  @IsIn(['Thường', 'Ưu tiên', 'Khẩn cấp'])
-  priority?: 'Thường' | 'Ưu tiên' | 'Khẩn cấp';
+  @IsIn(['Thường', 'Ưu tiên'])
+  priority?: 'Thường' | 'Ưu tiên';
 }
 
 export class ServiceSelectionDto {
@@ -48,6 +48,23 @@ export class UpdateIntakeServicesDto {
   @IsNotEmpty()
   @MaxLength(50)
   doctorUsername!: string;
+
+  @ApiProperty({ example: 'Thường', enum: ['Thường', 'Ưu tiên'] })
+  @IsString()
+  @IsIn(['Thường', 'Ưu tiên'])
+  priority!: 'Thường' | 'Ưu tiên';
+
+  @ApiPropertyOptional({ example: 'Người cao tuổi cần được theo dõi sát' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  priorityReason?: string;
+
+  @ApiPropertyOptional({ example: 'Bác sĩ hỗ trợ ngoài ca theo điều phối của quản lý' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  roomOverrideReason?: string;
 
   @ApiProperty({ type: [ServiceSelectionDto] })
   @IsArray()

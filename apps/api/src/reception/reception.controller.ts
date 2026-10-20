@@ -57,8 +57,9 @@ export class ReceptionController {
   updateIntakeServices(
     @Param('code') code: string,
     @Body() dto: UpdateIntakeServicesDto,
+    @Req() req: Request & { user?: AuthenticatedUser },
   ) {
-    return this.service.updateIntakeServices(code, dto);
+    return this.service.updateIntakeServices(code, dto, req.user?.sub);
   }
 
   @Post('intakes/:code/pay-cash')

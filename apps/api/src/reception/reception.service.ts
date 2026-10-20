@@ -3,6 +3,8 @@ import { PrismaService } from '../infrastructure/database/prisma.service.js';
 import { AccountingService } from '../accounting/accounting.service.js';
 import type { CreatePatientDto, UpdatePatientDto } from './dto/patient.dto.js';
 import type { CreateIntakeDto, UpdateIntakeServicesDto } from './dto/intake.dto.js';
+import { clinicDateToDbDate, getClinicTimeParts } from '../common/clinic-time.js';
+import { ReceptionQueueService } from './reception-queue.service.js';
 
 function dateStamp(date = new Date()): string {
   const year = date.getFullYear();
@@ -16,9 +18,12 @@ export class ReceptionService {
   constructor(
     private readonly prisma: PrismaService,
     private readonly accounting?: AccountingService,
+    private readonly queueService?: ReceptionQueueService,
   ) {}
 
-  async getMasterData() {
+  async getMasterData(now = new Date()) {
+    const clinicNow = getClinicTimeParts(now);
+    const businessDate = clinicDateToDbDate(clinicNow.date);
     const [rooms, services, doctorUsers] = await Promise.all([
       this.prisma.clinicRoom.findMany({
         where: { isActive: true },
@@ -30,12 +35,30 @@ export class ReceptionService {
       }),
       this.prisma.user.findMany({
         where: { role: { code: 'DOCTOR' }, isActive: true },
-        select: { id: true, username: true, fullName: true },
+        select: {
+          id: true,
+          username: true,
+          fullName: true,
+          employee: {
+            select: {
+              room: { select: { code: true, name: true } },
+              shiftAssignments: {
+                where: { date: businessDate },
+                select: {
+                  id: true,
+                  room: { select: { code: true, name: true } },
+                  shift: { select: { name: true, startTime: true, endTime: true } },
+                },
+              },
+            },
+          },
+        },
         orderBy: { id: 'asc' },
       }),
     ]);
 
     return {
+      businessDate: clinicNow.date,
       rooms: rooms.map((r) => ({ id: r.code, name: r.name, description: r.description })),
       services: services.map((s) => ({
         id: s.code,
@@ -44,11 +67,30 @@ export class ReceptionService {
         price: s.price,
         unit: s.unit,
       })),
-      doctors: doctorUsers.map((d) => ({
-        id: d.username,
-        name: d.fullName,
-        specialty: 'Nha khoa chuyên sâu',
-      })),
+      doctors: doctorUsers.map((d) => {
+        const activeShift = [...(d.employee?.shiftAssignments ?? [])]
+          .filter((assignment) =>
+            assignment.shift.startTime <= clinicNow.time && clinicNow.time < assignment.shift.endTime,
+          )
+          .sort((a, b) =>
+            b.shift.startTime.localeCompare(a.shift.startTime) || b.id - a.id,
+          )[0];
+        return {
+          id: d.username,
+          name: d.fullName,
+          specialty: 'Nha khoa chuyên sâu',
+          isOnDuty: Boolean(activeShift),
+          assignedRoom: activeShift?.room
+            ? { id: activeShift.room.code, name: activeShift.room.name }
+            : undefined,
+          fallbackRoom: d.employee?.room
+            ? { id: d.employee.room.code, name: d.employee.room.name }
+            : undefined,
+          shiftName: activeShift?.shift.name,
+          shiftStart: activeShift?.shift.startTime,
+          shiftEnd: activeShift?.shift.endTime,
+        };
+      }),
     };
   }
 
@@ -180,7 +222,7 @@ export class ReceptionService {
         id: intake.code,
         patientId: intake.patient.code,
         symptoms: intake.symptoms,
-        priority: intake.priority as 'Thường' | 'Ưu tiên' | 'Khẩn cấp',
+        priority: intake.priority as 'Thường' | 'Ưu tiên',
         services: intake.services.map((s) => ({
           serviceId: s.service.code,
           quantity: s.quantity,
@@ -238,7 +280,7 @@ export class ReceptionService {
       id: intake.code,
       patientId: patient.code,
       symptoms: intake.symptoms,
-      priority: intake.priority as 'Thường' | 'Ưu tiên' | 'Khẩn cấp',
+      priority: intake.priority as 'Thường' | 'Ưu tiên',
       services: [],
       roomId: '',
       doctorId: '',
@@ -247,16 +289,26 @@ export class ReceptionService {
     };
   }
 
-  async updateIntakeServices(intakeCode: string, dto: UpdateIntakeServicesDto) {
+  async updateIntakeServices(intakeCode: string, dto: UpdateIntakeServicesDto, actorId?: number) {
+    const clinicNow = getClinicTimeParts();
+    const businessDate = clinicDateToDbDate(clinicNow.date);
     const intake = await this.prisma.intake.findUnique({
       where: { code: intakeCode },
-      include: { services: true },
+      include: { services: true, queueTicket: true },
     });
     if (!intake) {
       throw new NotFoundException(`Không tìm thấy phiếu tiếp nhận ${intakeCode}.`);
     }
     if (intake.status === 'TRANSFERRED') {
       throw new BadRequestException('Hồ sơ đã bàn giao cho bác sĩ, không thể sửa đổi dịch vụ.');
+    }
+    if (intake.queueTicket) {
+      throw new BadRequestException(
+        'Phiếu tiếp nhận đã được cấp STT; không thể sửa dịch vụ, bác sĩ, phòng hoặc mức ưu tiên. Vui lòng hủy và làm lại.',
+      );
+    }
+    if (dto.priority === 'Ưu tiên' && !dto.priorityReason?.trim()) {
+      throw new BadRequestException('Mức Ưu tiên bắt buộc phải có lý do.');
     }
 
     const room = await this.prisma.clinicRoom.findUnique({
@@ -268,10 +320,36 @@ export class ReceptionService {
 
     const doctor = await this.prisma.user.findUnique({
       where: { username: dto.doctorUsername },
-      include: { role: true },
+      include: {
+        role: true,
+        employee: {
+          include: {
+            shiftAssignments: {
+              where: { date: businessDate },
+              include: { room: true, shift: true },
+            },
+          },
+        },
+      },
     });
     if (!doctor || doctor.role.code !== 'DOCTOR') {
       throw new NotFoundException(`Không tìm thấy bác sĩ với tài khoản ${dto.doctorUsername}.`);
+    }
+
+    const activeAssignment = [...(doctor.employee?.shiftAssignments ?? [])]
+      .filter((assignment) =>
+        assignment.shift.startTime <= clinicNow.time && clinicNow.time < assignment.shift.endTime,
+      )
+      .sort((a, b) => b.shift.startTime.localeCompare(a.shift.startTime) || b.id - a.id)[0];
+    if (activeAssignment?.room?.code && activeAssignment.room.code !== dto.roomCode) {
+      throw new BadRequestException(
+        `Phòng khám phải theo ca trực hiện tại của bác sĩ (${activeAssignment.room.name}).`,
+      );
+    }
+    if (!activeAssignment && !dto.roomOverrideReason?.trim()) {
+      throw new BadRequestException(
+        'Bác sĩ chưa được phân ca tại thời điểm này; bắt buộc nhập lý do chọn phòng thủ công.',
+      );
     }
 
     const serviceCodes = dto.services.map((s) => s.serviceCode);
@@ -311,9 +389,21 @@ export class ReceptionService {
         data: {
           roomId: room.id,
           doctorId: doctor.id,
+          priority: dto.priority,
+          priorityReason: dto.priority === 'Ưu tiên' ? dto.priorityReason?.trim() : null,
+          roomOverrideReason: !activeAssignment ? dto.roomOverrideReason?.trim() : null,
           status: nextStatus,
         },
       });
+
+      if (!this.queueService) {
+        throw new Error('ReceptionQueueService chưa được cấu hình.');
+      }
+      await this.queueService.issueTicket(
+        { intakeId: intake.id, roomId: room.id, businessDate: clinicNow.date },
+        actorId,
+        tx,
+      );
     });
 
     return this.getIntakeByCode(intakeCode);
@@ -404,6 +494,7 @@ export class ReceptionService {
         patient: true,
         room: true,
         doctor: true,
+        queueTicket: true,
         services: { include: { service: true } },
         payments: { orderBy: { createdAt: 'desc' }, take: 1 },
       },
@@ -414,13 +505,20 @@ export class ReceptionService {
       id: intake.code,
       patientId: intake.patient.code,
       symptoms: intake.symptoms,
-      priority: intake.priority as 'Thường' | 'Ưu tiên' | 'Khẩn cấp',
+      priority: intake.priority as 'Thường' | 'Ưu tiên',
+      priorityReason: intake.priorityReason ?? undefined,
+      roomOverrideReason: intake.roomOverrideReason ?? undefined,
       services: intake.services.map((s) => ({
         serviceId: s.service.code,
         quantity: s.quantity,
       })),
       roomId: intake.room?.code ?? '',
       doctorId: intake.doctor?.username ?? '',
+      queueNumber: intake.queueTicket
+        ? String(intake.queueTicket.queueNumber).padStart(4, '0')
+        : undefined,
+      queueDate: intake.queueTicket?.businessDate.toISOString().slice(0, 10),
+      queueStatus: intake.queueTicket?.status,
       status: intake.status as 'DRAFT' | 'READY' | 'PAID' | 'TRANSFERRED',
       createdAt: intake.createdAt.toISOString(),
       transferredAt: intake.transferredAt ? intake.transferredAt.toISOString() : undefined,
