@@ -536,6 +536,7 @@ export class DoctorService {
         code: exam.intake.code,
         symptoms: exam.intake.symptoms,
         priority: exam.intake.priority,
+        priorityReason: exam.intake.priorityReason ?? undefined,
         roomCode: exam.room.code,
         roomName: exam.room.name,
         services: exam.intake.services.map((s: any) => ({

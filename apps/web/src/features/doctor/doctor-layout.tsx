@@ -11,7 +11,6 @@ import {
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { clearSession, type AuthSession } from '../../lib/auth-session'
-import { defaultClinicRooms } from './doctor-data'
 import { DoctorProvider, useDoctor } from './doctor-context'
 import { QueueStep } from './steps/queue-step'
 import { SuppliesStep } from './steps/supplies-step'
@@ -22,8 +21,8 @@ import { AttendanceHeaderWidget } from '../personnel/attendance-header-widget'
 
 function DoctorLayoutInner({ session, onLogout }: { session: AuthSession; onLogout: () => void }) {
   const {
-    rooms,
     activeRoomCode,
+    queueSummary,
     currentExam,
     activeStep,
     loading,
@@ -69,23 +68,11 @@ function DoctorLayoutInner({ session, onLogout }: { session: AuthSession; onLogo
           </div>
 
           <div className="flex items-center gap-3">
-            {/* Room Selector */}
+            {/* Room is server-derived from the doctor's assignment/queue. */}
             <div className="flex items-center gap-2 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs shadow-sm">
               <DoorOpen className="size-4 text-[#5546e8] shrink-0" />
-              <label htmlFor="doctor-header-room-select" className="text-slate-500 font-medium hidden sm:inline">Phòng trực:</label>
-              <select
-                id="doctor-header-room-select"
-                aria-label="Chọn phòng trực"
-                value={activeRoomCode}
-                onChange={(e) => dispatch({ type: 'SET_ROOM', roomCode: e.target.value })}
-                className="min-w-[140px] rounded-lg bg-slate-50 px-2 py-1 font-bold text-slate-800 outline-none hover:bg-slate-100 transition cursor-pointer border border-slate-200 focus:border-[#5546e8] focus:ring-2 focus:ring-[#5546e8]/10"
-              >
-                {(rooms.length > 0 ? rooms : defaultClinicRooms).map((room) => (
-                  <option key={room.code} value={room.code}>
-                    {room.name}
-                  </option>
-                ))}
-              </select>
+              <span className="text-slate-500 font-medium hidden sm:inline">Phòng trực:</span>
+              <strong className="min-w-[110px] text-slate-800">{currentExam?.intake.roomName || queueSummary.roomName || activeRoomCode}</strong>
             </div>
 
             {/* Universal Cancel / Stop Exam button - Available at all steps */}

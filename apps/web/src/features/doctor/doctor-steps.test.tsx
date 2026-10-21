@@ -1,4 +1,4 @@
-import { cleanup, render, screen, within } from '@testing-library/react'
+import { cleanup, render, screen } from '@testing-library/react'
 import userEvent from '@testing-library/user-event'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { MemoryRouter } from 'react-router-dom'
@@ -15,7 +15,7 @@ const mockRooms = [
 
 const mockQueue: QueuePatient[] = [
   {
-    stt: 1,
+    queueNumber: '0001',
     id: 'TN20261018/0001',
     intakeId: 10,
     patientCode: 'BN001',
@@ -25,13 +25,34 @@ const mockQueue: QueuePatient[] = [
     phone: '0901234567',
     note: '',
     symptoms: 'Đau răng hàm dưới',
-    priority: 'Khẩn cấp',
+    priority: 'Thường',
     roomCode: 'room-01',
     roomName: 'Phòng khám 01',
-    transferredAt: '2026-10-18T08:00:00.000Z',
+    issuedAt: '2026-10-18T08:00:00.000Z',
     services: [{ code: 'cleaning', name: 'Cạo vôi răng', quantity: 1, unit: '2 hàm' }],
   },
+  {
+    queueNumber: '0002', id: 'TN20261018/0002', intakeId: 11, patientCode: 'BN002',
+    patientName: 'Lê Thị Bình', dateOfBirth: '1985-02-02', gender: 'Nữ', phone: '0902000002',
+    note: '', symptoms: 'Đau răng', priority: 'Thường', roomCode: 'room-01', roomName: 'Phòng khám 01',
+    issuedAt: '2026-10-18T08:05:00.000Z', services: [{ code: 'exam', name: 'Khám tổng quát', quantity: 1 }],
+  },
+  {
+    queueNumber: '0003', id: 'TN20261018/0003', intakeId: 12, patientCode: 'BN003',
+    patientName: 'Nguyễn Văn Cường', dateOfBirth: '1950-03-03', gender: 'Nam', phone: '0903000003',
+    note: '', symptoms: 'Đau nướu', priority: 'Ưu tiên', priorityReason: 'Người cao tuổi',
+    roomCode: 'room-01', roomName: 'Phòng khám 01', issuedAt: '2026-10-18T08:10:00.000Z',
+    services: [{ code: 'gum', name: 'Khám nha chu', quantity: 1 }],
+  },
 ]
+
+const mockQueueResponse = {
+  queue: mockQueue,
+  summary: {
+    businessDate: '2026-10-18', roomCode: 'room-01', roomName: 'Phòng khám 01',
+    waitingCount: 3, priorityWaitingCount: 1, currentCallingNumber: undefined,
+  },
+}
 
 const mockSuppliesCatalog: MedicalSupplyCatalogItem[] = [
   {
@@ -70,7 +91,8 @@ const mockExam: ExaminationDetail = {
   intake: {
     code: 'TN20261018/0001',
     symptoms: 'Đau răng hàm dưới',
-    priority: 'Khẩn cấp',
+    priority: 'Ưu tiên',
+    priorityReason: 'Người cao tuổi',
     roomCode: 'room-01',
     roomName: 'Phòng khám 01',
     services: [{ intakeServiceId: 11, code: 'cleaning', name: 'Cạo vôi răng', quantity: 1, unit: '2 hàm' }],
@@ -102,10 +124,20 @@ describe('Doctor UI Workflow Steps', () => {
   beforeEach(() => {
     window.localStorage.clear()
     vi.spyOn(doctorApi, 'fetchDoctorRooms').mockResolvedValue(mockRooms)
-    vi.spyOn(doctorApi, 'fetchDoctorQueue').mockResolvedValue(mockQueue)
+    vi.spyOn(doctorApi, 'fetchDoctorQueue').mockResolvedValue(mockQueueResponse)
     vi.spyOn(doctorApi, 'fetchCurrentExamining').mockResolvedValue(null)
     vi.spyOn(doctorApi, 'fetchSuppliesCatalog').mockResolvedValue(mockSuppliesCatalog)
-    vi.spyOn(doctorApi, 'callNextPatientApi').mockResolvedValue(mockExam)
+    vi.spyOn(doctorApi, 'callNextPatientApi').mockResolvedValue({
+      nextExaminationId: mockExam.id,
+      nextExamination: mockExam,
+      queueNumber: '0001',
+      message: 'Đã gọi STT 0001',
+    })
+    vi.spyOn(doctorApi, 'markAbsentApi').mockResolvedValue({
+      absentExamination: { ...mockExam, status: 'ABSENT', isLocked: true },
+      nextExamination: null,
+      message: 'Không còn bệnh nhân chờ',
+    })
     vi.spyOn(doctorApi, 'updateSuppliesApi').mockResolvedValue(mockExam)
     vi.spyOn(doctorApi, 'updateResultApi').mockResolvedValue({ success: true })
     vi.spyOn(doctorApi, 'completeExaminationApi').mockResolvedValue({
@@ -122,7 +154,10 @@ describe('Doctor UI Workflow Steps', () => {
     vi.spyOn(summaryExcel, 'downloadSummaryWorkbook').mockResolvedValue(undefined)
   })
 
-  afterEach(cleanup)
+  afterEach(() => {
+    cleanup()
+    vi.restoreAllMocks()
+  })
 
   it('renders Step 1 with patient queue and calls next patient', async () => {
     const user = userEvent.setup()
@@ -134,14 +169,17 @@ describe('Doctor UI Workflow Steps', () => {
 
     // Wait for queue patient to be rendered
     expect(await screen.findByText('Trần Văn An')).toBeInTheDocument()
-    expect(screen.getByText('Khẩn cấp')).toBeInTheDocument()
+    expect(screen.getByText('Có 1 bệnh nhân ưu tiên đang chờ')).toBeInTheDocument()
+    expect(screen.getByText('Người cao tuổi')).toBeInTheDocument()
     expect(screen.getByText('Cạo vôi răng × 1')).toBeInTheDocument()
+    const numbers = screen.getAllByText(/^000[123]$/).map((element) => element.textContent)
+    expect(numbers).toEqual(['0001', '0002', '0003'])
 
     // Click "Gọi STT tiếp theo"
     const callButton = screen.getByRole('button', { name: /gọi stt tiếp theo/i })
     await user.click(callButton)
 
-    expect(doctorApi.callNextPatientApi).toHaveBeenCalledWith('room-01')
+    expect(doctorApi.callNextPatientApi).toHaveBeenCalledWith()
     // Automatically transitions to Step 2
     expect(await screen.findByRole('heading', { name: /vật tư y tế tiêu hao \(vtyt\)/i })).toBeInTheDocument()
   })
@@ -268,27 +306,41 @@ describe('Doctor UI Workflow Steps', () => {
     )
   })
 
-  it('allows selecting room from header and directly from Step 1 queue view', async () => {
-    const user = userEvent.setup()
+  it('uses the room assigned by the server and does not expose room selectors', async () => {
     render(
       <MemoryRouter>
         <DoctorLayout session={mockDoctorSession} />
       </MemoryRouter>,
     )
 
-    // Verify room options exist in header select
-    const headerRoomSelect = await screen.findByLabelText('Chọn phòng trực')
-    expect(headerRoomSelect).toBeInTheDocument()
-    expect(within(headerRoomSelect).getByRole('option', { name: 'Phòng khám 01' })).toBeInTheDocument()
-    expect(within(headerRoomSelect).getByRole('option', { name: 'Phòng khám 02' })).toBeInTheDocument()
+    expect((await screen.findAllByText('Phòng khám 01')).length).toBeGreaterThanOrEqual(1)
+    expect(screen.queryByLabelText('Chọn phòng trực')).not.toBeInTheDocument()
+    expect(screen.queryByLabelText('Chọn phòng khám trong hàng đợi')).not.toBeInTheDocument()
+    expect(doctorApi.fetchDoctorQueue).toHaveBeenCalledWith()
+  })
 
-    // Select room 2 from header
-    await user.selectOptions(headerRoomSelect, 'room-02')
-    expect(doctorApi.fetchDoctorQueue).toHaveBeenCalledWith('room-02')
+  it('marks a just-called patient absent and returns to the queue when nobody remains', async () => {
+    const user = userEvent.setup()
+    const cleanExam: ExaminationDetail = { ...mockExam, supplies: [], result: undefined, printHistories: [] }
+    vi.spyOn(doctorApi, 'fetchCurrentExamining').mockResolvedValue(cleanExam)
+    vi.spyOn(doctorApi, 'fetchDoctorQueue').mockResolvedValue({
+      queue: [],
+      summary: { ...mockQueueResponse.summary, waitingCount: 0, priorityWaitingCount: 0, currentCallingNumber: '0001' },
+    })
 
-    // Verify Step 1 room select also exists
-    const step1RoomSelect = screen.getByLabelText('Chọn phòng khám trong hàng đợi')
-    expect(step1RoomSelect).toHaveValue('room-02')
+    render(
+      <MemoryRouter>
+        <DoctorLayout session={mockDoctorSession} />
+      </MemoryRouter>,
+    )
+
+    await user.click(await screen.findByRole('button', { name: /bước 1: hàng đợi tiếp nhận/i }))
+    await user.click(await screen.findByRole('button', { name: /^vắng mặt$/i }))
+    expect(screen.getByRole('dialog', { name: /xác nhận bệnh nhân vắng mặt/i })).toBeInTheDocument()
+    await user.click(screen.getByRole('button', { name: /xác nhận vắng mặt/i }))
+
+    expect(doctorApi.markAbsentApi).toHaveBeenCalledWith(101)
+    expect(await screen.findByRole('alert')).toHaveTextContent('Không còn bệnh nhân chờ')
   })
 
   it('falls back to default warehouse supplies catalog when api returns empty', async () => {

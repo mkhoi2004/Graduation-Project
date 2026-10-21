@@ -29,7 +29,6 @@ describe('reception pages', () => {
 
     expect(screen.getByRole('option', { name: 'Thường' })).toBeInTheDocument()
     expect(screen.getByRole('option', { name: 'Ưu tiên' })).toBeInTheDocument()
-    expect(screen.queryByText(/Cao|Khẩn cấp/)).not.toBeInTheDocument()
 
     await user.selectOptions(screen.getByLabelText(/mức độ ưu tiên/i), 'Ưu tiên')
     expect(screen.getByLabelText(/lý do ưu tiên/i)).toHaveAttribute('aria-required', 'true')

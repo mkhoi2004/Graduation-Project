@@ -1,11 +1,13 @@
 import { getSession } from '../../lib/auth-session'
 import type {
   ClinicRoom,
+  CallNextResponse,
+  DoctorQueueResponse,
   ExaminationDetail,
   ExaminationResultDetail,
   MedicalSupplyCatalogItem,
-  QueuePatient,
   SupplyUsageItem,
+  MarkAbsentResponse,
 } from './doctor-types'
 
 const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api'
@@ -29,9 +31,8 @@ export async function fetchDoctorRooms(): Promise<ClinicRoom[]> {
   return response.json()
 }
 
-export async function fetchDoctorQueue(roomCode?: string): Promise<QueuePatient[]> {
-  const query = roomCode ? `?roomCode=${encodeURIComponent(roomCode)}` : ''
-  const response = await fetch(`${apiUrl}/doctor/queue${query}`, {
+export async function fetchDoctorQueue(): Promise<DoctorQueueResponse> {
+  const response = await fetch(`${apiUrl}/doctor/queue`, {
     headers: authorizedHeaders(),
   })
   if (!response.ok) {
@@ -52,16 +53,24 @@ export async function fetchCurrentExamining(): Promise<ExaminationDetail | null>
   return response.json()
 }
 
-export async function callNextPatientApi(roomCode: string): Promise<ExaminationDetail> {
+export async function callNextPatientApi(): Promise<CallNextResponse> {
   const response = await fetch(`${apiUrl}/doctor/call-next`, {
     method: 'POST',
     headers: authorizedHeaders(),
-    body: JSON.stringify({ roomCode }),
   })
-  const payload = (await response.json().catch(() => ({}))) as ExaminationDetail & { message?: string }
+  const payload = (await response.json().catch(() => ({}))) as CallNextResponse & { message?: string }
   if (!response.ok) {
     throw new Error(payload.message ?? 'Không thể gọi số thứ tự tiếp theo.')
   }
+  return payload
+}
+
+export async function markAbsentApi(examinationId: number): Promise<MarkAbsentResponse> {
+  const response = await fetch(`${apiUrl}/doctor/examinations/${examinationId}/absent`, {
+    method: 'POST', headers: authorizedHeaders(),
+  })
+  const payload = (await response.json().catch(() => ({}))) as MarkAbsentResponse & { message?: string }
+  if (!response.ok) throw new Error(payload.message ?? 'Không thể đánh dấu bệnh nhân vắng mặt.')
   return payload
 }
 

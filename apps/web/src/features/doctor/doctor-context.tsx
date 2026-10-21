@@ -16,6 +16,7 @@ import type {
   ClinicRoom,
   ExaminationDetail,
   MedicalSupplyCatalogItem,
+  DoctorQueueSummary,
   QueuePatient,
 } from './doctor-types'
 import { defaultClinicRooms, defaultMedicalSupplies } from './doctor-data'
@@ -24,6 +25,7 @@ interface DoctorState {
   rooms: ClinicRoom[]
   activeRoomCode: string
   queue: QueuePatient[]
+  queueSummary: DoctorQueueSummary
   currentExam: ExaminationDetail | null
   suppliesCatalog: MedicalSupplyCatalogItem[]
   loading: boolean
@@ -40,22 +42,21 @@ type DoctorAction =
       rooms: ClinicRoom[]
       activeRoomCode: string
       queue: QueuePatient[]
+      queueSummary: DoctorQueueSummary
       currentExam: ExaminationDetail | null
       suppliesCatalog: MedicalSupplyCatalogItem[]
     }
-  | { type: 'SET_ROOM'; roomCode: string }
-  | { type: 'SET_QUEUE'; queue: QueuePatient[] }
+  | { type: 'SET_QUEUE'; queue: QueuePatient[]; summary: DoctorQueueSummary }
   | { type: 'SET_CURRENT_EXAM'; exam: ExaminationDetail | null }
   | { type: 'SET_CANCEL_MODAL'; open: boolean }
   | { type: 'SET_STEP'; step: 1 | 2 | 3 | 4 }
   | { type: 'SET_SUPPLIES_CATALOG'; catalog: MedicalSupplyCatalogItem[] }
 
-const STORAGE_ROOM_KEY = 'dental_erp_doctor_room_code'
-
 const initialState: DoctorState = {
   rooms: defaultClinicRooms,
-  activeRoomCode: localStorage.getItem(STORAGE_ROOM_KEY) ?? 'room-01',
+  activeRoomCode: 'room-01',
   queue: [],
+  queueSummary: { businessDate: '', waitingCount: 0, priorityWaitingCount: 0 },
   currentExam: null,
   suppliesCatalog: defaultMedicalSupplies,
   loading: false,
@@ -76,6 +77,7 @@ function doctorReducer(state: DoctorState, action: DoctorAction): DoctorState {
         rooms: action.rooms && action.rooms.length > 0 ? action.rooms : (state.rooms.length > 0 ? state.rooms : defaultClinicRooms),
         activeRoomCode: action.activeRoomCode || state.activeRoomCode,
         queue: action.queue,
+        queueSummary: action.queueSummary,
         currentExam: action.currentExam,
         suppliesCatalog:
           action.suppliesCatalog && action.suppliesCatalog.length > 0
@@ -85,11 +87,8 @@ function doctorReducer(state: DoctorState, action: DoctorAction): DoctorState {
         error: null,
         activeStep: state.activeStep === 1 && action.currentExam ? 2 : state.activeStep,
       }
-    case 'SET_ROOM':
-      localStorage.setItem(STORAGE_ROOM_KEY, action.roomCode)
-      return { ...state, activeRoomCode: action.roomCode }
     case 'SET_QUEUE':
-      return { ...state, queue: action.queue }
+      return { ...state, queue: action.queue, queueSummary: action.summary, activeRoomCode: action.summary.roomCode || state.activeRoomCode }
     case 'SET_CURRENT_EXAM':
       return {
         ...state,
@@ -132,20 +131,21 @@ export function DoctorProvider({ children }: { children: ReactNode }) {
 
   const refreshQueue = useCallback(async () => {
     try {
-      const queue = await fetchDoctorQueue(state.activeRoomCode)
-      dispatch({ type: 'SET_QUEUE', queue })
+      const response = await fetchDoctorQueue()
+      dispatch({ type: 'SET_QUEUE', queue: response.queue, summary: response.summary })
     } catch (err: any) {
       dispatch({ type: 'SET_ERROR', error: err.message ?? 'Lỗi khi làm mới hàng đợi.' })
     }
-  }, [state.activeRoomCode])
+  }, [])
 
   const refreshAll = useCallback(async () => {
     dispatch({ type: 'SET_LOADING', loading: true })
     try {
-      const [roomsRes, currentExamRes, suppliesRes] = await Promise.allSettled([
+      const [roomsRes, currentExamRes, suppliesRes, queueRes] = await Promise.allSettled([
         fetchDoctorRooms(),
         fetchCurrentExamining(),
         fetchSuppliesCatalog(),
+        fetchDoctorQueue(),
       ])
 
       const rooms =
@@ -160,24 +160,17 @@ export function DoctorProvider({ children }: { children: ReactNode }) {
 
       const currentExam = currentExamRes.status === 'fulfilled' ? currentExamRes.value : null
 
-      const savedRoom = localStorage.getItem(STORAGE_ROOM_KEY)
-      const selectedRoom =
-        savedRoom && rooms.some((r) => r.code === savedRoom)
-          ? savedRoom
-          : rooms[0]?.code ?? 'room-01'
-
-      let queue: QueuePatient[] = []
-      try {
-        queue = await fetchDoctorQueue(selectedRoom)
-      } catch {
-        queue = []
-      }
+      const queueResponse = queueRes.status === 'fulfilled'
+        ? queueRes.value
+        : { queue: [], summary: { businessDate: '', waitingCount: 0, priorityWaitingCount: 0 } }
+      const selectedRoom = queueResponse.summary.roomCode || currentExam?.intake.roomCode || rooms[0]?.code || 'room-01'
 
       dispatch({
         type: 'INIT_DATA',
         rooms,
         activeRoomCode: selectedRoom,
-        queue,
+        queue: queueResponse.queue,
+        queueSummary: queueResponse.summary,
         currentExam,
         suppliesCatalog,
       })
@@ -190,12 +183,6 @@ export function DoctorProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     void refreshAll()
   }, [refreshAll])
-
-  useEffect(() => {
-    if (state.activeRoomCode) {
-      void refreshQueue()
-    }
-  }, [state.activeRoomCode, refreshQueue])
 
   return (
     <DoctorContext.Provider

@@ -69,7 +69,8 @@ describe('DoctorController (e2e)', () => {
       .send({
         patientCode,
         symptoms: 'Răng hàm 46 đau buốt khi nhai',
-        priority: 'Khẩn cấp',
+        priority: 'Ưu tiên',
+        priorityReason: 'Người cao tuổi',
       })
       .expect(201);
     const intakeCode = intakeRes.body.id;
@@ -108,7 +109,8 @@ describe('DoctorController (e2e)', () => {
     expect(queueRes.body.length).toBeGreaterThan(0);
     const queuedPatient = queueRes.body.find((p: any) => p.id === intakeCode);
     expect(queuedPatient).toBeDefined();
-    expect(queuedPatient.priority).toBe('Khẩn cấp');
+    expect(queuedPatient.priority).toBe('Ưu tiên');
+    expect(queuedPatient.priorityReason).toBe('Người cao tuổi');
 
     // 5. As Doctor: Call Next Patient (Step 1)
     const callRes = await request(app.getHttpServer())

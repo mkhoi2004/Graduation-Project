@@ -92,7 +92,8 @@ describe('AppController (e2e)', () => {
       .send({
         patientCode,
         symptoms: 'Đau răng hàm e2e',
-        priority: 'Khẩn cấp',
+        priority: 'Ưu tiên',
+        priorityReason: 'Người cao tuổi',
       })
       .expect(201);
 

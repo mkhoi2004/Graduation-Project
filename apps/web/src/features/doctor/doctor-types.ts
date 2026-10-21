@@ -6,7 +6,7 @@ export interface ClinicRoom {
 }
 
 export interface QueuePatient {
-  stt: number
+  queueNumber: string
   id: string // Intake code (e.g. TN20261018/0001)
   intakeId: number
   patientCode: string
@@ -16,16 +16,44 @@ export interface QueuePatient {
   phone: string
   note: string
   symptoms: string
-  priority: 'Thường' | 'Ưu tiên' | 'Khẩn cấp'
+  priority: 'Thường' | 'Ưu tiên'
+  priorityReason?: string
   roomCode: string
   roomName: string
-  transferredAt: string
+  issuedAt: string
   services: Array<{
     code: string
     name: string
     quantity: number
     unit?: string
   }>
+}
+
+export interface DoctorQueueSummary {
+  businessDate: string
+  roomCode?: string
+  roomName?: string
+  waitingCount: number
+  priorityWaitingCount: number
+  currentCallingNumber?: string
+}
+
+export interface DoctorQueueResponse {
+  queue: QueuePatient[]
+  summary: DoctorQueueSummary
+}
+
+export interface CallNextResponse {
+  nextExaminationId: number | null
+  nextExamination: ExaminationDetail | null
+  queueNumber?: string
+  message: string
+}
+
+export interface MarkAbsentResponse {
+  absentExamination: ExaminationDetail
+  nextExamination: ExaminationDetail | null
+  message: string
 }
 
 export interface MedicalSupplyCatalogItem {
@@ -71,7 +99,7 @@ export interface ExaminationPrintHistoryItem {
 export interface ExaminationDetail {
   id: number
   code: string
-  status: 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED'
+  status: 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'ABSENT'
   isLocked: boolean
   startedAt: string
   completedAt?: string
@@ -88,7 +116,8 @@ export interface ExaminationDetail {
   intake: {
     code: string
     symptoms: string
-    priority: string
+    priority: 'Thường' | 'Ưu tiên'
+    priorityReason?: string
     roomCode: string
     roomName: string
     services: Array<{

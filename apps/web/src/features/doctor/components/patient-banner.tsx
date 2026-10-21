@@ -2,7 +2,6 @@ import { Calendar, Phone, Stethoscope, Clock } from 'lucide-react'
 import type { ExaminationDetail } from '../doctor-types'
 
 export function PatientBanner({ exam }: { exam: ExaminationDetail }) {
-  const isUrgent = exam.intake.priority === 'Khẩn cấp'
   const isPriority = exam.intake.priority === 'Ưu tiên'
 
   return (
@@ -23,15 +22,14 @@ export function PatientBanner({ exam }: { exam: ExaminationDetail }) {
               </span>
               <span
                 className={`rounded-full px-2.5 py-0.5 text-xs font-semibold ${
-                  isUrgent
-                    ? 'bg-red-50 text-red-600 border border-red-200'
-                    : isPriority
+                  isPriority
                       ? 'bg-amber-50 text-amber-700 border border-amber-200'
                       : 'bg-emerald-50 text-emerald-700'
                 }`}
               >
                 Ưu tiên: {exam.intake.priority}
               </span>
+              {exam.intake.priorityReason ? <span className="text-xs text-amber-800">{exam.intake.priorityReason}</span> : null}
               {exam.isLocked && (
                 <span className="rounded-full bg-slate-100 px-2.5 py-0.5 text-xs font-semibold text-slate-700">
                   🔒 Hồ sơ đã khóa (Chỉ đọc)
