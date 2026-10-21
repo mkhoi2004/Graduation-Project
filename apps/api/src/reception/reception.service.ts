@@ -3,6 +3,7 @@ import { PrismaService } from '../infrastructure/database/prisma.service.js';
 import { AccountingService } from '../accounting/accounting.service.js';
 import type { CreatePatientDto, UpdatePatientDto } from './dto/patient.dto.js';
 import type { CreateIntakeDto, UpdateIntakeServicesDto } from './dto/intake.dto.js';
+import type { IntakeFiltersDto } from './dto/queue-actions.dto.js';
 import { clinicDateToDbDate, getClinicTimeParts } from '../common/clinic-time.js';
 import { ReceptionQueueService } from './reception-queue.service.js';
 
@@ -199,12 +200,21 @@ export class ReceptionService {
     };
   }
 
-  async getIntakes() {
+  async getIntakes(filters: IntakeFiltersDto = {}) {
+    const businessDate = filters.date ? clinicDateToDbDate(filters.date) : undefined;
+    const where = {
+      ...(filters.priority ? { priority: filters.priority } : {}),
+      ...(filters.roomCode ? { room: { code: filters.roomCode } } : {}),
+      ...(businessDate ? { queueTicket: { businessDate } } : {}),
+    };
     const intakes = await this.prisma.intake.findMany({
+      where,
       include: {
         patient: true,
         room: true,
         doctor: true,
+        queueTicket: true,
+        _count: { select: { printHistories: true } },
         services: {
           include: { service: true },
         },
@@ -216,6 +226,21 @@ export class ReceptionService {
       orderBy: { createdAt: 'desc' },
     });
 
+    const roomIds = [...new Set(intakes.flatMap((intake) => {
+      const roomId = intake.roomId ?? intake.room?.id;
+      return roomId ? [roomId] : [];
+    }))];
+    const counters = roomIds.length === 0 ? [] : await this.prisma.roomQueueCounter.findMany({
+      where: {
+        roomId: { in: roomIds },
+        ...(businessDate ? { businessDate } : {}),
+      },
+    });
+    const counterMap = new Map(counters.map((counter) => [
+      `${counter.roomId}:${counter.businessDate.toISOString().slice(0, 10)}`,
+      counter.currentNumber,
+    ]));
+
     return intakes.map((intake) => {
       const latestPayment = intake.payments[0];
       return {
@@ -223,12 +248,30 @@ export class ReceptionService {
         patientId: intake.patient.code,
         symptoms: intake.symptoms,
         priority: intake.priority as 'Thường' | 'Ưu tiên',
+        priorityReason: intake.priorityReason ?? undefined,
+        patientName: intake.patient.fullName,
         services: intake.services.map((s) => ({
           serviceId: s.service.code,
           quantity: s.quantity,
         })),
         roomId: intake.room?.code ?? '',
         doctorId: intake.doctor?.username ?? '',
+        doctorName: intake.doctor?.fullName ?? '',
+        roomName: intake.room?.name ?? '',
+        queueNumber: intake.queueTicket
+          ? String(intake.queueTicket.queueNumber).padStart(4, '0')
+          : undefined,
+        queueDate: intake.queueTicket?.businessDate.toISOString().slice(0, 10),
+        queueStatus: intake.queueTicket?.status,
+        currentCallingNumber: intake.queueTicket && (intake.roomId ?? intake.room?.id)
+          ? (() => {
+              const roomId = intake.roomId ?? intake.room!.id;
+              const value = counterMap.get(`${roomId}:${intake.queueTicket.businessDate.toISOString().slice(0, 10)}`);
+              return value ? String(value).padStart(4, '0') : undefined;
+            })()
+          : undefined,
+        printCount: intake._count.printHistories,
+        isCopy: intake._count.printHistories > 1,
         status: intake.status as 'DRAFT' | 'READY' | 'PAID' | 'TRANSFERRED',
         createdAt: intake.createdAt.toISOString(),
         transferredAt: intake.transferredAt ? intake.transferredAt.toISOString() : undefined,
@@ -242,6 +285,151 @@ export class ReceptionService {
           : undefined,
       };
     });
+  }
+
+  async recordIntakePrint(intakeCode: string, actorId?: number) {
+    const intake = await this.prisma.intake.findUnique({
+      where: { code: intakeCode },
+      include: {
+        patient: true,
+        room: true,
+        doctor: true,
+        queueTicket: true,
+        services: { include: { service: true } },
+        payments: { orderBy: { createdAt: 'desc' }, take: 1 },
+      },
+    });
+    if (!intake) throw new NotFoundException(`Không tìm thấy phiếu tiếp nhận ${intakeCode}.`);
+    if (!intake.queueTicket || !intake.room || !intake.doctor) {
+      throw new BadRequestException('Phiếu tiếp nhận chưa được cấp STT nên chưa thể in.');
+    }
+
+    const previousPrints = await this.prisma.intakePrintHistory.count({ where: { intakeId: intake.id } });
+    const isCopy = previousPrints > 0;
+    const queueNumber = String(intake.queueTicket.queueNumber).padStart(4, '0');
+    const printedAt = new Date();
+    const printData = {
+      intakeCode: intake.code,
+      patientCode: intake.patient.code,
+      patientName: intake.patient.fullName,
+      queueNumber,
+      priority: intake.priority as 'Thường' | 'Ưu tiên',
+      priorityReason: intake.priorityReason ?? undefined,
+      roomCode: intake.room.code,
+      roomName: intake.room.name,
+      doctorUsername: intake.doctor.username,
+      doctorName: intake.doctor.fullName,
+      services: intake.services.map((item) => ({
+        code: item.service.code,
+        name: item.service.name,
+        quantity: item.quantity,
+      })),
+      issuedAt: intake.queueTicket.issuedAt,
+      printedAt,
+      isCopy,
+      printCount: previousPrints + 1,
+    };
+
+    await this.prisma.$transaction(async (tx) => {
+      await tx.intakePrintHistory.create({
+        data: {
+          intakeId: intake.id,
+          printedById: actorId,
+          isCopy,
+          contentSnapshot: JSON.stringify(printData),
+        },
+      });
+      await tx.intakeAuditLog.create({
+        data: {
+          intakeId: intake.id,
+          action: isCopy ? 'REPRINTED' : 'PRINTED',
+          actorId,
+          changesJson: JSON.stringify({ queueNumber, printCount: previousPrints + 1 }),
+        },
+      });
+    });
+    return printData;
+  }
+
+  async cancelIntake(intakeCode: string, reason: string, actorId?: number) {
+    const normalizedReason = reason?.trim();
+    if (!normalizedReason) throw new BadRequestException('Lý do hủy phiếu tiếp nhận là bắt buộc.');
+
+    const intake = await this.prisma.intake.findUnique({
+      where: { code: intakeCode },
+      include: {
+        queueTicket: true,
+        examination: true,
+        payments: { where: { status: 'PAID' }, orderBy: { createdAt: 'desc' } },
+      },
+    });
+    if (!intake) throw new NotFoundException(`Không tìm thấy phiếu tiếp nhận ${intakeCode}.`);
+    if (!intake.queueTicket) throw new BadRequestException('Phiếu tiếp nhận chưa có STT để hủy.');
+    if (intake.queueTicket.status !== 'WAITING' || intake.examination) {
+      throw new BadRequestException('Chỉ được hủy phiếu tiếp nhận còn đang chờ và chưa được gọi khám.');
+    }
+
+    const now = new Date();
+    await this.prisma.$transaction(async (tx) => {
+      const changed = await tx.queueTicket.updateMany({
+        where: { id: intake.queueTicket!.id, status: 'WAITING' },
+        data: { status: 'CANCELLED', cancelledAt: now },
+      });
+      if (changed.count !== 1) {
+        throw new BadRequestException('Phiếu đã được xử lý bởi người khác. Vui lòng tải lại danh sách.');
+      }
+      await tx.intake.update({
+        where: { id: intake.id },
+        data: { status: 'CANCELLED_RECEPTION' },
+      });
+      await tx.intakeAuditLog.create({
+        data: {
+          intakeId: intake.id,
+          action: 'CANCELLED',
+          actorId,
+          reason: normalizedReason,
+          changesJson: JSON.stringify({
+            queueNumber: intake.queueTicket!.queueNumber,
+            roomId: intake.queueTicket!.roomId,
+          }),
+        },
+      });
+
+      const paidAmount = intake.payments.reduce((sum, payment) => sum + payment.amount, 0);
+      if (paidAmount > 0) {
+        const key = {
+          sourceType: 'RECEPTION',
+          sourceCode: intake.code,
+          eventType: 'INTAKE_CANCELLED',
+          idempotencyKey: `reception-cancel-${intake.id}`,
+        };
+        await tx.accountingEvent.upsert({
+          where: { sourceType_sourceCode_eventType_idempotencyKey: key },
+          update: {},
+          create: {
+            ...key,
+            payloadJson: JSON.stringify({
+              intakeId: intake.id,
+              intakeCode: intake.code,
+              revenueAmount: 0,
+              supplyCostAmount: 0,
+              rewardAmount: 0,
+              prepaidAmount: paidAmount,
+              prepaymentDisposition: 'PENDING_REFUND_OR_CARRY_FORWARD',
+              reason: normalizedReason,
+            }),
+          },
+        });
+      }
+    });
+
+    return {
+      intakeCode: intake.code,
+      queueNumber: String(intake.queueTicket.queueNumber).padStart(4, '0'),
+      status: 'CANCELLED_RECEPTION',
+      queueStatus: 'CANCELLED',
+      cancelledAt: now.toISOString(),
+    };
   }
 
   async createIntake(dto: CreateIntakeDto, userId?: number) {

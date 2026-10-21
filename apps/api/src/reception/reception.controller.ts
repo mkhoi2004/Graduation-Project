@@ -5,6 +5,7 @@ import { AuthenticatedUser, ReceptionAccessGuard } from './reception-access.guar
 import { ReceptionService } from './reception.service.js';
 import { CreatePatientDto, UpdatePatientDto } from './dto/patient.dto.js';
 import { CreateIntakeDto, UpdateIntakeServicesDto } from './dto/intake.dto.js';
+import { CancelIntakeDto, IntakeFiltersDto } from './dto/queue-actions.dto.js';
 
 @ApiTags('Reception')
 @ApiBearerAuth()
@@ -39,8 +40,8 @@ export class ReceptionController {
 
   @Get('intakes')
   @ApiOperation({ summary: 'Lấy danh sách phiếu tiếp nhận khám' })
-  getIntakes() {
-    return this.service.getIntakes();
+  getIntakes(@Query() filters: IntakeFiltersDto) {
+    return this.service.getIntakes(filters);
   }
 
   @Post('intakes')
@@ -75,6 +76,25 @@ export class ReceptionController {
   @ApiOperation({ summary: 'Bàn giao hồ sơ cho bác sĩ' })
   transferIntake(@Param('code') code: string) {
     return this.service.transferIntake(code);
+  }
+
+  @Post('intakes/:code/print')
+  @ApiOperation({ summary: 'Ghi nhận lần in và lấy dữ liệu phiếu tiếp nhận có STT' })
+  printIntake(
+    @Param('code') code: string,
+    @Req() req: Request & { user?: AuthenticatedUser },
+  ) {
+    return this.service.recordIntakePrint(code, req.user?.sub);
+  }
+
+  @Post('intakes/:code/cancel')
+  @ApiOperation({ summary: 'Hủy phiếu tiếp nhận còn đang chờ, giữ nguyên STT đã cấp' })
+  cancelIntake(
+    @Param('code') code: string,
+    @Body() dto: CancelIntakeDto,
+    @Req() req: Request & { user?: AuthenticatedUser },
+  ) {
+    return this.service.cancelIntake(code, dto.reason, req.user?.sub);
   }
 
   @Delete('patients/:code')

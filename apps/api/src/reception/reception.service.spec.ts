@@ -44,6 +44,20 @@ describe('ReceptionService', () => {
       },
       queueTicket: {
         findUnique: vi.fn(),
+        updateMany: vi.fn(),
+      },
+      roomQueueCounter: {
+        findMany: vi.fn(),
+      },
+      intakePrintHistory: {
+        count: vi.fn(),
+        create: vi.fn(),
+      },
+      intakeAuditLog: {
+        create: vi.fn(),
+      },
+      accountingEvent: {
+        upsert: vi.fn(),
       },
       payment: {
         create: vi.fn().mockResolvedValue({ id: 77 }),
@@ -123,6 +137,162 @@ describe('ReceptionService', () => {
         shiftStart: '08:00',
         shiftEnd: '12:00',
       }]);
+    });
+  });
+
+  describe('queue-enabled intake list', () => {
+    it('filters by date, room and priority and exposes STT/current calling number', async () => {
+      mockPrisma.intake.findMany.mockResolvedValue([{
+        code: 'TNK20262110/0005',
+        symptoms: 'Đau răng',
+        priority: 'Ưu tiên',
+        priorityReason: 'Người cao tuổi',
+        status: 'READY',
+        createdAt: new Date('2026-10-21T01:00:00.000Z'),
+        transferredAt: null,
+        patient: { code: 'MBN0001', fullName: 'Nguyễn Văn A' },
+        room: { id: 2, code: 'room-02', name: 'Phòng 02' },
+        doctor: { username: 'doctor-minh', fullName: 'BS. Minh' },
+        services: [{ service: { code: 'cleaning' }, quantity: 1 }],
+        payments: [],
+        queueTicket: {
+          businessDate: new Date('2026-10-21T00:00:00.000Z'),
+          queueNumber: 5,
+          status: 'WAITING',
+        },
+        _count: { printHistories: 0 },
+      }]);
+      mockPrisma.roomQueueCounter.findMany.mockResolvedValue([{
+        roomId: 2,
+        businessDate: new Date('2026-10-21T00:00:00.000Z'),
+        currentNumber: 3,
+      }]);
+
+      const result = await service.getIntakes({
+        date: '2026-10-21',
+        roomCode: 'room-02',
+        priority: 'Ưu tiên',
+      });
+
+      expect(mockPrisma.intake.findMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: {
+          priority: 'Ưu tiên',
+          room: { code: 'room-02' },
+          queueTicket: { businessDate: new Date('2026-10-21T00:00:00.000Z') },
+        },
+      }));
+      expect(result[0]).toMatchObject({
+        queueNumber: '0005',
+        priorityReason: 'Người cao tuổi',
+        currentCallingNumber: '0003',
+        patientName: 'Nguyễn Văn A',
+      });
+    });
+  });
+
+  describe('recordIntakePrint', () => {
+    const printableIntake = {
+      id: 9,
+      code: 'TNK20262110/0005',
+      symptoms: 'Đau răng',
+      priority: 'Ưu tiên',
+      priorityReason: 'Người cao tuổi',
+      createdAt: new Date('2026-10-21T01:00:00.000Z'),
+      patient: { code: 'MBN0001', fullName: 'Nguyễn Văn A' },
+      room: { code: 'room-02', name: 'Phòng 02' },
+      doctor: { username: 'doctor-minh', fullName: 'BS. Minh' },
+      services: [{ quantity: 1, service: { code: 'cleaning', name: 'Lấy cao răng' } }],
+      payments: [],
+      queueTicket: {
+        businessDate: new Date('2026-10-21T00:00:00.000Z'),
+        queueNumber: 5,
+        status: 'WAITING',
+      },
+    };
+
+    it('keeps the same STT and marks only reprints as copies', async () => {
+      mockPrisma.intake.findUnique.mockResolvedValue(printableIntake);
+      mockPrisma.intakePrintHistory.count
+        .mockResolvedValueOnce(0)
+        .mockResolvedValueOnce(1);
+      mockPrisma.intakePrintHistory.create.mockResolvedValue({ id: 1 });
+
+      const first = await service.recordIntakePrint(printableIntake.code, 10);
+      const second = await service.recordIntakePrint(printableIntake.code, 10);
+
+      expect(first).toMatchObject({ isCopy: false, printCount: 1, queueNumber: '0005' });
+      expect(second).toMatchObject({ isCopy: true, printCount: 2, queueNumber: '0005' });
+      expect(mockPrisma.intakePrintHistory.create).toHaveBeenNthCalledWith(2, expect.objectContaining({
+        data: expect.objectContaining({ isCopy: true }),
+      }));
+    });
+  });
+
+  describe('cancelIntake', () => {
+    const waitingIntake = {
+      id: 9,
+      code: 'TNK20262110/0005',
+      status: 'PAID',
+      examination: null,
+      payments: [{ id: 77, status: 'PAID', amount: 500000 }],
+      queueTicket: {
+        id: 12,
+        status: 'WAITING',
+        queueNumber: 5,
+        roomId: 2,
+        businessDate: new Date('2026-10-21T00:00:00.000Z'),
+      },
+    };
+
+    it('requires a cancellation reason', async () => {
+      await expect(service.cancelIntake(waitingIntake.code, '   ', 10))
+        .rejects.toThrow(BadRequestException);
+    });
+
+    it('cancels only a waiting ticket, retains payment and emits an idempotent accounting event', async () => {
+      mockPrisma.intake.findUnique.mockResolvedValue(waitingIntake);
+      mockPrisma.queueTicket.updateMany.mockResolvedValue({ count: 1 });
+      mockPrisma.intake.update.mockResolvedValue({ ...waitingIntake, status: 'CANCELLED_RECEPTION' });
+      mockPrisma.accountingEvent.upsert.mockResolvedValue({ id: 31 });
+
+      const result = await service.cancelIntake(waitingIntake.code, 'Đổi dịch vụ', 10);
+
+      expect(result).toMatchObject({
+        intakeCode: waitingIntake.code,
+        queueNumber: '0005',
+        status: 'CANCELLED_RECEPTION',
+      });
+      expect(mockPrisma.queueTicket.updateMany).toHaveBeenCalledWith({
+        where: { id: 12, status: 'WAITING' },
+        data: { status: 'CANCELLED', cancelledAt: expect.any(Date) },
+      });
+      expect(mockPrisma.accountingEvent.upsert).toHaveBeenCalledWith(expect.objectContaining({
+        where: {
+          sourceType_sourceCode_eventType_idempotencyKey: {
+            sourceType: 'RECEPTION',
+            sourceCode: waitingIntake.code,
+            eventType: 'INTAKE_CANCELLED',
+            idempotencyKey: 'reception-cancel-9',
+          },
+        },
+        create: expect.objectContaining({
+          payloadJson: expect.stringContaining('"rewardAmount":0'),
+        }),
+      }));
+    });
+
+    it('blocks cancellation after the ticket was called or examination exists', async () => {
+      mockPrisma.intake.findUnique
+        .mockResolvedValueOnce({
+          ...waitingIntake,
+          queueTicket: { ...waitingIntake.queueTicket, status: 'CALLED' },
+        })
+        .mockResolvedValueOnce({ ...waitingIntake, examination: { id: 8 } });
+
+      await expect(service.cancelIntake(waitingIntake.code, 'Không khám', 10))
+        .rejects.toThrow(BadRequestException);
+      await expect(service.cancelIntake(waitingIntake.code, 'Không khám', 10))
+        .rejects.toThrow(BadRequestException);
     });
   });
 
