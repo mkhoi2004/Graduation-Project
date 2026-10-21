@@ -20,6 +20,12 @@ export class CreateIntakeDto {
   @IsString()
   @IsIn(['Thường', 'Ưu tiên'])
   priority?: 'Thường' | 'Ưu tiên';
+
+  @ApiPropertyOptional({ example: 'Người cao tuổi cần được ưu tiên theo dõi' })
+  @IsOptional()
+  @IsString()
+  @MaxLength(500)
+  priorityReason?: string;
 }
 
 export class ServiceSelectionDto {

@@ -12,9 +12,17 @@ function authorizedHeaders(): HeadersInit {
 }
 
 export interface ReceptionMasterData {
+  businessDate: string
   rooms: Array<{ id: string; name: string; description?: string }>
   services: DentalService[]
-  doctors: Array<{ id: string; name: string; specialty: string }>
+  doctors: Array<{
+    id: string
+    name: string
+    specialty: string
+    isOnDuty: boolean
+    assignedRoom?: { id: string; name: string }
+    fallbackRoom?: { id: string; name: string }
+  }>
 }
 
 export async function fetchMasterData(): Promise<ReceptionMasterData> {
@@ -65,8 +73,12 @@ export async function updatePatientApi(patientCode: string, draft: Partial<Patie
   return payload
 }
 
-export async function fetchIntakes(): Promise<Intake[]> {
-  const response = await fetch(`${apiUrl}/reception/intakes`, {
+export async function fetchIntakes(filters: { date?: string; roomCode?: string; priority?: Intake['priority'] } = {}): Promise<Intake[]> {
+  const query = new URLSearchParams()
+  if (filters.date) query.set('date', filters.date)
+  if (filters.roomCode) query.set('roomCode', filters.roomCode)
+  if (filters.priority) query.set('priority', filters.priority)
+  const response = await fetch(`${apiUrl}/reception/intakes${query.size ? `?${query}` : ''}`, {
     headers: authorizedHeaders(),
   })
   if (!response.ok) {
@@ -79,7 +91,8 @@ export async function fetchIntakes(): Promise<Intake[]> {
 export async function createIntakeApi(input: {
   patientCode: string
   symptoms: string
-  priority?: 'Thường' | 'Ưu tiên' | 'Khẩn cấp'
+  priority?: 'Thường' | 'Ưu tiên'
+  priorityReason?: string
 }): Promise<Intake> {
   const response = await fetch(`${apiUrl}/reception/intakes`, {
     method: 'POST',
@@ -98,6 +111,9 @@ export async function updateIntakeServicesApi(
   input: {
     roomCode: string
     doctorUsername: string
+    priority: Intake['priority']
+    priorityReason?: string
+    roomOverrideReason?: string
     services: ServiceSelection[]
   },
 ): Promise<Intake> {
@@ -107,6 +123,9 @@ export async function updateIntakeServicesApi(
     body: JSON.stringify({
       roomCode: input.roomCode,
       doctorUsername: input.doctorUsername,
+      priority: input.priority,
+      priorityReason: input.priorityReason,
+      roomOverrideReason: input.roomOverrideReason,
       services: input.services.map((s) => ({
         serviceCode: s.serviceId,
         quantity: s.quantity,
@@ -117,6 +136,41 @@ export async function updateIntakeServicesApi(
   if (!response.ok) {
     throw new Error(payload.message ?? 'Không thể cập nhật dịch vụ chỉ định.')
   }
+  return payload
+}
+
+export interface IntakePrintData {
+  intakeCode: string
+  patientCode: string
+  patientName: string
+  queueNumber: string
+  priority: Intake['priority']
+  priorityReason?: string
+  roomCode: string
+  roomName: string
+  doctorUsername: string
+  doctorName: string
+  issuedAt: string
+  printedAt: string
+  isCopy: boolean
+  printCount: number
+}
+
+export async function recordIntakePrintApi(intakeCode: string): Promise<IntakePrintData> {
+  const response = await fetch(`${apiUrl}/reception/intakes/${encodeURIComponent(intakeCode)}/print`, {
+    method: 'POST', headers: authorizedHeaders(),
+  })
+  const payload = (await response.json().catch(() => ({}))) as IntakePrintData & { message?: string }
+  if (!response.ok) throw new Error(payload.message ?? 'Không thể ghi nhận lần in phiếu tiếp nhận.')
+  return payload
+}
+
+export async function cancelIntakeApi(intakeCode: string, reason: string) {
+  const response = await fetch(`${apiUrl}/reception/intakes/${encodeURIComponent(intakeCode)}/cancel`, {
+    method: 'POST', headers: authorizedHeaders(), body: JSON.stringify({ reason }),
+  })
+  const payload = (await response.json().catch(() => ({}))) as { message?: string; status: Intake['status']; queueStatus: Intake['queueStatus'] }
+  if (!response.ok) throw new Error(payload.message ?? 'Không thể hủy phiếu tiếp nhận.')
   return payload
 }
 

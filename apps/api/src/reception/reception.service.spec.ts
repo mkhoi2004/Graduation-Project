@@ -377,6 +377,14 @@ describe('ReceptionService', () => {
   });
 
   describe('createIntake', () => {
+    it('requires a reason when creating an Ưu tiên intake', async () => {
+      await expect(service.createIntake({
+        patientCode: 'MBN20261710/0001',
+        symptoms: 'Đau răng',
+        priority: 'Ưu tiên',
+      })).rejects.toThrow(/lý do/i);
+    });
+
     it('creates an intake in DRAFT status linked to a valid patient', async () => {
       mockPrisma.patient.findUnique.mockResolvedValue({
         id: 1,

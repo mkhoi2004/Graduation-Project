@@ -20,7 +20,7 @@ export interface ServiceSelection {
   quantity: number
 }
 
-export type IntakeStatus = 'DRAFT' | 'READY' | 'PAID' | 'TRANSFERRED'
+export type IntakeStatus = 'DRAFT' | 'READY' | 'PAID' | 'TRANSFERRED' | 'CANCELLED_RECEPTION'
 
 export interface IntakePayment {
   method: 'CASH' | 'MOMO'
@@ -33,10 +33,21 @@ export interface Intake {
   id: string
   patientId: string
   symptoms: string
-  priority: 'Thường' | 'Ưu tiên' | 'Khẩn cấp'
+  priority: 'Thường' | 'Ưu tiên'
+  priorityReason?: string
+  roomOverrideReason?: string
   services: ServiceSelection[]
   roomId: string
   doctorId: string
+  doctorName?: string
+  roomName?: string
+  patientName?: string
+  queueNumber?: string
+  queueDate?: string
+  queueStatus?: 'WAITING' | 'CALLED' | 'IN_PROGRESS' | 'COMPLETED' | 'CANCELLED' | 'ABSENT'
+  currentCallingNumber?: string
+  printCount?: number
+  isCopy?: boolean
   status: IntakeStatus
   createdAt: string
   transferredAt?: string
@@ -45,7 +56,7 @@ export interface Intake {
 
 export interface DentalService {
   id: string
-  category: 'Nha khoa cơ bản' | 'Thẩm mỹ & phục hình' | 'Chỉnh nha & Implant'
+  category: string
   name: string
   price: number
   unit: string
@@ -227,7 +238,8 @@ export const demoReceptionData: { patients: Patient[]; intakes: Intake[] } = {
       id: 'TNK20261710/0002',
       patientId: 'MBN20261710/0003',
       symptoms: 'Răng số 8 hàm dưới bên trái sưng tấy, đau nhức dữ dội lan lên thái dương.',
-      priority: 'Khẩn cấp',
+      priority: 'Ưu tiên',
+      priorityReason: 'Đau cấp cần được hỗ trợ',
       services: [
         { serviceId: 'extract-wisdom', quantity: 1 },
         { serviceId: 'cleaning', quantity: 1 },

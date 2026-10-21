@@ -433,6 +433,10 @@ export class ReceptionService {
   }
 
   async createIntake(dto: CreateIntakeDto, userId?: number) {
+    const priorityReason = dto.priorityReason?.trim();
+    if (dto.priority === 'Ưu tiên' && !priorityReason) {
+      throw new BadRequestException('Mức Ưu tiên bắt buộc phải có lý do.');
+    }
     const patient = await this.prisma.patient.findUnique({
       where: { code: dto.patientCode },
     });
@@ -459,6 +463,7 @@ export class ReceptionService {
         patientId: patient.id,
         symptoms: dto.symptoms,
         priority: dto.priority ?? 'Thường',
+        priorityReason: dto.priority === 'Ưu tiên' ? priorityReason : null,
         status: 'DRAFT',
         createdById: userId,
       },
@@ -469,6 +474,7 @@ export class ReceptionService {
       patientId: patient.code,
       symptoms: intake.symptoms,
       priority: intake.priority as 'Thường' | 'Ưu tiên',
+      priorityReason: intake.priorityReason ?? undefined,
       services: [],
       roomId: '',
       doctorId: '',

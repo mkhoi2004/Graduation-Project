@@ -1,12 +1,10 @@
 import { createContext, useCallback, useContext, useEffect, useReducer, type ReactNode } from 'react'
 import {
-  createIntakeApi,
   createPatientApi,
   fetchIntakes,
   fetchPatients,
   payCashApi,
   transferIntakeApi,
-  updateIntakeServicesApi,
   updatePatientApi,
 } from './reception-api'
 import { demoReceptionData, type Intake, type Patient } from './reception-data'
@@ -50,7 +48,11 @@ export function receptionReducer(state: ReceptionState, action: ReceptionAction)
     case 'ADD_INTAKE':
       return { ...state, intakes: [...state.intakes, action.intake] }
     case 'UPDATE_INTAKE':
-      return { ...state, intakes: state.intakes.map((intake) => intake.id === action.intake.id && intake.status !== 'TRANSFERRED' ? action.intake : intake) }
+      return { ...state, intakes: state.intakes.map((intake) => {
+        if (intake.id !== action.intake.id) return intake
+        if (intake.status === 'TRANSFERRED' && action.intake.status !== 'TRANSFERRED') return intake
+        return action.intake
+      }) }
     case 'TRANSFER_INTAKE':
       return {
         ...state,
@@ -118,22 +120,12 @@ export function ReceptionProvider({ children }: { children: ReactNode }) {
         }
         break
       }
-      case 'ADD_INTAKE': {
-        createIntakeApi({
-          patientCode: action.intake.patientId,
-          symptoms: action.intake.symptoms,
-          priority: action.intake.priority,
-        }).catch(console.error)
+      case 'ADD_INTAKE':
+        // NewIntakePage awaits the server response before dispatching this action.
         break
-      }
       case 'UPDATE_INTAKE': {
-        if (action.intake.status === 'READY') {
-          updateIntakeServicesApi(action.intake.id, {
-            roomCode: action.intake.roomId,
-            doctorUsername: action.intake.doctorId,
-            services: action.intake.services,
-          }).catch(console.error)
-        } else if (action.intake.status === 'PAID' && action.intake.payment?.method === 'CASH') {
+        // ServicesPage awaits the atomic save/STT response before dispatching READY.
+        if (action.intake.status === 'PAID' && action.intake.payment?.method === 'CASH') {
           payCashApi(action.intake.id).catch(console.error)
         }
         break

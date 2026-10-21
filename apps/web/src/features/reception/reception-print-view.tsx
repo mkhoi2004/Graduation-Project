@@ -2,7 +2,6 @@ import { useEffect } from 'react'
 import { createPortal } from 'react-dom'
 import { FileSpreadsheet, HeartPulse, Printer, X } from 'lucide-react'
 import { getSession } from '@/lib/auth-session'
-import { triggerPrint } from '@/lib/print-utils'
 import {
   calculateIntakeTotal,
   clinicRooms,
@@ -34,12 +33,14 @@ export function ReceptionPrintView({
   onClose,
   onExportExcel,
   isCopy = false,
+  onConfirmPrint,
 }: {
   patient: Patient
   intake: Intake
   onClose?: () => void
   onExportExcel?: () => void
   isCopy?: boolean
+  onConfirmPrint?: () => Promise<void> | void
 }) {
   const session = getSession()
   const totalAmount = calculateIntakeTotal(intake.services)
@@ -54,9 +55,7 @@ export function ReceptionPrintView({
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [onClose])
 
-  const handlePrint = () => {
-    triggerPrint()
-  }
+  const handlePrint = () => onConfirmPrint?.()
 
   // Security Hash snapshot string
   const hashSeed = `${intake.id}|${patient.id}|${totalAmount}|${intake.createdAt}`
@@ -180,6 +179,7 @@ export function ReceptionPrintView({
                 BẢN SAO
               </div>
             )}
+            {intake.queueNumber ? <div className="mt-3 rounded-2xl border-2 border-[#5546e8] bg-indigo-50 px-4 py-3"><p className="text-xs font-bold uppercase tracking-[0.18em] text-indigo-700">Số thứ tự</p><p className="font-mono text-6xl font-black leading-none text-[#5546e8]">{intake.queueNumber}</p><p className="mt-2 text-sm font-bold">Mức ưu tiên: {intake.priority}</p>{intake.priorityReason ? <p className="mt-1 text-xs text-amber-800">Lý do: {intake.priorityReason}</p> : null}</div> : null}
           </div>
 
           {/* Thông tin bệnh nhân & điều phối */}
@@ -210,15 +210,15 @@ export function ReceptionPrintView({
             </div>
             <div>
               <span className="font-semibold text-slate-900">Mức độ ưu tiên:</span>{' '}
-              <span className="font-medium">{intake.priority}</span>
+              <span className="font-medium">{intake.priority}</span>{intake.priorityReason ? ` — ${intake.priorityReason}` : ''}
             </div>
             <div>
               <span className="font-semibold text-slate-900">Phòng khám chỉ định:</span>{' '}
-              <span className="font-semibold text-slate-900">{room?.name || 'Chưa chỉ định'}</span>
+              <span className="font-semibold text-slate-900">{intake.roomName || room?.name || 'Chưa chỉ định'}</span>
             </div>
             <div>
               <span className="font-semibold text-slate-900">Bác sĩ phụ trách:</span>{' '}
-              <span className="font-semibold text-slate-900">{doctor?.name || 'Chưa chỉ định'}</span>
+              <span className="font-semibold text-slate-900">{intake.doctorName || doctor?.name || 'Chưa chỉ định'}</span>
             </div>
           </div>
 
