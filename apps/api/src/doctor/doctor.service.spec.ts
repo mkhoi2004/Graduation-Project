@@ -4,12 +4,14 @@ import { DoctorService } from './doctor.service.js';
 import type { PrismaService } from '../infrastructure/database/prisma.service.js';
 import type { WarehouseServiceStub } from './stubs/warehouse-stub.service.js';
 import type { AccountingServiceStub } from './stubs/accounting-stub.service.js';
+import type { DoctorQueueService } from './doctor-queue.service.js';
 
 describe('DoctorService', () => {
   let service: DoctorService;
   let mockPrisma: any;
   let mockWarehouseStub: any;
   let mockAccountingStub: any;
+  let mockQueueService: any;
 
   beforeEach(() => {
     mockPrisma = {
@@ -89,80 +91,36 @@ describe('DoctorService', () => {
       enqueueJournalEntry: vi.fn().mockResolvedValue({ id: 1, status: 'PENDING' }),
       enqueueReversal: vi.fn().mockResolvedValue({ eventId: 2, status: 'PENDING' }),
     };
+    mockQueueService = { getQueue: vi.fn(), callNext: vi.fn(), markAbsent: vi.fn() };
 
     service = new DoctorService(
       mockPrisma as unknown as PrismaService,
       mockWarehouseStub as unknown as WarehouseServiceStub,
       mockAccountingStub as unknown as AccountingServiceStub,
+      mockQueueService as unknown as DoctorQueueService,
     );
   });
 
   describe('getWaitingQueue', () => {
-    it('sorts queue by priority (Khẩn cấp > Ưu tiên > Thường) and transferred time', async () => {
-      const now = new Date();
-      mockPrisma.intake.findMany.mockResolvedValue([
-        {
-          id: 1,
-          code: 'TN20261018/0001',
-          priority: 'Thường',
-          transferredAt: new Date(now.getTime() - 10000),
-          createdAt: now,
-          patient: { code: 'BN001', fullName: 'Nguyễn Văn A', dateOfBirth: new Date('1990-01-01'), gender: 'Nam', phone: '0901' },
-          room: { code: 'room-01', name: 'Phòng 01' },
-          services: [],
-        },
-        {
-          id: 2,
-          code: 'TN20261018/0002',
-          priority: 'Khẩn cấp',
-          transferredAt: new Date(now.getTime() - 5000),
-          createdAt: now,
-          patient: { code: 'BN002', fullName: 'Trần Thị B', dateOfBirth: new Date('1995-02-02'), gender: 'Nữ', phone: '0902' },
-          room: { code: 'room-01', name: 'Phòng 01' },
-          services: [],
-        },
-        {
-          id: 3,
-          code: 'TN20261018/0003',
-          priority: 'Ưu tiên',
-          transferredAt: new Date(now.getTime() - 8000),
-          createdAt: now,
-          patient: { code: 'BN003', fullName: 'Lê Văn C', dateOfBirth: new Date('1985-03-03'), gender: 'Nam', phone: '0903' },
-          room: { code: 'room-01', name: 'Phòng 01' },
-          services: [],
-        },
-      ]);
-
-      const queue = await service.getWaitingQueue(1, 'room-01');
-
-      expect(queue).toHaveLength(3);
-      expect(queue[0].id).toBe('TN20261018/0002'); // Khẩn cấp
-      expect(queue[0].priority).toBe('Khẩn cấp');
-      expect(queue[1].id).toBe('TN20261018/0003'); // Ưu tiên
-      expect(queue[2].id).toBe('TN20261018/0001'); // Thường
+    it('delegates to the STT queue service', async () => {
+      mockQueueService.getQueue.mockResolvedValue({ queue: [{ queueNumber: '0001' }], summary: { waitingCount: 1 } });
+      await expect(service.getWaitingQueue(1)).resolves.toMatchObject({ summary: { waitingCount: 1 } });
+      expect(mockQueueService.getQueue).toHaveBeenCalledWith(1);
     });
   });
 
   describe('callNextPatient', () => {
     it('blocks call if doctor already has an IN_PROGRESS examination', async () => {
-      mockPrisma.doctorExamination.findFirst.mockResolvedValue({
-        id: 10,
-        status: 'IN_PROGRESS',
-        doctorId: 1,
-      });
-
-      await expect(service.callNextPatient(1, 'room-01')).rejects.toThrow(BadRequestException);
+      mockQueueService.callNext.mockRejectedValue(new BadRequestException('Bác sĩ đang có bệnh nhân Đang khám.'));
+      await expect(service.callNextPatient(1)).rejects.toThrow(BadRequestException);
     });
 
-    it('throws if queue is empty', async () => {
-      mockPrisma.doctorExamination.findFirst.mockResolvedValue(null);
-      mockPrisma.intake.findMany.mockResolvedValue([]);
-
-      await expect(service.callNextPatient(1, 'room-01')).rejects.toThrow(BadRequestException);
+    it('returns an empty queue response without creating an examination', async () => {
+      mockQueueService.callNext.mockResolvedValue({ nextExaminationId: null, message: 'Không còn bệnh nhân chờ' });
+      await expect(service.callNextPatient(1)).resolves.toEqual({ nextExaminationId: null, nextExamination: null, message: 'Không còn bệnh nhân chờ' });
     });
 
     it('creates examination and marks intake as IN_PROGRESS', async () => {
-      mockPrisma.doctorExamination.findFirst.mockResolvedValue(null);
       const intakeData = {
         id: 100,
         code: 'TN20261018/0001',
@@ -175,13 +133,7 @@ describe('DoctorService', () => {
         room: { code: 'room-01', name: 'Phòng 01' },
         services: [],
       };
-      mockPrisma.intake.findMany.mockResolvedValue([intakeData]);
-      mockPrisma.intake.findUniqueOrThrow.mockResolvedValue(intakeData);
-      mockPrisma.doctorExamination.findMany.mockResolvedValue([]);
-      mockPrisma.doctorExamination.create.mockResolvedValue({
-        id: 77,
-        code: 'PKB20261810/0001',
-      });
+      mockQueueService.callNext.mockResolvedValue({ nextExaminationId: 77, queueNumber: '0001', message: 'Đã gọi STT 0001' });
       mockPrisma.doctorExamination.findUniqueOrThrow.mockResolvedValue({
         id: 77,
         code: 'PKB20261810/0001',
@@ -196,15 +148,39 @@ describe('DoctorService', () => {
         printHistories: [],
       });
 
-      const exam = await service.callNextPatient(1, 'room-01');
+      const result = await service.callNextPatient(1);
 
-      expect(exam.id).toBe(77);
-      expect(mockPrisma.intake.update).toHaveBeenCalledWith(
-        expect.objectContaining({
-          where: { id: 100 },
-          data: { status: 'IN_PROGRESS' },
-        }),
-      );
+      expect(result.nextExamination?.id).toBe(77);
+      expect(result.queueNumber).toBe('0001');
+    });
+  });
+
+  describe('markAbsent', () => {
+    it('records zero revenue/cost and returns the automatically called next examination', async () => {
+      mockQueueService.markAbsent.mockResolvedValue({ absentExaminationId: 41, nextExaminationId: 42, message: 'Đã gọi STT 0004' });
+      mockPrisma.doctorExamination.findUnique.mockResolvedValue({
+        id: 41, code: 'PKB41', patientId: 5, intakeId: 11, doctorId: 7, roomId: 2, completedAt: new Date(),
+        intake: { code: 'TNK11', services: [] },
+      });
+      const detail = (id: number, status: string) => ({
+        id, code: `PKB${id}`, status, isLocked: status === 'ABSENT', startedAt: new Date(), completedAt: status === 'ABSENT' ? new Date() : null,
+        patient: { code: 'MBN1', fullName: 'Bệnh nhân', dateOfBirth: new Date('1990-01-01'), gender: 'Nam', phone: '0901' },
+        room: { code: 'room-02', name: 'Phòng 02' },
+        intake: { code: 'TNK11', symptoms: 'Đau răng', priority: 'Thường', services: [] },
+        supplies: [], result: null, printHistories: [],
+      });
+      mockPrisma.doctorExamination.findUniqueOrThrow
+        .mockResolvedValueOnce(detail(41, 'ABSENT'))
+        .mockResolvedValueOnce(detail(42, 'IN_PROGRESS'));
+
+      const result = await service.markAbsent(41, 7);
+
+      expect(result.absentExamination.status).toBe('ABSENT');
+      expect(result.nextExamination?.id).toBe(42);
+      expect(mockAccountingStub.enqueueJournalEntry).toHaveBeenCalledWith(expect.objectContaining({
+        serviceRevenue: 0, supplyCost: 0, isCancelled: true,
+      }));
+      expect(mockWarehouseStub.deductStock).not.toHaveBeenCalled();
     });
   });
 

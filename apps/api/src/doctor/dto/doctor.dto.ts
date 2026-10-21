@@ -2,14 +2,6 @@ import { ApiProperty, ApiPropertyOptional } from '@nestjs/swagger';
 import { Type } from 'class-transformer';
 import { IsArray, IsInt, IsNotEmpty, IsOptional, IsString, Matches, Max, MaxLength, Min, ValidateNested } from 'class-validator';
 
-export class CallNextPatientDto {
-  @ApiProperty({ example: 'room-01', description: 'Mã phòng khám bác sĩ đang trực' })
-  @IsString()
-  @IsNotEmpty()
-  @MaxLength(50)
-  roomCode!: string;
-}
-
 export class SupplyUsageItemDto {
   @ApiProperty({ example: 12, description: 'Dòng dịch vụ tiếp nhận sử dụng vật tư này' })
   @IsInt()

@@ -3,13 +3,7 @@ import { PrismaService } from '../infrastructure/database/prisma.service.js';
 import { WarehouseServiceStub } from './stubs/warehouse-stub.service.js';
 import { AccountingServiceStub } from './stubs/accounting-stub.service.js';
 import type { CancelExaminationDto, UnlockExaminationDto, UpdateResultDto, UpdateSuppliesDto } from './dto/doctor.dto.js';
-
-function dateStamp(date = new Date()): string {
-  const year = date.getFullYear();
-  const day = String(date.getDate()).padStart(2, '0');
-  const month = String(date.getMonth() + 1).padStart(2, '0');
-  return `${year}${day}${month}`;
-}
+import { DoctorQueueService } from './doctor-queue.service.js';
 
 @Injectable()
 export class DoctorService {
@@ -17,6 +11,7 @@ export class DoctorService {
     private readonly prisma: PrismaService,
     private readonly warehouseStub: WarehouseServiceStub,
     private readonly accountingStub: AccountingServiceStub,
+    private readonly queueService: DoctorQueueService,
   ) {}
 
   /**
@@ -29,64 +24,8 @@ export class DoctorService {
     });
   }
 
-  /**
-   * Bước 1: Lấy danh sách hàng đợi bệnh nhân trạng thái Tiếp nhận (TRANSFERRED)
-   * của phòng mà bác sĩ đang trực.
-   * Ưu tiên sắp xếp: Khẩn cấp > Ưu tiên > Thường, sau đó theo thời gian bàn giao tăng dần.
-   */
-  async getWaitingQueue(doctorId: number, roomCode?: string) {
-    const intakes = await this.prisma.intake.findMany({
-      where: {
-        status: 'TRANSFERRED',
-        doctorId,
-        ...(roomCode ? { room: { code: roomCode } } : {}),
-      },
-      include: {
-        patient: true,
-        room: true,
-        services: {
-          include: { service: true },
-        },
-      },
-      orderBy: { transferredAt: 'asc' },
-    });
-
-    // Sort by Priority: Khẩn cấp (1), Ưu tiên (2), Thường (3)
-    const priorityWeight: Record<string, number> = {
-      'Khẩn cấp': 1,
-      'Ưu tiên': 2,
-      'Thường': 3,
-    };
-
-    return intakes
-      .sort((a, b) => {
-        const weightA = priorityWeight[a.priority] ?? 4;
-        const weightB = priorityWeight[b.priority] ?? 4;
-        if (weightA !== weightB) return weightA - weightB;
-        return (a.transferredAt?.getTime() ?? 0) - (b.transferredAt?.getTime() ?? 0);
-      })
-      .map((item, index) => ({
-        stt: index + 1,
-        id: item.code,
-        intakeId: item.id,
-        patientCode: item.patient.code,
-        patientName: item.patient.fullName,
-        dateOfBirth: item.patient.dateOfBirth.toISOString().split('T')[0],
-        gender: item.patient.gender,
-        phone: item.patient.phone,
-        note: item.patient.note ?? '',
-        symptoms: item.symptoms,
-        priority: item.priority,
-        roomCode: item.room?.code ?? '',
-        roomName: item.room?.name ?? '',
-        transferredAt: item.transferredAt?.toISOString() ?? item.createdAt.toISOString(),
-        services: item.services.map((s) => ({
-          code: s.service.code,
-          name: s.service.name,
-          quantity: s.quantity,
-          unit: s.service.unit,
-        })),
-      }));
+  async getWaitingQueue(doctorId: number) {
+    return this.queueService.getQueue(doctorId);
   }
 
   /**
@@ -126,64 +65,48 @@ export class DoctorService {
    * - CHẶN khi bác sĩ đã có bệnh nhân ở trạng thái Đang khám.
    * - Sau khi gọi: tạo DoctorExamination, cập nhật Intake.status sang IN_PROGRESS.
    */
-  async callNextPatient(doctorId: number, roomCode: string) {
-    // 1. Chặn nếu đã có bệnh nhân Đang khám
-    const ongoing = await this.prisma.doctorExamination.findFirst({
-      where: { doctorId, status: 'IN_PROGRESS' },
+  async callNextPatient(doctorId: number, actorId = doctorId) {
+    const called = await this.queueService.callNext(doctorId, actorId);
+    if (!called.nextExaminationId) return { ...called, nextExamination: null };
+    return { ...called, nextExamination: await this.getExaminationById(called.nextExaminationId) };
+  }
+
+  async markAbsent(examinationId: number, doctorId: number, actorId = doctorId) {
+    const result = await this.queueService.markAbsent(examinationId, doctorId, actorId);
+    const absent = await this.prisma.doctorExamination.findUnique({
+      where: { id: result.absentExaminationId },
+      include: { intake: { include: { services: { include: { service: true } } } } },
     });
-    if (ongoing) {
-      throw new BadRequestException(
-        'Bác sĩ đang có một ca bệnh ở trạng thái Đang khám. Vui lòng Ghi sổ (Hoàn thành hoặc Ngừng khám) trước khi gọi bệnh nhân tiếp theo.',
-      );
-    }
-
-    // 2. Tìm bệnh nhân tiếp theo trong hàng đợi
-    const waitingQueue = await this.getWaitingQueue(doctorId, roomCode);
-    if (!waitingQueue.length) {
-      throw new BadRequestException(`Phòng khám ${roomCode} hiện không còn bệnh nhân nào đang chờ tiếp nhận.`);
-    }
-
-    const nextPatient = waitingQueue[0];
-    const intake = await this.prisma.intake.findUniqueOrThrow({
-      where: { id: nextPatient.intakeId },
-      include: { patient: true, room: true },
+    if (!absent) throw new NotFoundException(`Không tìm thấy ca khám #${examinationId}.`);
+    await this.accountingStub.enqueueJournalEntry({
+      examinationId: absent.id,
+      examinationCode: absent.code,
+      patientId: absent.patientId,
+      intakeId: absent.intakeId,
+      intakeCode: absent.intake.code,
+      doctorId: absent.doctorId,
+      roomId: absent.roomId,
+      completedAt: absent.completedAt ?? new Date(),
+      serviceRevenue: 0,
+      supplyCost: 0,
+      isCancelled: true,
+      serviceLines: absent.intake.services.map((item) => ({
+        intakeServiceId: item.id,
+        serviceId: item.serviceId,
+        serviceType: item.service.serviceType,
+        revenue: 0,
+        taxRate: Number(item.service.defaultTaxRate ?? 0),
+        taxClassification: item.service.taxClassification ?? undefined,
+        supplyCost: 0,
+      })),
     });
-
-    // 3. Sinh mã phiếu khám bệnh PKB
-    const todayPrefix = `PKB${dateStamp()}/`;
-    const existingCodes = await this.prisma.doctorExamination.findMany({
-      where: { code: { startsWith: todayPrefix } },
-      select: { code: true },
-    });
-    const maxSequence = existingCodes
-      .map((item) => Number(item.code.slice(todayPrefix.length)))
-      .filter(Number.isFinite)
-      .reduce((max, val) => Math.max(max, val), 0);
-    const newCode = `${todayPrefix}${String(maxSequence + 1).padStart(4, '0')}`;
-
-    // 4. Tạo ca khám mới trong Transaction
-    const examination = await this.prisma.$transaction(async (tx) => {
-      const created = await tx.doctorExamination.create({
-        data: {
-          code: newCode,
-          intakeId: intake.id,
-          patientId: intake.patientId,
-          doctorId,
-          roomId: intake.roomId ?? 1,
-          status: 'IN_PROGRESS',
-          startedAt: new Date(),
-        },
-      });
-
-      await tx.intake.update({
-        where: { id: intake.id },
-        data: { status: 'IN_PROGRESS' },
-      });
-
-      return created;
-    });
-
-    return this.getExaminationById(examination.id);
+    return {
+      absentExamination: await this.getExaminationById(result.absentExaminationId),
+      nextExamination: result.nextExaminationId
+        ? await this.getExaminationById(result.nextExaminationId)
+        : null,
+      message: result.nextExaminationId ? result.message : 'Không còn bệnh nhân chờ',
+    };
   }
 
   /**

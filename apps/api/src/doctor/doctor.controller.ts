@@ -1,10 +1,9 @@
-import { Body, Controller, Get, Param, ParseIntPipe, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Param, ParseIntPipe, Post, Put, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { AuthenticatedDoctor, DoctorAccessGuard } from './doctor-access.guard.js';
 import { DoctorService } from './doctor.service.js';
 import {
-  CallNextPatientDto,
   CancelExaminationDto,
   UnlockExaminationDto,
   UpdateResultDto,
@@ -28,10 +27,9 @@ export class DoctorController {
   @ApiOperation({ summary: 'Lấy danh sách hàng đợi bệnh nhân trạng thái Tiếp nhận của phòng khám' })
   getWaitingQueue(
     @Req() req: Request & { user?: AuthenticatedDoctor },
-    @Query('roomCode') roomCode?: string,
   ) {
     const doctorId = req.user?.sub ?? 1;
-    return this.service.getWaitingQueue(doctorId, roomCode);
+    return this.service.getWaitingQueue(doctorId);
   }
 
   @Get('current')
@@ -45,10 +43,9 @@ export class DoctorController {
   @ApiOperation({ summary: 'Gọi STT tiếp theo (Bước 1)' })
   callNextPatient(
     @Req() req: Request & { user?: AuthenticatedDoctor },
-    @Body() dto: CallNextPatientDto,
   ) {
     const doctorId = req.user?.sub ?? 1;
-    return this.service.callNextPatient(doctorId, dto.roomCode);
+    return this.service.callNextPatient(doctorId, doctorId);
   }
 
   @Get('supplies')
@@ -103,6 +100,16 @@ export class DoctorController {
     @Body() dto: CancelExaminationDto,
   ) {
     return this.service.cancelExamination(id, dto);
+  }
+
+  @Post('examinations/:id/absent')
+  @ApiOperation({ summary: 'Đánh dấu bệnh nhân vừa gọi Vắng mặt và tự gọi STT kế tiếp' })
+  markAbsent(
+    @Param('id', ParseIntPipe) id: number,
+    @Req() req: Request & { user?: AuthenticatedDoctor },
+  ) {
+    const doctorId = req.user?.sub ?? 1;
+    return this.service.markAbsent(id, doctorId, doctorId);
   }
 
   @Post('examinations/:id/unlock')
