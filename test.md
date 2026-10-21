@@ -1,9 +1,10 @@
-# Báo Cáo Kiểm Thử Hệ Thống Chấm Công & Quản Lý Thời Gian Làm Việc (`/hr`)
+# Báo Cáo Kiểm Thử DentalKhoi ERP
 
 > **Hệ thống:** DentalKhoi ERP (KhoiDent)  
-> **Thời gian thực hiện:** 19/10/2026  
+> **Cập nhật gần nhất:** 21/10/2026
 > **Môi trường:** Node.js v24, MS SQL Server Express 2017+, NestJS, React 19, Vite, TailwindCSS, Prisma ORM v6  
-> **Trạng thái kiểm thử:** ✅ **PASSED (197/197 Tests Passed - 129 API + 68 Web | 100% Tỷ lệ thành công)**
+> **Regression unit/UI hiện tại:** ✅ **228/228 (157 API + 71 Web)**
+> **E2E SQL Server:** ⚠️ **Not tested cho migration hàng chờ** — CSDL cục bộ chưa áp dụng migration `20261021090000_add_reception_doctor_queue`; lần chạy E2E đạt 15 ca cũ và 5 ca lỗi do thiếu bảng/cột mới.
 
 ---
 
@@ -91,4 +92,57 @@
       Tests  68 passed (68)
 ```
 
-**TỔNG CỘNG:** **197 / 197 TESTS PASSED (100% SUCCESS RATE)**
+**Kết quả lịch sử riêng phần HR ngày 19/10/2026:** **197 / 197 TESTS PASSED**
+
+---
+
+## 3. STT Tiếp nhận và Hàng chờ Bác sĩ (`/reception`, `/doctor`)
+
+Quy ước: **PASS (unit/UI)** là đã chạy tự động với mock transaction/UI; **Not tested** là chưa xác nhận trên SQL Server thật. Không quy đổi các ca Not tested thành Pass.
+
+| Mã | Test case | Kết quả chạy ngày 21/10/2026 | Trạng thái |
+| :--- | :--- | :--- | :---: |
+| QUEUE-001 | STT đầu tiên trong ngày/phòng là `0001` | `reception-queue.service.spec.ts` xác nhận số cấp đầu tiên và định dạng 4 chữ số | PASS (unit) |
+| QUEUE-002 | Cấp tăng dần đúng | Bộ đếm hiện hữu tăng từ 5 lên 6 | PASS (unit) |
+| QUEUE-003 | Hai nhân viên lưu TNK cùng phòng đồng thời, không trùng | Có transaction `Serializable`, khóa `UPDLOCK/HOLDLOCK` và unique DB; CSDL test chưa có migration nên chưa chạy race thật | Not tested |
+| QUEUE-004 | Các phòng có dãy STT độc lập | Test tăng bộ đếm một phòng mà không thay đổi phòng khác | PASS (unit) |
+| QUEUE-005 | Qua 23:59:59 reset về `0001` | Logic ngày phòng khám đã test riêng; chưa chạy qua biên ngày với SQL Server | Not tested |
+| QUEUE-006 | Bấm đúp Lưu chỉ nhận một STT | Cùng `intakeId` trả lại ticket đã có | PASS (unit) |
+| QUEUE-007 | Phòng tự điền theo ca bác sĩ | UI tự điền phòng và khóa phân công sau khi cấp STT | PASS (UI) |
+| QUEUE-008 | Bác sĩ ngoài ca: cảnh báo, ghi đè có lý do | Đã cài validation nhưng chưa có test tự động end-to-end | Not tested |
+| QUEUE-009 | Khóa dịch vụ sau khi có STT | Backend từ chối sửa khi đã có queue ticket; UI khóa phân công | PASS (unit/UI) |
+| QUEUE-010 | Làm lại: hủy STT cũ, STT mới cuối hàng, không tái sử dụng | Hủy ticket chờ đã test; chuỗi hủy → tạo TNK mới chưa chạy E2E | Not tested |
+| QUEUE-011 | Hủy TNK đã gọi bị chặn | Chặn cả ticket `CALLED` và TNK đã có examination | PASS (unit) |
+| QUEUE-012 | In phiếu có STT, mức ưu tiên và lý do | UI cho in khi có STT; snapshot backend chứa `0005`, Ưu tiên và lý do | PASS (unit/UI) |
+| QUEUE-013 | In lại giữ STT và có “BẢN SAO” | Hai lần in giữ `0005`, lần 2 có `isCopy=true` | PASS (unit) |
+| QUEUE-014 | Ưu tiên thiếu lý do bị chặn | Backend và form cùng chặn | PASS (unit/UI) |
+| QUEUE-015 | Ưu tiên không đổi STT/thứ tự gọi | Hàng chờ `0001`, `0002`, `0003` giữ nguyên dù `0003` là Ưu tiên | PASS (unit/UI) |
+| QUEUE-016 | Chỉ có hai mức Thường/Ưu tiên | Form chỉ có đúng hai option; mã nguồn API/Web không còn dữ liệu mức cũ | PASS (UI/static) |
+| QUEUE-017 | Hàng chờ tăng theo STT, Ưu tiên tô nổi bật và có tổng số | UI xác nhận thứ tự và thông báo “Có 1 bệnh nhân ưu tiên đang chờ” | PASS (UI) |
+| QUEUE-018 | Gọi STT tiếp theo thuần theo STT | Service gọi ticket chờ nhỏ nhất; không dùng mức ưu tiên trong điều kiện chọn | PASS (unit) |
+| QUEUE-019 | Bác sĩ chỉ gọi bệnh nhân gán cho mình/phòng mình | Query lọc `doctorId`, ngày và ticket chờ; chưa xác nhận trên SQL Server | PASS (unit) |
+| QUEUE-020 | Hai bác sĩ cùng bấm đồng thời, không gọi trùng | Có update có điều kiện trong transaction; chưa chạy race thật trên SQL Server | Not tested |
+| QUEUE-021 | Chặn Gọi khi bác sĩ đang khám | Service và nút UI cùng chặn | PASS (unit/UI) |
+| QUEUE-022 | Không còn bệnh nhân chờ | Trả đúng “Không còn bệnh nhân chờ”, không update ticket | PASS (unit/UI) |
+| QUEUE-023 | Vắng mặt: xác nhận, tự gọi kế tiếp, STT không tái sử dụng | Service chuyển `ABSENT`, gọi `0004` sau `0003`; UI có modal xác nhận | PASS (unit/UI) |
+| QUEUE-024 | Vắng mặt sau khi có dữ liệu khám bị chặn | Service yêu cầu dùng Ngừng khám khi đã có VTYT/kết quả/in | PASS (unit) |
+| QUEUE-025 | Vắng mặt có thu trước xử lý như Ngừng khám, không thưởng | Đã cài outbox doanh thu/giá vốn/thưởng bằng 0; chưa chạy đối soát Kế toán E2E | Not tested |
+| QUEUE-026 | Sửa STT thủ công bị chặn | Không có trường nhập/sửa STT và DTO không nhận STT; chưa thử payload phá hoại E2E | Not tested |
+| QUEUE-027 | Hết `9999` bị chặn, không quay vòng | Service trả lỗi khi bộ đếm đạt 9999 | PASS (unit) |
+| QUEUE-028 | Phân quyền Tiếp nhận/Bác sĩ/Admin | Decorator/guard đã gắn; E2E endpoint mới chưa chạy sau migration | Not tested |
+| QUEUE-029 | “STT đang gọi” ở `/doctor` và tab Phiếu tiếp nhận | Response reception và doctor UI cùng hiển thị số đang gọi | PASS (unit/UI) |
+
+### 3.1. Lệnh xác minh đã chạy
+
+```text
+apps/api: npm test -- --reporter=dot     -> 17 files, 157 tests passed
+apps/api: npm run build                  -> passed
+apps/web: npm test -- --reporter=dot     -> 14 files, 71 tests passed
+apps/web: npm run build                  -> passed
+apps/api: npm run test:e2e -- --reporter=dot
+          -> 15 passed, 5 failed; nguyên nhân trực tiếp: SQL Server chưa có QueueTicket và Intake.priorityReason
+apps/api: npm run test:e2e -- queue-concurrency.e2e-spec.ts
+          -> 2 skipped; chỉ chạy khi QUEUE_E2E_ENABLED=1 và DATABASE_URL trỏ tới DB có tên test/e2e
+```
+
+Migration cần áp dụng trước khi chạy lại E2E: `apps/api/prisma/migrations/20261021090000_add_reception_doctor_queue/migration.sql`.

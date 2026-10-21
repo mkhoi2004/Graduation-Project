@@ -1,10 +1,11 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { Prisma } from '@prisma/client';
 import { PrismaService } from '../infrastructure/database/prisma.service.js';
 import { AccountingService } from '../accounting/accounting.service.js';
 import type { CreatePatientDto, UpdatePatientDto } from './dto/patient.dto.js';
 import type { CreateIntakeDto, UpdateIntakeServicesDto } from './dto/intake.dto.js';
 import type { IntakeFiltersDto } from './dto/queue-actions.dto.js';
-import { clinicDateToDbDate, getClinicTimeParts } from '../common/clinic-time.js';
+import { clinicDateToDbDate, getClinicTimeParts, isClinicShiftActive, previousClinicDate } from '../common/clinic-time.js';
 import { ReceptionQueueService } from './reception-queue.service.js';
 
 function dateStamp(date = new Date()): string {
@@ -25,6 +26,7 @@ export class ReceptionService {
   async getMasterData(now = new Date()) {
     const clinicNow = getClinicTimeParts(now);
     const businessDate = clinicDateToDbDate(clinicNow.date);
+    const previousBusinessDate = clinicDateToDbDate(previousClinicDate(clinicNow.date));
     const [rooms, services, doctorUsers] = await Promise.all([
       this.prisma.clinicRoom.findMany({
         where: { isActive: true },
@@ -44,9 +46,10 @@ export class ReceptionService {
             select: {
               room: { select: { code: true, name: true } },
               shiftAssignments: {
-                where: { date: businessDate },
+                where: { date: { in: [businessDate, previousBusinessDate] } },
                 select: {
                   id: true,
+                  date: true,
                   room: { select: { code: true, name: true } },
                   shift: { select: { name: true, startTime: true, endTime: true } },
                 },
@@ -71,7 +74,9 @@ export class ReceptionService {
       doctors: doctorUsers.map((d) => {
         const activeShift = [...(d.employee?.shiftAssignments ?? [])]
           .filter((assignment) =>
-            assignment.shift.startTime <= clinicNow.time && clinicNow.time < assignment.shift.endTime,
+            isClinicShiftActive(
+              assignment.date, assignment.shift.startTime, assignment.shift.endTime, clinicNow.date, clinicNow.time,
+            ),
           )
           .sort((a, b) =>
             b.shift.startTime.localeCompare(a.shift.startTime) || b.id - a.id,
@@ -385,7 +390,7 @@ export class ReceptionService {
       await tx.intakeAuditLog.create({
         data: {
           intakeId: intake.id,
-          action: 'CANCELLED',
+          action: 'QUEUE_CANCELLED',
           actorId,
           reason: normalizedReason,
           changesJson: JSON.stringify({
@@ -486,9 +491,15 @@ export class ReceptionService {
   async updateIntakeServices(intakeCode: string, dto: UpdateIntakeServicesDto, actorId?: number) {
     const clinicNow = getClinicTimeParts();
     const businessDate = clinicDateToDbDate(clinicNow.date);
+    const previousBusinessDate = clinicDateToDbDate(previousClinicDate(clinicNow.date));
     const intake = await this.prisma.intake.findUnique({
       where: { code: intakeCode },
-      include: { services: true, queueTicket: true },
+      include: {
+        room: true,
+        doctor: true,
+        services: { include: { service: true } },
+        queueTicket: true,
+      },
     });
     if (!intake) {
       throw new NotFoundException(`Không tìm thấy phiếu tiếp nhận ${intakeCode}.`);
@@ -497,9 +508,8 @@ export class ReceptionService {
       throw new BadRequestException('Hồ sơ đã bàn giao cho bác sĩ, không thể sửa đổi dịch vụ.');
     }
     if (intake.queueTicket) {
-      throw new BadRequestException(
-        'Phiếu tiếp nhận đã được cấp STT; không thể sửa dịch vụ, bác sĩ, phòng hoặc mức ưu tiên. Vui lòng hủy và làm lại.',
-      );
+      if (this.isSameQueuedRequest(intake, dto)) return this.getIntakeByCode(intakeCode);
+      throw new BadRequestException('Phiếu tiếp nhận đã được cấp STT; không thể sửa dịch vụ, bác sĩ, phòng hoặc mức ưu tiên. Vui lòng hủy và làm lại.');
     }
     if (dto.priority === 'Ưu tiên' && !dto.priorityReason?.trim()) {
       throw new BadRequestException('Mức Ưu tiên bắt buộc phải có lý do.');
@@ -519,7 +529,7 @@ export class ReceptionService {
         employee: {
           include: {
             shiftAssignments: {
-              where: { date: businessDate },
+              where: { date: { in: [businessDate, previousBusinessDate] } },
               include: { room: true, shift: true },
             },
           },
@@ -530,11 +540,12 @@ export class ReceptionService {
       throw new NotFoundException(`Không tìm thấy bác sĩ với tài khoản ${dto.doctorUsername}.`);
     }
 
-    const activeAssignment = [...(doctor.employee?.shiftAssignments ?? [])]
-      .filter((assignment) =>
-        assignment.shift.startTime <= clinicNow.time && clinicNow.time < assignment.shift.endTime,
-      )
-      .sort((a, b) => b.shift.startTime.localeCompare(a.shift.startTime) || b.id - a.id)[0];
+    const activeAssignments = [...(doctor.employee?.shiftAssignments ?? [])]
+      .filter((assignment) => isClinicShiftActive(
+        assignment.date, assignment.shift.startTime, assignment.shift.endTime, clinicNow.date, clinicNow.time,
+      ))
+      .sort((a, b) => b.shift.startTime.localeCompare(a.shift.startTime) || b.id - a.id);
+    const activeAssignment = activeAssignments[0];
     if (activeAssignment?.room?.code && activeAssignment.room.code !== dto.roomCode) {
       throw new BadRequestException(
         `Phòng khám phải theo ca trực hiện tại của bác sĩ (${activeAssignment.room.name}).`,
@@ -556,51 +567,122 @@ export class ReceptionService {
 
     const serviceMap = new Map(dentalServices.map((s) => [s.code, s]));
 
-    await this.prisma.$transaction(async (tx) => {
-      // Delete old services
-      await tx.intakeService.deleteMany({
-        where: { intakeId: intake.id },
-      });
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        await this.prisma.$transaction(async (tx) => {
+          const current = await tx.intake.findUnique({
+            where: { id: intake.id },
+            include: {
+              room: true,
+              doctor: true,
+              services: { include: { service: true } },
+              queueTicket: true,
+            },
+          });
+          if (!current) throw new NotFoundException(`Không tìm thấy phiếu tiếp nhận ${intakeCode}.`);
+          if (current.queueTicket) {
+            if (this.isSameQueuedRequest(current, dto)) return;
+            throw new BadRequestException('Phiếu tiếp nhận đã được cấp STT; không thể thay đổi dữ liệu. Vui lòng hủy và làm lại.');
+          }
 
-      // Create new services
-      for (const item of dto.services) {
-        const service = serviceMap.get(item.serviceCode)!;
-        await tx.intakeService.create({
-          data: {
-            intakeId: intake.id,
-            serviceId: service.id,
-            quantity: item.quantity,
-            unitPrice: service.price,
-            amount: service.price * item.quantity,
-          },
-        });
+          await tx.intakeService.deleteMany({
+            where: { intakeId: intake.id },
+          });
+
+          for (const item of dto.services) {
+            const service = serviceMap.get(item.serviceCode)!;
+            await tx.intakeService.create({
+              data: {
+                intakeId: intake.id,
+                serviceId: service.id,
+                quantity: item.quantity,
+                unitPrice: service.price,
+                amount: service.price * item.quantity,
+              },
+            });
+          }
+
+          const nextStatus = current.status === 'PAID' ? 'PAID' : 'READY';
+          await tx.intake.update({
+            where: { id: intake.id },
+            data: {
+              roomId: room.id,
+              doctorId: doctor.id,
+              priority: dto.priority,
+              priorityReason: dto.priority === 'Ưu tiên' ? dto.priorityReason?.trim() : null,
+              roomOverrideReason: !activeAssignment ? dto.roomOverrideReason?.trim() : null,
+              status: nextStatus,
+            },
+          });
+
+          if (dto.priority === 'Ưu tiên') {
+            await tx.intakeAuditLog.create({
+              data: {
+                intakeId: intake.id,
+                action: 'PRIORITY_SET',
+                actorId,
+                reason: dto.priorityReason?.trim(),
+              },
+            });
+          }
+          if (!activeAssignment) {
+            await tx.intakeAuditLog.create({
+              data: {
+                intakeId: intake.id,
+                action: 'ROOM_OVERRIDE',
+                actorId,
+                reason: dto.roomOverrideReason?.trim(),
+                changesJson: JSON.stringify({ roomId: room.id, doctorId: doctor.id }),
+              },
+            });
+          }
+          if (activeAssignments.length > 1) {
+            await tx.intakeAuditLog.create({
+              data: {
+                intakeId: intake.id,
+                action: 'SHIFT_OVERLAP_RESOLVED',
+                actorId,
+                changesJson: JSON.stringify({
+                  candidateAssignmentIds: activeAssignments.map((assignment) => assignment.id),
+                  selectedAssignmentId: activeAssignment?.id,
+                  selectedRoomId: activeAssignment?.roomId,
+                }),
+              },
+            });
+          }
+
+          if (!this.queueService) throw new Error('ReceptionQueueService chưa được cấu hình.');
+          await this.queueService.issueTicket(
+            { intakeId: intake.id, roomId: room.id, businessDate: clinicNow.date },
+            actorId,
+            tx,
+          );
+        }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+        break;
+      } catch (error) {
+        const retryable = error instanceof Prisma.PrismaClientKnownRequestError &&
+          (error.code === 'P2002' || error.code === 'P2034');
+        if (!retryable || attempt === 2) throw error;
       }
-
-      // Update intake
-      const nextStatus = intake.status === 'PAID' ? 'PAID' : 'READY';
-      await tx.intake.update({
-        where: { id: intake.id },
-        data: {
-          roomId: room.id,
-          doctorId: doctor.id,
-          priority: dto.priority,
-          priorityReason: dto.priority === 'Ưu tiên' ? dto.priorityReason?.trim() : null,
-          roomOverrideReason: !activeAssignment ? dto.roomOverrideReason?.trim() : null,
-          status: nextStatus,
-        },
-      });
-
-      if (!this.queueService) {
-        throw new Error('ReceptionQueueService chưa được cấu hình.');
-      }
-      await this.queueService.issueTicket(
-        { intakeId: intake.id, roomId: room.id, businessDate: clinicNow.date },
-        actorId,
-        tx,
-      );
-    });
+    }
 
     return this.getIntakeByCode(intakeCode);
+  }
+
+  private isSameQueuedRequest(intake: any, dto: UpdateIntakeServicesDto) {
+    const requestedServices = dto.services
+      .map((item) => `${item.serviceCode}:${item.quantity}`)
+      .sort();
+    const storedServices = (intake.services ?? [])
+      .map((item: any) => `${item.service.code}:${item.quantity}`)
+      .sort();
+    return intake.room?.code === dto.roomCode &&
+      intake.doctor?.username === dto.doctorUsername &&
+      intake.priority === dto.priority &&
+      (intake.priorityReason ?? null) === (dto.priority === 'Ưu tiên' ? dto.priorityReason?.trim() || null : null) &&
+      (intake.roomOverrideReason ?? null) === (dto.roomOverrideReason?.trim() || null) &&
+      requestedServices.length === storedServices.length &&
+      requestedServices.every((value, index) => value === storedServices[index]);
   }
 
   async payCash(intakeCode: string, cashierId?: number) {

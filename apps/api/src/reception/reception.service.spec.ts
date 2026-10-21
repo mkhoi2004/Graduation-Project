@@ -114,6 +114,7 @@ describe('ReceptionService', () => {
             room: { code: 'room-02', name: 'Phòng 02' },
             shiftAssignments: [{
               id: 9,
+              date: new Date('2026-10-21T00:00:00.000Z'),
               room: { code: 'room-01', name: 'Phòng 01' },
               shift: { name: 'Ca sáng', startTime: '08:00', endTime: '12:00' },
             }],
@@ -531,6 +532,39 @@ describe('ReceptionService', () => {
           services: [{ serviceCode: 'filling', quantity: 1 }],
         }),
       ).rejects.toThrow('đã được cấp STT');
+    });
+
+    it('returns the existing ticket for an identical save replay', async () => {
+      mockPrisma.intake.findUnique.mockResolvedValue({
+        id: 1,
+        code: 'TNK20261710/0001',
+        status: 'READY',
+        priority: 'Ưu tiên',
+        priorityReason: 'Người cao tuổi',
+        roomOverrideReason: null,
+        room: { code: 'room-01' },
+        doctor: { username: 'doctor-minh' },
+        services: [{ quantity: 1, service: { code: 'cleaning' } }],
+        queueTicket: { queueNumber: 1 },
+      });
+      mockPrisma.intake.findUniqueOrThrow.mockResolvedValue({
+        id: 1, code: 'TNK20261710/0001', status: 'READY', symptoms: 'Đau răng',
+        priority: 'Ưu tiên', priorityReason: 'Người cao tuổi', roomOverrideReason: null,
+        createdAt: new Date('2026-10-21'), patient: { code: 'MBN1' },
+        room: { code: 'room-01' }, doctor: { username: 'doctor-minh' },
+        services: [{ quantity: 1, service: { code: 'cleaning' } }],
+        queueTicket: { queueNumber: 1, businessDate: new Date('2026-10-21'), status: 'WAITING' },
+        payments: [],
+      });
+
+      const result = await service.updateIntakeServices('TNK20261710/0001', {
+        roomCode: 'room-01', doctorUsername: 'doctor-minh', priority: 'Ưu tiên',
+        priorityReason: 'Người cao tuổi', services: [{ serviceCode: 'cleaning', quantity: 1 }],
+      });
+
+      expect(result.queueNumber).toBe('0001');
+      expect(mockPrisma.intakeService.deleteMany).not.toHaveBeenCalled();
+      expect(mockQueue.issueTicket).not.toHaveBeenCalled();
     });
   });
 

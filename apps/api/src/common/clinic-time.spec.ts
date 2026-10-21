@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { clinicDateToDbDate, getClinicBusinessDate, getClinicTimeParts } from './clinic-time.js';
+import { clinicDateToDbDate, getClinicBusinessDate, getClinicTimeParts, isClinicShiftActive } from './clinic-time.js';
 
 describe('clinic time in Asia/Ho_Chi_Minh', () => {
   it('changes the business date exactly at midnight in the clinic timezone', () => {
@@ -17,5 +17,12 @@ describe('clinic time in Asia/Ho_Chi_Minh', () => {
   it('stores a business date as a stable UTC date-only value', () => {
     expect(clinicDateToDbDate('2026-10-21').toISOString()).toBe('2026-10-21T00:00:00.000Z');
     expect(() => clinicDateToDbDate('21/10/2026')).toThrow('Ngày nghiệp vụ không hợp lệ');
+  });
+
+  it('recognizes an overnight shift on both sides of midnight', () => {
+    const date = new Date('2026-10-20T00:00:00.000Z');
+    expect(isClinicShiftActive(date, '21:00', '08:00', '2026-10-20', '22:00')).toBe(true);
+    expect(isClinicShiftActive(date, '21:00', '08:00', '2026-10-21', '07:59')).toBe(true);
+    expect(isClinicShiftActive(date, '21:00', '08:00', '2026-10-21', '08:00')).toBe(false);
   });
 });

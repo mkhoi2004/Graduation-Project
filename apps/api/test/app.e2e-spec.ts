@@ -108,6 +108,9 @@ describe('AppController (e2e)', () => {
       .send({
         roomCode: masterRes.body.rooms[0].id,
         doctorUsername: masterRes.body.doctors[0].id,
+        priority: 'Ưu tiên',
+        priorityReason: 'Người cao tuổi',
+        roomOverrideReason: 'Kiểm thử E2E ngoài ca trực',
         services: [{ serviceCode: masterRes.body.services[0].id, quantity: 2 }],
       })
       .expect(200);

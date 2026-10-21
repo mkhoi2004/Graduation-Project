@@ -40,3 +40,24 @@ export function clinicDateToDbDate(date: string): Date {
   return value;
 }
 
+export function previousClinicDate(date: string): string {
+  const value = clinicDateToDbDate(date);
+  value.setUTCDate(value.getUTCDate() - 1);
+  return value.toISOString().slice(0, 10);
+}
+
+export function isClinicShiftActive(
+  assignmentDate: Date,
+  startTime: string,
+  endTime: string,
+  clinicDate: string,
+  clinicTime: string,
+): boolean {
+  const assignedDate = assignmentDate.toISOString().slice(0, 10);
+  if (startTime < endTime) {
+    return assignedDate === clinicDate && startTime <= clinicTime && clinicTime < endTime;
+  }
+  return (assignedDate === clinicDate && clinicTime >= startTime) ||
+    (assignedDate === previousClinicDate(clinicDate) && clinicTime < endTime);
+}
+

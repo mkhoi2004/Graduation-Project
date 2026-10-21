@@ -32,7 +32,8 @@ Phòng khám có 3 nhân sự tiếp nhận phân bổ tại các quầy đón t
 ### 3.2. Mở phiếu tiếp nhận khám bệnh
 - Tạo lượt khám tiếp nhận cho bệnh nhân:
   - Hệ thống tự động sinh **Mã tiếp nhận**: `TN-YYYYMMDD/XXXX` (ví dụ: `TN-20261019/0001`).
-  - Ghi nhận triệu chứng ban đầu, mức độ ưu tiên (Bình thường / Cấp cứu), phòng khám và bác sĩ phụ trách.
+  - Ghi nhận triệu chứng ban đầu và chọn đúng một trong hai mức **Thường** (mặc định) hoặc **Ưu tiên**. Không có mức thứ ba; chọn Ưu tiên bắt buộc nhập/chọn lý do.
+  - Chọn bác sĩ đang trực theo phân ca HR; phòng khám tự điền từ ca trực và chỉ đọc. Nếu bác sĩ chưa có ca hôm nay, hệ thống cảnh báo và chỉ cho chọn phòng thủ công khi đã nhập lý do ghi đè.
   - Một bệnh nhân có thể có nhiều lượt tiếp nhận ở các ngày khác nhau.
 - **Phân trang:** Cố định **10 dòng / trang** trên bảng danh sách lượt tiếp nhận trong ngày.
 
@@ -66,8 +67,10 @@ Bảng giá dịch vụ niêm yết tại DentalKhoi:
 | Niềng răng mắc cài sứ / tự buộc | 50.000.000 VNĐ | 2 hàm |
 | Niềng răng khay trong suốt | 70.000.000 VNĐ | 2 hàm |
 
-- Có chức năng điều chỉnh, xóa dịch vụ đã chọn khi ca chưa thanh toán.
-- Mỗi dịch vụ được gắn với phòng khám và bác sĩ phụ trách điều trị.
+- Một TNK chỉ thuộc một phòng, một bác sĩ và một STT; mọi dịch vụ trong TNK dùng cùng phân công đó.
+- Khi lưu TNK đã có dịch vụ, bác sĩ và phòng hợp lệ, backend tự cấp STT `0001`–`9999` theo phòng/ngày. Nhân viên không được nhập hoặc sửa STT.
+- Sau khi đã cấp STT, khóa dịch vụ, bác sĩ, phòng và mức ưu tiên. Muốn thay đổi phải **hủy TNK còn chờ có lý do và làm lại TNK mới**; STT cũ không tái sử dụng.
+- Danh sách Phiếu tiếp nhận hiển thị/lọc theo ngày, phòng, mức ưu tiên và có các cột STT, ưu tiên, phòng, bác sĩ, trạng thái; đồng thời hiển thị **STT đang gọi** của từng phòng.
 
 ### 3.4. Thu tiền & Cổng thanh toán MoMo QR
 - **Thu tiền mặt tại quầy:** Nhân viên thu tiền mặt, hệ thống cập nhật trạng thái `isPaid = true` và tự động đẩy bút toán thu tiền mặt sang sổ quỹ Kế toán (`CashLedger`).
@@ -76,9 +79,11 @@ Bảng giá dịch vụ niêm yết tại DentalKhoi:
 ### 3.5. In Phiếu Thu Tiền Chuẩn A5
 - In phiếu thu tiền khám dịch vụ khổ A5 chuyên nghiệp giao cho người bệnh.
 - Hệ thống lưu vết nhật ký in (`print_log`); in lần thứ 2 trở đi tự động đóng dấu **"BẢN SAO"**.
+- Phiếu tiếp nhận có STT 4 chữ số in lớn, mức Thường/Ưu tiên (kèm lý do nếu Ưu tiên), phòng, bác sĩ, mã TNK, MBN, họ tên và ngày giờ. In lại giữ nguyên STT và ghi người/giờ in.
 
 ### 3.6. Bàn Giao Ca Sang Bác Sĩ & Hưởng Thưởng 5%
-- Nhân viên bấm nút **Bàn giao cho bác sĩ**, chuyển trạng thái lượt khám sang `TRANSFERRED` để bệnh nhân xuất hiện trong hàng đợi của bác sĩ tương ứng.
+- Khi TNK hợp lệ được chuyển sang hàng chờ, bệnh nhân xuất hiện theo STT tại `/doctor`; mức Ưu tiên chỉ được đánh dấu, không tự chen hàng.
+- Nhân viên được hủy TNK khi còn chờ với lý do bắt buộc. Không được hủy TNK đã gọi; mọi thao tác cấp/hủy/in STT được lưu audit log.
 - **Thưởng hoa hồng dịch vụ 5% Lễ tân:** Khi Bác sĩ điều trị kết thúc ca khám (Hoàn thành), hệ thống tự động ghi nhận khoản thưởng **5% doanh thu** của dịch vụ do nhân viên tiếp nhận này chỉ định, chuyển sang phân hệ Nhân sự (`/hr`) để tổng hợp vào bảng lương tháng.
 
 ---

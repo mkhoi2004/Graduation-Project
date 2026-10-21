@@ -136,13 +136,23 @@ INSERT INTO [dbo].[RoomQueueCounter] (
     [businessDate], [roomId], [lastIssuedNumber], [currentTicketId], [currentNumber], [createdAt], [updatedAt]
 )
 SELECT
-    q.[businessDate], q.[roomId], MAX(q.[queueNumber]),
-    MAX(CASE WHEN q.[status] = 'CALLED' THEN q.[id] END),
-    MAX(CASE WHEN q.[status] = 'CALLED' THEN q.[queueNumber] END),
+    q.[businessDate], q.[roomId], q.[lastIssuedNumber],
+    currentCall.[id], currentCall.[queueNumber],
     SYSUTCDATETIME(), SYSUTCDATETIME()
-FROM [dbo].[QueueTicket] q
-WHERE q.[businessDate] = @businessDate
-GROUP BY q.[businessDate], q.[roomId];
+FROM (
+    SELECT [businessDate], [roomId], MAX([queueNumber]) AS [lastIssuedNumber]
+    FROM [dbo].[QueueTicket]
+    WHERE [businessDate] = @businessDate
+    GROUP BY [businessDate], [roomId]
+) q
+OUTER APPLY (
+    SELECT TOP (1) called.[id], called.[queueNumber]
+    FROM [dbo].[QueueTicket] called
+    WHERE called.[businessDate] = q.[businessDate]
+      AND called.[roomId] = q.[roomId]
+      AND called.[status] = 'CALLED'
+    ORDER BY called.[calledAt] DESC, called.[id] DESC
+) currentCall;
 
 COMMIT TRAN;
 

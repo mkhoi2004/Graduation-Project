@@ -23,6 +23,12 @@ describe('DoctorService', () => {
         findUniqueOrThrow: vi.fn(),
         update: vi.fn(),
       },
+      queueTicket: {
+        updateMany: vi.fn(),
+      },
+      roomQueueCounter: {
+        updateMany: vi.fn(),
+      },
       doctorExamination: {
         findFirst: vi.fn(),
         findUnique: vi.fn(),
@@ -262,6 +268,7 @@ describe('DoctorService', () => {
         intake: {
           code: 'TN001',
           services: [{ id: 11, serviceId: 21, amount: 400000, service: { serviceType: 'TREATMENT', taxClassification: null, defaultTaxRate: null } }],
+          queueTicket: { id: 71, businessDate: new Date('2026-10-21'), roomId: 40 },
         },
         supplies: [
           { supplyId: 1, intakeServiceId: 11, costPriceSnapshot: 2000, quantityInBaseUnit: 2 },
@@ -298,6 +305,13 @@ describe('DoctorService', () => {
         roomId: 40,
         serviceLines: [expect.objectContaining({ intakeServiceId: 11, serviceId: 21, revenue: 400000, supplyCost: 4000 })],
       }));
+      expect(mockPrisma.queueTicket.updateMany).toHaveBeenCalledWith({
+        where: { id: 71, status: 'CALLED' }, data: { status: 'COMPLETED' },
+      });
+      expect(mockPrisma.roomQueueCounter.updateMany).toHaveBeenCalledWith(expect.objectContaining({
+        where: expect.objectContaining({ currentTicketId: 71 }),
+        data: { currentTicketId: null, currentNumber: null },
+      }));
       expect(res.status).toBe('COMPLETED');
     });
   });
@@ -314,7 +328,11 @@ describe('DoctorService', () => {
         patientId: 20,
         doctorId: 30,
         roomId: 40,
-        intake: { code: 'TN001', services: [{ id: 11, serviceId: 21, amount: 400000, service: { serviceType: 'TREATMENT', taxClassification: null, defaultTaxRate: null } }] },
+        intake: {
+          code: 'TN001',
+          services: [{ id: 11, serviceId: 21, amount: 400000, service: { serviceType: 'TREATMENT', taxClassification: null, defaultTaxRate: null } }],
+          queueTicket: { id: 72, businessDate: new Date('2026-10-21'), roomId: 40 },
+        },
         supplies: [
           { supplyId: 1, intakeServiceId: 11, costPriceSnapshot: 2000, quantityInBaseUnit: 1 },
         ],
@@ -345,6 +363,9 @@ describe('DoctorService', () => {
         isCancelled: true,
         serviceLines: [expect.objectContaining({ intakeServiceId: 11, revenue: 0, supplyCost: 2000 })],
       }));
+      expect(mockPrisma.queueTicket.updateMany).toHaveBeenCalledWith({
+        where: { id: 72, status: 'CALLED' }, data: { status: 'STOPPED' },
+      });
       expect(res.status).toBe('CANCELLED');
     });
   });

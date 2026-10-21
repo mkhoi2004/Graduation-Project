@@ -1,6 +1,6 @@
 import { BadRequestException, Injectable } from '@nestjs/common';
 import { Prisma } from '@prisma/client';
-import { clinicDateToDbDate, getClinicBusinessDate } from '../common/clinic-time.js';
+import { clinicDateToDbDate, getClinicBusinessDate, getClinicTimeParts, isClinicShiftActive, previousClinicDate } from '../common/clinic-time.js';
 import { PrismaService } from '../infrastructure/database/prisma.service.js';
 
 @Injectable()
@@ -9,9 +9,21 @@ export class DoctorQueueService {
 
   async getQueue(doctorId: number, now = new Date()) {
     const businessDate = clinicDateToDbDate(getClinicBusinessDate(now));
+    const room = await this.resolveDoctorRoom(this.prisma, doctorId, businessDate, now);
+    if (!room) {
+      return {
+        queue: [],
+        summary: {
+          businessDate: getClinicBusinessDate(now),
+          waitingCount: 0,
+          priorityWaitingCount: 0,
+        },
+      };
+    }
     const tickets = await this.prisma.queueTicket.findMany({
       where: {
         businessDate,
+        roomId: room.id,
         status: 'WAITING',
         intake: { doctorId, status: 'TRANSFERRED' },
       },
@@ -26,8 +38,7 @@ export class DoctorQueueService {
       },
       orderBy: { queueNumber: 'asc' },
     });
-    const roomId = tickets[0]?.roomId;
-    const counter = roomId ? await this.prisma.roomQueueCounter.findFirst({ where: { businessDate, roomId } }) : null;
+    const counter = await this.prisma.roomQueueCounter.findFirst({ where: { businessDate, roomId: room.id } });
     const queue = tickets.map((ticket) => ({
       id: ticket.intake.code,
       intakeId: ticket.intake.id,
@@ -56,8 +67,8 @@ export class DoctorQueueService {
       queue,
       summary: {
         businessDate: getClinicBusinessDate(now),
-        roomCode: tickets[0]?.room.code,
-        roomName: tickets[0]?.room.name,
+        roomCode: room.code,
+        roomName: room.name,
         waitingCount: queue.length,
         priorityWaitingCount: queue.filter((item) => item.priority === 'Ưu tiên').length,
         currentCallingNumber: counter?.currentNumber
@@ -69,10 +80,18 @@ export class DoctorQueueService {
 
   async callNext(doctorId: number, actorId = doctorId, now = new Date()) {
     const businessDate = clinicDateToDbDate(getClinicBusinessDate(now));
-    return this.prisma.$transaction(
-      (tx) => this.callNextInsideTransaction(tx, doctorId, actorId, now, businessDate),
-      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
-    );
+    for (let attempt = 0; attempt < 3; attempt += 1) {
+      try {
+        return await this.prisma.$transaction(
+          (tx) => this.callNextInsideTransaction(tx, doctorId, actorId, now, businessDate, undefined, 'CALL'),
+          { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+        );
+      } catch (error) {
+        const retryable = error instanceof Prisma.PrismaClientKnownRequestError && error.code === 'P2034';
+        if (!retryable || attempt === 2) throw error;
+      }
+    }
+    throw new Error('Không thể gọi STT sau khi thử lại.');
   }
 
   async markAbsent(examinationId: number, doctorId: number, actorId = doctorId, now = new Date()) {
@@ -116,7 +135,9 @@ export class DoctorQueueService {
         },
       });
 
-      const next = await this.callNextInsideTransaction(tx, doctorId, actorId, now, businessDate);
+      const next = await this.callNextInsideTransaction(
+        tx, doctorId, actorId, now, businessDate, ticket.roomId, 'AUTO_CALL_AFTER_ABSENT',
+      );
       if (!next.nextExaminationId) {
         await tx.roomQueueCounter.update({
           where: { businessDate_roomId: { businessDate: ticket.businessDate, roomId: ticket.roomId } },
@@ -137,15 +158,27 @@ export class DoctorQueueService {
     actorId: number,
     now: Date,
     businessDate: Date,
+    requestedRoomId?: number,
+    historyAction: 'CALL' | 'AUTO_CALL_AFTER_ABSENT' = 'CALL',
   ) {
       const ongoing = await tx.doctorExamination.findFirst({ where: { doctorId, status: 'IN_PROGRESS' } });
       if (ongoing) {
         throw new BadRequestException('Bác sĩ đang có bệnh nhân Đang khám. Vui lòng hoàn thành, Ngừng khám hoặc đánh dấu Vắng mặt trước khi gọi tiếp.');
       }
 
+      const assignedRoom = requestedRoomId
+        ? { id: requestedRoomId }
+        : await this.resolveDoctorRoom(tx, doctorId, businessDate, now);
+      if (!assignedRoom) return { nextExaminationId: null, message: 'Không còn bệnh nhân chờ' };
+
+      await tx.$queryRaw(Prisma.sql`
+        SELECT [id] FROM [dbo].[RoomQueueCounter] WITH (UPDLOCK, HOLDLOCK)
+        WHERE [businessDate] = ${businessDate} AND [roomId] = ${assignedRoom.id}
+      `);
       const ticket = await tx.queueTicket.findFirst({
         where: {
           businessDate,
+          roomId: assignedRoom.id,
           status: 'WAITING',
           intake: { doctorId, status: 'TRANSFERRED' },
         },
@@ -154,10 +187,6 @@ export class DoctorQueueService {
       });
       if (!ticket) return { nextExaminationId: null, message: 'Không còn bệnh nhân chờ' };
 
-      await tx.$queryRaw(Prisma.sql`
-        SELECT [id] FROM [dbo].[RoomQueueCounter] WITH (UPDLOCK, HOLDLOCK)
-        WHERE [businessDate] = ${businessDate} AND [roomId] = ${ticket.roomId}
-      `);
       const changed = await tx.queueTicket.updateMany({
         where: { id: ticket.id, status: 'WAITING' },
         data: { status: 'CALLED', calledAt: now },
@@ -180,7 +209,7 @@ export class DoctorQueueService {
       });
       await tx.intake.update({ where: { id: ticket.intake.id }, data: { status: 'IN_PROGRESS' } });
       await tx.queueCallHistory.create({
-        data: { ticketId: ticket.id, action: 'CALLED', actorId, occurredAt: now },
+        data: { ticketId: ticket.id, action: historyAction, actorId, occurredAt: now },
       });
       await tx.intakeAuditLog.create({
         data: {
@@ -199,5 +228,60 @@ export class DoctorQueueService {
         queueNumber: String(ticket.queueNumber).padStart(4, '0'),
         message: `Đã gọi STT ${String(ticket.queueNumber).padStart(4, '0')}`,
       };
+  }
+
+  private async resolveDoctorRoom(
+    client: Prisma.TransactionClient | PrismaService,
+    doctorId: number,
+    businessDate: Date,
+    now: Date,
+  ): Promise<{ id: number; code?: string; name?: string } | null> {
+    const current = await client.doctorExamination.findFirst({
+      where: { doctorId, status: 'IN_PROGRESS' },
+      select: { room: { select: { id: true, code: true, name: true } } },
+    });
+    if (current?.room) return current.room;
+
+    const clinicParts = getClinicTimeParts(now);
+    const previousBusinessDate = clinicDateToDbDate(previousClinicDate(clinicParts.date));
+    const doctor = await client.user.findUnique({
+      where: { id: doctorId },
+      select: {
+        employee: {
+          select: {
+            room: { select: { id: true, code: true, name: true } },
+            shiftAssignments: {
+              where: { date: { in: [businessDate, previousBusinessDate] } },
+              select: {
+                id: true,
+                date: true,
+                room: { select: { id: true, code: true, name: true } },
+                shift: { select: { startTime: true, endTime: true } },
+              },
+            },
+          },
+        },
+      },
+    });
+    const active = [...(doctor?.employee?.shiftAssignments ?? [])]
+      .filter((assignment) => isClinicShiftActive(
+        assignment.date,
+        assignment.shift.startTime,
+        assignment.shift.endTime,
+        clinicParts.date,
+        clinicParts.time,
+      ))
+      .sort((a, b) => b.shift.startTime.localeCompare(a.shift.startTime) || b.id - a.id)[0];
+    if (active?.room) return active.room;
+
+    const waitingRooms = await client.queueTicket.findMany({
+      where: { businessDate, status: 'WAITING', intake: { doctorId, status: 'TRANSFERRED' } },
+      select: { room: { select: { id: true, code: true, name: true } } },
+      distinct: ['roomId'],
+    });
+    if (waitingRooms.length > 1) {
+      throw new BadRequestException('Bác sĩ đang có hàng chờ ở nhiều phòng. Vui lòng liên hệ Tiếp nhận để điều phối lại.');
+    }
+    return waitingRooms[0]?.room ?? doctor?.employee?.room ?? null;
   }
 }

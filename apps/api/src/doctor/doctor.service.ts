@@ -43,6 +43,7 @@ export class DoctorService {
         intake: {
           include: {
             services: { include: { service: true } },
+            queueTicket: true,
           },
         },
         supplies: {
@@ -291,6 +292,7 @@ export class DoctorService {
         intake: {
           include: {
             services: { include: { service: true } },
+            queueTicket: true,
           },
         },
         supplies: true,
@@ -345,20 +347,34 @@ export class DoctorService {
     });
 
     // 4. Khóa và đổi trạng thái trong DB
-    await this.prisma.$transaction([
-      this.prisma.doctorExamination.update({
+    await this.prisma.$transaction(async (tx) => {
+      await tx.doctorExamination.update({
         where: { id: exam.id },
         data: {
           status: 'COMPLETED',
           completedAt: now,
           isLocked: true,
         },
-      }),
-      this.prisma.intake.update({
+      });
+      await tx.intake.update({
         where: { id: exam.intakeId },
         data: { status: 'COMPLETED' },
-      }),
-    ]);
+      });
+      if (exam.intake.queueTicket) {
+        await tx.queueTicket.updateMany({
+          where: { id: exam.intake.queueTicket.id, status: 'CALLED' },
+          data: { status: 'COMPLETED' },
+        });
+        await tx.roomQueueCounter.updateMany({
+          where: {
+            businessDate: exam.intake.queueTicket.businessDate,
+            roomId: exam.intake.queueTicket.roomId,
+            currentTicketId: exam.intake.queueTicket.id,
+          },
+          data: { currentTicketId: null, currentNumber: null },
+        });
+      }
+    });
 
     return this.getExaminationById(examinationId);
   }
@@ -379,7 +395,7 @@ export class DoctorService {
     const exam = await this.prisma.doctorExamination.findUnique({
       where: { id: examinationId },
       include: {
-        intake: { include: { services: { include: { service: true } } } },
+        intake: { include: { services: { include: { service: true } }, queueTicket: true } },
         supplies: true,
       },
     });
@@ -429,8 +445,8 @@ export class DoctorService {
     });
 
     // 4. Khóa và đổi trạng thái sang CANCELLED
-    await this.prisma.$transaction([
-      this.prisma.doctorExamination.update({
+    await this.prisma.$transaction(async (tx) => {
+      await tx.doctorExamination.update({
         where: { id: exam.id },
         data: {
           status: 'CANCELLED',
@@ -438,12 +454,26 @@ export class DoctorService {
           completedAt: now,
           isLocked: true,
         },
-      }),
-      this.prisma.intake.update({
+      });
+      await tx.intake.update({
         where: { id: exam.intakeId },
         data: { status: 'CANCELLED' },
-      }),
-    ]);
+      });
+      if (exam.intake.queueTicket) {
+        await tx.queueTicket.updateMany({
+          where: { id: exam.intake.queueTicket.id, status: 'CALLED' },
+          data: { status: 'STOPPED' },
+        });
+        await tx.roomQueueCounter.updateMany({
+          where: {
+            businessDate: exam.intake.queueTicket.businessDate,
+            roomId: exam.intake.queueTicket.roomId,
+            currentTicketId: exam.intake.queueTicket.id,
+          },
+          data: { currentTicketId: null, currentNumber: null },
+        });
+      }
+    });
 
     return this.getExaminationById(examinationId);
   }

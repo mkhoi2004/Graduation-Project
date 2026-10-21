@@ -81,6 +81,9 @@ describe('DoctorController (e2e)', () => {
       .send({
         roomCode: 'room-01',
         doctorUsername: 'doctor-minh',
+        priority: 'Ưu tiên',
+        priorityReason: 'Người cao tuổi',
+        roomOverrideReason: 'Kiểm thử E2E ngoài ca trực',
         services: [{ serviceCode: 'cleaning', quantity: 1 }],
       })
       .expect(200);
@@ -103,11 +106,11 @@ describe('DoctorController (e2e)', () => {
     expect(roomsRes.body.length).toBeGreaterThan(0);
 
     const queueRes = await request(app.getHttpServer())
-      .get('/api/doctor/queue?roomCode=room-01')
+      .get('/api/doctor/queue')
       .set('Authorization', `Bearer ${docToken}`)
       .expect(200);
-    expect(queueRes.body.length).toBeGreaterThan(0);
-    const queuedPatient = queueRes.body.find((p: any) => p.id === intakeCode);
+    expect(queueRes.body.queue.length).toBeGreaterThan(0);
+    const queuedPatient = queueRes.body.queue.find((p: any) => p.id === intakeCode);
     expect(queuedPatient).toBeDefined();
     expect(queuedPatient.priority).toBe('Ưu tiên');
     expect(queuedPatient.priorityReason).toBe('Người cao tuổi');
@@ -116,19 +119,17 @@ describe('DoctorController (e2e)', () => {
     const callRes = await request(app.getHttpServer())
       .post('/api/doctor/call-next')
       .set('Authorization', `Bearer ${docToken}`)
-      .send({ roomCode: 'room-01' })
       .expect(201);
 
-    const examinationId = callRes.body.id;
-    expect(callRes.body.code).toMatch(/^PKB\d{8}\/\d{4}$/);
-    expect(callRes.body.status).toBe('IN_PROGRESS');
-    expect(callRes.body.isLocked).toBe(false);
+    const examinationId = callRes.body.nextExamination.id;
+    expect(callRes.body.nextExamination.code).toMatch(/^PKB\d{8}\/\d{6}$/);
+    expect(callRes.body.nextExamination.status).toBe('IN_PROGRESS');
+    expect(callRes.body.nextExamination.isLocked).toBe(false);
 
     // Verify blocking: calling next again while IN_PROGRESS must fail with 400
     await request(app.getHttpServer())
       .post('/api/doctor/call-next')
       .set('Authorization', `Bearer ${docToken}`)
-      .send({ roomCode: 'room-01' })
       .expect(400);
 
     // 6. As Doctor: Check Supplies Catalog (Step 2 - No cost price returned)
@@ -143,7 +144,7 @@ describe('DoctorController (e2e)', () => {
     expect(suppliesRes.body[0].costPrice).toBeUndefined(); // CONFIDENTIAL
 
     // 7. As Doctor: Update Supplies Used (Step 2)
-    const intakeServiceId = callRes.body.intake.services[0].intakeServiceId;
+    const intakeServiceId = callRes.body.nextExamination.intake.services[0].intakeServiceId;
     const updateSuppliesRes = await request(app.getHttpServer())
       .put(`/api/doctor/examinations/${examinationId}/supplies`)
       .set('Authorization', `Bearer ${docToken}`)
@@ -284,6 +285,8 @@ describe('DoctorController (e2e)', () => {
       .send({
         roomCode: 'room-02',
         doctorUsername: 'doctor-lan',
+        priority: 'Thường',
+        roomOverrideReason: 'Kiểm thử E2E ngoài ca trực',
         services: [{ serviceCode: 'cleaning', quantity: 1 }],
       })
       .expect(200);
@@ -302,9 +305,8 @@ describe('DoctorController (e2e)', () => {
     const callRes = await request(app.getHttpServer())
       .post('/api/doctor/call-next')
       .set('Authorization', `Bearer ${docToken}`)
-      .send({ roomCode: 'room-02' })
       .expect(201);
-    const examinationId = callRes.body.id;
+    const examinationId = callRes.body.nextExamination.id;
 
     // 4. Cancel requires reason: blank reason must fail with 400
     await request(app.getHttpServer())

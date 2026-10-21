@@ -12,6 +12,17 @@ describe('DoctorQueueService', () => {
       queueTicket: { findMany: vi.fn(), findFirst: vi.fn(), findUnique: vi.fn(), updateMany: vi.fn() },
       roomQueueCounter: { findFirst: vi.fn(), update: vi.fn() },
       doctorExamination: { findFirst: vi.fn(), findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
+      user: { findUnique: vi.fn().mockResolvedValue({
+        employee: {
+          room: { id: 2, code: 'room-02', name: 'Phòng 02' },
+          shiftAssignments: [{
+            id: 1,
+            date: new Date('2026-10-21T00:00:00.000Z'),
+            room: { id: 2, code: 'room-02', name: 'Phòng 02' },
+            shift: { startTime: '08:00', endTime: '17:00' },
+          }],
+        },
+      }) },
       intake: { update: vi.fn() },
       queueCallHistory: { create: vi.fn() },
       intakeAuditLog: { create: vi.fn() },
@@ -48,8 +59,44 @@ describe('DoctorQueueService', () => {
     expect(result.queue[2]).toMatchObject({ priority: 'Ưu tiên', priorityReason: 'Người cao tuổi' });
     expect(result.summary).toMatchObject({ waitingCount: 3, priorityWaitingCount: 1, currentCallingNumber: '0001' });
     expect(prisma.queueTicket.findMany).toHaveBeenCalledWith(expect.objectContaining({
-      where: expect.objectContaining({ status: 'WAITING', intake: { doctorId: 7, status: 'TRANSFERRED' } }),
+      where: expect.objectContaining({ roomId: 2, status: 'WAITING', intake: { doctorId: 7, status: 'TRANSFERRED' } }),
       orderBy: { queueNumber: 'asc' },
+    }));
+  });
+
+  it('keeps the assigned room and current calling number when no patient is waiting', async () => {
+    prisma.doctorExamination.findFirst.mockResolvedValue({
+      room: { id: 2, code: 'room-02', name: 'Phòng 02' },
+    });
+    prisma.queueTicket.findMany.mockResolvedValue([]);
+    prisma.roomQueueCounter.findFirst.mockResolvedValue({ currentNumber: 9 });
+
+    const result = await service.getQueue(7, new Date('2026-10-21T02:00:00.000Z'));
+
+    expect(result.queue).toEqual([]);
+    expect(result.summary).toMatchObject({
+      roomCode: 'room-02', roomName: 'Phòng 02', waitingCount: 0, currentCallingNumber: '0009',
+    });
+    expect(prisma.queueTicket.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ roomId: 2 }),
+    }));
+  });
+
+  it('uses the unique manually overridden queue room when the doctor is off duty', async () => {
+    prisma.doctorExamination.findFirst.mockResolvedValue(null);
+    prisma.user.findUnique.mockResolvedValue({
+      employee: { room: { id: 2, code: 'room-02', name: 'Phòng 02' }, shiftAssignments: [] },
+    });
+    prisma.queueTicket.findMany
+      .mockResolvedValueOnce([{ room: { id: 3, code: 'room-03', name: 'Phòng tiểu phẫu' } }])
+      .mockResolvedValueOnce([]);
+    prisma.roomQueueCounter.findFirst.mockResolvedValue(null);
+
+    const result = await service.getQueue(7, new Date('2026-10-21T13:00:00.000Z'));
+
+    expect(result.summary).toMatchObject({ roomCode: 'room-03', roomName: 'Phòng tiểu phẫu' });
+    expect(prisma.queueTicket.findMany).toHaveBeenNthCalledWith(2, expect.objectContaining({
+      where: expect.objectContaining({ roomId: 3 }),
     }));
   });
 
@@ -73,7 +120,7 @@ describe('DoctorQueueService', () => {
       where: { id: 3, status: 'WAITING' },
       data: { status: 'CALLED', calledAt: expect.any(Date) },
     });
-    expect(prisma.queueCallHistory.create).toHaveBeenCalledWith({ data: expect.objectContaining({ ticketId: 3, action: 'CALLED', actorId: 9 }) });
+    expect(prisma.queueCallHistory.create).toHaveBeenCalledWith({ data: expect.objectContaining({ ticketId: 3, action: 'CALL', actorId: 9 }) });
     expect(prisma.roomQueueCounter.update).toHaveBeenCalledWith(expect.objectContaining({ data: { currentTicketId: 3, currentNumber: 3 } }));
   });
 
@@ -86,7 +133,9 @@ describe('DoctorQueueService', () => {
   it('returns the exact empty-queue message without changing state', async () => {
     prisma.doctorExamination.findFirst.mockResolvedValue(null);
     prisma.queueTicket.findFirst.mockResolvedValue(null);
-    await expect(service.callNext(7, 7)).resolves.toEqual({ nextExaminationId: null, message: 'Không còn bệnh nhân chờ' });
+    await expect(service.callNext(7, 7, new Date('2026-10-21T02:00:00.000Z'))).resolves.toEqual({
+      nextExaminationId: null, message: 'Không còn bệnh nhân chờ',
+    });
     expect(prisma.queueTicket.updateMany).not.toHaveBeenCalled();
   });
 
@@ -123,5 +172,6 @@ describe('DoctorQueueService', () => {
     expect(prisma.queueTicket.updateMany).toHaveBeenCalledWith({
       where: { id: 3, status: 'CALLED' }, data: { status: 'ABSENT', absentAt: expect.any(Date) },
     });
+    expect(prisma.queueCallHistory.create).toHaveBeenCalledWith({ data: expect.objectContaining({ ticketId: 4, action: 'AUTO_CALL_AFTER_ABSENT' }) });
   });
 });

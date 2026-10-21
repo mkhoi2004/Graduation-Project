@@ -35,10 +35,13 @@ Phòng khám vận hành với 3 Bác sĩ chính quy trực tại 3 ghế/phòng
 ## 4. Quy Trình Khám Bệnh 4 Bước
 
 ### Bước 1: Bắt đầu khám
-- Bác sĩ đang trực bấm nút **Gọi STT tiếp theo** khi **phòng của bác sĩ đó** có bệnh nhân ở trạng thái Tiếp nhận (hàng đợi bệnh nhân).
-- Nếu chỉ có 1 bệnh nhân thì vẫn phải bấm Gọi để bắt đầu khám, tránh tự động chuyển trạng thái ngoài ý muốn.
-- **Chặn nút Gọi** khi bệnh nhân hiện tại chưa Hoàn thành hoặc Ngừng khám.
-- Sau khi gọi, đưa bệnh nhân vào ghế khám và chuyển trạng thái ca khám sang **Đang khám**.
+- Màn hình hiển thị hàng chờ hôm nay của **phòng được phân ca cho bác sĩ**, chỉ gồm TNK trạng thái **Tiếp nhận** gán cho chính bác sĩ đó. Phòng do máy chủ xác định, bác sĩ không tự đổi phòng.
+- Mỗi dòng có STT 4 chữ số, bệnh nhân, dịch vụ, mức ưu tiên và lý do. Chỉ có hai mức **Thường** và **Ưu tiên**; bệnh nhân Ưu tiên được tô nổi bật và đầu danh sách hiển thị tổng số người ưu tiên đang chờ.
+- Danh sách luôn xếp STT tăng dần. Mức Ưu tiên chỉ để nhận biết, không tự thay đổi thứ tự gọi.
+- Nút **Gọi STT tiếp theo** lấy nguyên tử TNK có STT nhỏ nhất của bác sĩ; dù chỉ có một bệnh nhân vẫn phải bấm Gọi. Sau khi gọi, TNK chuyển **Đang khám**, lưu người/giờ gọi và cập nhật **STT đang gọi**.
+- **Chặn nút Gọi** khi bác sĩ còn bệnh nhân Đang khám; hai thao tác đồng thời không được gọi trùng một bệnh nhân. Hết hàng chờ báo **“Không còn bệnh nhân chờ”**.
+- Nút **Vắng mặt** chỉ xuất hiện cho bệnh nhân vừa gọi nhưng chưa có VTYT, kết quả hoặc lịch sử in/Ghi sổ. Sau xác nhận, TNK kết thúc ở trạng thái **Vắng mặt**, STT không tái sử dụng và hệ thống tự gọi STT kế tiếp.
+- Nếu đã có dữ liệu khám thì không dùng Vắng mặt, phải dùng **Ngừng khám**. Vắng mặt có doanh thu và thưởng bằng 0; khoản thu trước được chuyển Kế toán xử lý như Ngừng khám. Mọi thao tác gọi/Vắng mặt được ghi audit log.
 
 ### Bước 2: Chọn VTYT trong lúc/sau khi khám
 VTYT được chia thành **2 nhóm riêng** trên giao diện, bác sĩ có thể nhập **bất kỳ lúc nào trong trạng thái Đang khám**:
