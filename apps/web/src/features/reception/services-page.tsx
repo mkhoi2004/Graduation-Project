@@ -59,7 +59,7 @@ export function ServicesPage() {
             priority: intake.priority, priorityReason: intake.priorityReason, roomOverrideReason: intake.roomOverrideReason,
           })
       dispatch({ type: 'UPDATE_INTAKE', intake: saved })
-      navigate(`/reception/receipt?intake=${encodeURIComponent(saved.id)}`)
+      navigate(`/reception/payment?intake=${encodeURIComponent(saved.id)}`)
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Không thể cấp STT cho phiếu tiếp nhận.')
     } finally { setSaving(false) }
@@ -77,7 +77,7 @@ export function ServicesPage() {
         <label><span className={labelClass}>Bác sĩ *</span><select disabled={locked} value={intake?.doctorId ?? ''} onChange={(event) => selectDoctor(event.target.value)} className={inputClass}><option value="">Chọn bác sĩ</option>{masterData.doctors.map((doctor) => <option key={doctor.id} value={doctor.id}>{doctor.name} · {doctor.specialty}</option>)}</select></label>
         <label><span className={labelClass}>Phòng khám *</span><select disabled={locked || Boolean(selectedDoctor?.isOnDuty)} value={intake?.roomId ?? ''} onChange={(event) => update({ roomId: event.target.value, status: 'DRAFT' })} className={inputClass}><option value="">Chọn phòng</option>{masterData.rooms.map((room) => <option key={room.id} value={room.id}>{room.name}</option>)}</select></label>
         {selectedDoctor && !selectedDoctor.isOnDuty && !locked ? <><p className="rounded-xl bg-amber-50 p-3 text-sm text-amber-800">Bác sĩ chưa được phân ca hôm nay. Chọn phòng thủ công và ghi rõ lý do.</p><label><span className={labelClass}>Lý do chọn ngoài ca *</span><textarea required value={intake?.roomOverrideReason ?? ''} onChange={(event) => update({ roomOverrideReason: event.target.value })} className={`${inputClass} min-h-20 py-3`} /></label></> : null}
-      </div></div><div className="rounded-3xl bg-[#17182b] p-5 text-white"><p className="text-sm text-white/60">Tạm tính</p><p className="mt-2 text-3xl font-bold">{formatCurrency(total)}</p><Button type="button" disabled={locked || saving || !intake?.services.length || !intake.roomId || !intake.doctorId} onClick={save} className="mt-5 h-11 w-full rounded-xl bg-[#ff6f76]">{locked ? `STT ${intake?.queueNumber}` : saving ? 'Đang cấp STT...' : 'Lưu & cấp STT'}</Button></div></aside>
+      </div></div><div className="rounded-3xl bg-[#17182b] p-5 text-white"><p className="text-sm text-white/60">Tạm tính</p><p className="mt-2 text-3xl font-bold">{formatCurrency(total)}</p><Button type="button" disabled={saving || (!locked && (!intake?.services.length || !intake?.roomId || !intake?.doctorId))} onClick={locked && intake ? () => navigate(`/reception/payment?intake=${encodeURIComponent(intake.id)}`) : save} className="mt-5 h-11 w-full rounded-xl bg-[#ff6f76]">{locked ? `STT ${intake?.queueNumber} · Chuyển thanh toán` : saving ? 'Đang cấp STT...' : 'Cấp STT & Chuyển thanh toán'}</Button></div></aside>
     </div>}
   </>
 }

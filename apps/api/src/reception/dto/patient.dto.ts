@@ -25,6 +25,12 @@ export class CreatePatientDto {
   @MaxLength(20)
   phone!: string;
 
+  @ApiProperty({ example: '001092012345', description: 'Số CCCD 12 chữ số theo quy định pháp luật' })
+  @IsString()
+  @IsNotEmpty({ message: 'Số CCCD là bắt buộc trong hồ sơ khi khám.' })
+  @Matches(/^\d{12}$/, { message: 'CCCD phải có đúng 12 chữ số' })
+  citizenId!: string;
+
   @ApiPropertyOptional({ example: '123 Nguyễn Trãi, Quận 1, TP.HCM' })
   @IsOptional()
   @IsString()
@@ -36,6 +42,26 @@ export class CreatePatientDto {
   @IsString()
   @MaxLength(1000)
   note?: string;
+
+  @ApiPropertyOptional({ example: 'MBN20261022/0001' })
+  @IsOptional()
+  @IsString()
+  code?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  id?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  createdAt?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  updatedAt?: string;
 }
 
 export class UpdatePatientDto {
@@ -63,6 +89,12 @@ export class UpdatePatientDto {
   @MaxLength(20)
   phone?: string;
 
+  @ApiPropertyOptional({ example: '001092012345', description: 'Số CCCD 12 chữ số theo quy định pháp luật' })
+  @IsOptional()
+  @IsString()
+  @Matches(/^\d{12}$/, { message: 'CCCD phải có đúng 12 chữ số' })
+  citizenId?: string;
+
   @ApiPropertyOptional({ example: '123 Nguyễn Trãi, Quận 1, TP.HCM' })
   @IsOptional()
   @IsString()
@@ -74,4 +106,24 @@ export class UpdatePatientDto {
   @IsString()
   @MaxLength(1000)
   note?: string;
+
+  @ApiPropertyOptional({ example: 'MBN20261022/0001' })
+  @IsOptional()
+  @IsString()
+  code?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  id?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  createdAt?: string;
+
+  @ApiPropertyOptional()
+  @IsOptional()
+  @IsString()
+  updatedAt?: string;
 }

@@ -20,6 +20,7 @@ function createService(passwordMatches = true) {
   const usersRepository: UsersRepository = {
     findActiveByUsername: async (username) =>
       username === demoUser.username ? demoUser : null,
+    findById: async (id) => (id === demoUser.id ? demoUser : null),
   };
   const passwordHasher: PasswordHasher = {
     compare: async () => passwordMatches,
@@ -54,5 +55,20 @@ describe('AuthService', () => {
         password: 'wrong-password',
       }),
     ).rejects.toThrow('Tên đăng nhập hoặc mật khẩu không đúng');
+  });
+
+  it('returns current user profile by id via getMe', async () => {
+    const result = await createService().getMe(1);
+    expect(result.user).toEqual({
+      id: 1,
+      username: 'doctor',
+      fullName: 'Bác sĩ Demo',
+      role: 'DOCTOR',
+      roleName: 'Bác sĩ thực hiện',
+    });
+  });
+
+  it('throws unauthorized exception in getMe when user not found', async () => {
+    await expect(createService().getMe(999)).rejects.toThrow('Tài khoản không tồn tại hoặc đã bị khóa.');
   });
 });

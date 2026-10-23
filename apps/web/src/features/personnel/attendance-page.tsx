@@ -13,6 +13,7 @@ import {
   X,
 } from 'lucide-react';
 import { getSession } from '@/lib/auth-session';
+import { saveReportToBackend } from '@/lib/report-storage';
 import { personnelApi } from './personnel-api';
 import type { AttendanceRecord, Employee, MonthlyAttendanceSummary, ShiftAssignment, WorkShift } from './personnel-types';
 import { Card, formatDate, inputClass, Message, Modal, PageHeading, PaginationBar, selectClass } from './personnel-ui';
@@ -50,6 +51,25 @@ export function AttendancePage() {
   const [showShiftModal, setShowShiftModal] = useState(false);
   const [showAssignModal, setShowAssignModal] = useState(false);
   const [showAdjustModal, setShowAdjustModal] = useState(false);
+  const [generatingShifts, setGeneratingShifts] = useState(false);
+
+  const handleGenerateWeeklyShifts = async () => {
+    try {
+      setGeneratingShifts(true);
+      setMessage(null);
+      const res = await personnelApi.generateWeeklyShifts({
+        year: selectedYear,
+        month: selectedMonth,
+        overwriteExisting: true,
+      });
+      setMessage({ text: res.message, error: false });
+      await loadData();
+    } catch (err: any) {
+      setMessage({ text: err.message || 'Lỗi khi tự động xếp lịch Thứ 2 - Thứ 7', error: true });
+    } finally {
+      setGeneratingShifts(false);
+    }
+  };
 
   // Shift & Assign forms
   const [shiftForm, setShiftForm] = useState({
@@ -308,11 +328,20 @@ export function AttendancePage() {
     ]);
 
     const csvContent = '\uFEFF' + [headers.join(','), ...rows.map((r) => r.join(','))].join('\r\n');
+    const fileName = `Bang_Cham_Cong_Thang_${selectedMonth}_${selectedYear}.csv`;
     const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+
+    // Auto-save to Report/NhanSu
+    saveReportToBackend('NhanSu', fileName, blob, 'text/csv;charset=utf-8;').then((res) => {
+      setMessage({ text: `Đã xuất và lưu bảng chấm công vào: ${res.relativePath}`, error: false });
+    }).catch((err) => {
+      console.warn('Lưu vào Report thất bại:', err);
+    });
+
     const url = URL.createObjectURL(blob);
     const link = document.createElement('a');
     link.setAttribute('href', url);
-    link.setAttribute('download', `Bang_Cham_Cong_Thang_${selectedMonth}_${selectedYear}.csv`);
+    link.setAttribute('download', fileName);
     document.body.appendChild(link);
     link.click();
     document.body.removeChild(link);
@@ -674,6 +703,7 @@ export function AttendancePage() {
                 totalItems={filteredAttendance.length}
                 pageSize={pageSize}
                 onPageChange={setAttPage}
+                itemName="lượt chấm công"
               />
             </div>
           )}
@@ -771,6 +801,7 @@ export function AttendancePage() {
                   totalItems={summaryList.length}
                   pageSize={pageSize}
                   onPageChange={setSummaryPage}
+                  itemName="nhân viên"
                 />
               </div>
             )}
@@ -816,8 +847,31 @@ export function AttendancePage() {
 
           {/* Assignments Table */}
           <Card className="overflow-hidden p-0">
-            <div className="border-b border-slate-200 bg-slate-50 px-4 py-3">
-              <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">Lịch Phân Ca Nhân Sự</h3>
+            <div className="flex flex-wrap items-center justify-between gap-3 border-b border-slate-200 bg-slate-50 px-4 py-3">
+              <div>
+                <h3 className="text-xs font-bold uppercase tracking-wider text-slate-700">Lịch Phân Ca Nhân Sự (Thứ 2 - Thứ 7)</h3>
+                <p className="text-[11px] text-slate-500">Áp dụng khung giờ chuẩn từ bên HR cho tất cả các bộ phận (Thứ 2 - Thứ 7)</p>
+              </div>
+              <div className="flex items-center gap-2">
+                <button
+                  type="button"
+                  onClick={handleGenerateWeeklyShifts}
+                  disabled={generatingShifts}
+                  className="flex items-center gap-1.5 rounded-xl bg-emerald-600 px-3 py-1.5 text-xs font-bold text-white shadow-xs transition hover:bg-emerald-700 disabled:opacity-50"
+                  title="Tự động xếp lịch Thứ 2 đến Thứ 7 cho toàn bộ nhân sự theo giờ HR"
+                >
+                  <CalendarCheck className="size-3.5" />
+                  <span>{generatingShifts ? 'Đang xếp lịch...' : 'Xếp lịch Thứ 2 - Thứ 7 theo giờ HR'}</span>
+                </button>
+                <button
+                  type="button"
+                  onClick={() => setShowAssignModal(true)}
+                  className="flex items-center gap-1.5 rounded-xl border border-slate-200 bg-white px-3 py-1.5 text-xs font-semibold text-slate-700 hover:bg-slate-50"
+                >
+                  <Plus className="size-3.5 text-indigo-600" />
+                  Phân ca thủ công
+                </button>
+              </div>
             </div>
             <div className="overflow-x-auto">
               <table className="w-full text-left text-xs">
@@ -865,6 +919,7 @@ export function AttendancePage() {
                   totalItems={assignments.length}
                   pageSize={pageSize}
                   onPageChange={setShiftPage}
+                  itemName="ca trực"
                 />
               </div>
             )}

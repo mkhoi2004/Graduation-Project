@@ -31,37 +31,65 @@ export class WarehouseServiceStub {
 
   /**
    * Kiểm tra tồn kho trước khi chỉ định VTYT.
+   * Chỉ tính các lô còn hạn sử dụng cho bệnh nhân.
    */
   async checkStock(supplyCode: string, quantityInBaseUnit: number): Promise<CheckStockResult> {
     const supply = await this.prisma.medicalSupply.findUnique({
       where: { code: supplyCode },
+      include: {
+        inventoryBatches: {
+          where: { quantity: { gt: 0 } },
+        },
+      },
     });
     if (!supply) {
       throw new NotFoundException(`Không tìm thấy vật tư y tế với mã ${supplyCode}.`);
     }
 
-    const available = supply.inStock >= quantityInBaseUnit;
+    const now = new Date();
+    const todayUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+    const availableStock = supply.inventoryBatches && supply.inventoryBatches.length > 0
+      ? supply.inventoryBatches
+          .filter((b) => !b.expiryDate || Date.UTC(b.expiryDate.getUTCFullYear(), b.expiryDate.getUTCMonth(), b.expiryDate.getUTCDate()) > todayUtc)
+          .reduce((sum, b) => sum + Number(b.quantity), 0)
+      : supply.inStock;
+
+    const available = availableStock >= quantityInBaseUnit;
     return {
       available,
-      currentStock: supply.inStock,
+      currentStock: availableStock,
       supplyCode,
     };
   }
 
   /**
    * Giữ chỗ tồn kho (Reservation) cho ca khám đang diễn ra.
+   * Chặn không cho giữ chỗ các lô đã hết hạn sử dụng.
    */
   async reserveStock(input: ReserveStockInput): Promise<{ reservationId: number }> {
     const supply = await this.prisma.medicalSupply.findUnique({
       where: { code: input.supplyCode },
+      include: {
+        inventoryBatches: {
+          where: { quantity: { gt: 0 } },
+        },
+      },
     });
     if (!supply) {
       throw new NotFoundException(`Không tìm thấy vật tư y tế với mã ${input.supplyCode}.`);
     }
 
-    if (supply.inStock < input.quantityInBaseUnit) {
+    const now = new Date();
+    const todayUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+    const availableStock = supply.inventoryBatches && supply.inventoryBatches.length > 0
+      ? supply.inventoryBatches
+          .filter((b) => !b.expiryDate || Date.UTC(b.expiryDate.getUTCFullYear(), b.expiryDate.getUTCMonth(), b.expiryDate.getUTCDate()) > todayUtc)
+          .reduce((sum, b) => sum + Number(b.quantity), 0)
+      : supply.inStock;
+
+    if (availableStock < input.quantityInBaseUnit) {
       throw new BadRequestException(
-        `Không đủ tồn kho cho ${supply.name}. Yêu cầu: ${input.quantityInBaseUnit} ${supply.baseUnit}, còn tồn: ${supply.inStock} ${supply.baseUnit}.`,
+        `Không đủ tồn kho khả dụng (còn hạn) cho ${supply.name}. Yêu cầu: ${input.quantityInBaseUnit} ${supply.baseUnit}, còn khả dụng: ${availableStock} ${supply.baseUnit}.`,
       );
     }
 

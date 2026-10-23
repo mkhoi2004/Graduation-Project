@@ -1,0 +1,148 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 847.2619999999998 1074.45" width="847.2619999999998" height="1074.45" style="--bg:#1F1F1F;--fg:#CCCCCC;--line:#CCCCCC;--accent:#0078D4;--muted:#CCCCCCCC;--surface:#181818;--border:#CCCCCC;background:var(--bg)">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap');
+  text { font-family: 'Inter', system-ui, sans-serif; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          var(--fg);
+    --_text-sec:      var(--muted, color-mix(in srgb, var(--fg) 60%, var(--bg)));
+    --_text-muted:    var(--muted, color-mix(in srgb, var(--fg) 40%, var(--bg)));
+    --_text-faint:    color-mix(in srgb, var(--fg) 25%, var(--bg));
+    --_line:          var(--line, color-mix(in srgb, var(--fg) 50%, var(--bg)));
+    --_arrow:         var(--accent, color-mix(in srgb, var(--fg) 85%, var(--bg)));
+    --_node-fill:     var(--surface, color-mix(in srgb, var(--fg) 3%, var(--bg)));
+    --_node-stroke:   var(--border, color-mix(in srgb, var(--fg) 20%, var(--bg)));
+    --_group-fill:    var(--bg);
+    --_group-hdr:     color-mix(in srgb, var(--fg) 5%, var(--bg));
+    --_inner-stroke:  color-mix(in srgb, var(--fg) 12%, var(--bg));
+    --_key-badge:     color-mix(in srgb, var(--fg) 10%, var(--bg));
+  }
+</style>
+<defs>
+  <marker id="seq-arrow" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto-start-reverse">
+    <polygon points="0 0, 8 2.5, 0 5" fill="var(--_arrow)" />
+  </marker>
+  <marker id="seq-arrow-open" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto-start-reverse">
+    <polyline points="0 0, 8 2.5, 0 5" fill="none" stroke="var(--_arrow)" stroke-width="1" />
+  </marker>
+</defs>
+<g class="block" data-type="alt" data-label="Xử lý xuất hủy lô thuốc hết hạn (Disposal)">
+  <rect x="41.286999999999956" y="300.45" width="775.9749999999999" height="724" rx="0" ry="0" fill="none" stroke="var(--_node-stroke)" stroke-width="1" />
+  <rect x="41.286999999999956" y="300.45" width="246.67000000000002" height="18" fill="var(--_group-hdr)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="47.286999999999956" y="309.45" font-size="11" font-weight="600" fill="var(--_text-sec)" dy="3.8499999999999996">alt [Xử lý xuất hủy lô thuốc hết hạn (Disposal)]</text>
+  <line x1="41.286999999999956" y1="608.45" x2="817.2619999999998" y2="608.45" stroke="var(--_line)" stroke-width="0.75" stroke-dasharray="6 4" />
+  <text x="49.286999999999956" y="622.45" font-size="11" text-anchor="start" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">[Nhập kho từ Nhà cung cấp (Tab Nhập/Xuất kho)]</text>
+</g>
+<line class="lifeline" data-actor="WhStaff" x1="102.34799999999996" y1="92.45" x2="102.34799999999996" y2="1044.45" stroke="var(--_line)" stroke-width="0.75" stroke-dasharray="6 4" />
+<line class="lifeline" data-actor="Web" x1="268.18199999999996" y1="70" x2="268.18199999999996" y2="1044.45" stroke="var(--_line)" stroke-width="0.75" stroke-dasharray="6 4" />
+<line class="lifeline" data-actor="WhAPI" x1="496.63049999999987" y1="70" x2="496.63049999999987" y2="1044.45" stroke="var(--_line)" stroke-width="0.75" stroke-dasharray="6 4" />
+<line class="lifeline" data-actor="DB" x1="728.7839999999999" y1="70" x2="728.7839999999999" y2="1044.45" stroke="var(--_line)" stroke-width="0.75" stroke-dasharray="6 4" />
+<g class="message" data-from="WhStaff" data-to="Web" data-label="1. Truy cập Tab 1 &quot;Tổng quan kho&quot;" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="102.34799999999996" y1="112.45" x2="268.18199999999996" y2="112.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="185.26499999999996" y="102.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">1. Truy cập Tab 1 &quot;Tổng quan kho&quot;</text>
+</g>
+<g class="message" data-from="Web" data-to="WhAPI" data-label="GET /warehouse/overview" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="268.18199999999996" y1="152.45" x2="496.63049999999987" y2="152.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="382.4062499999999" y="142.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">GET /warehouse/overview</text>
+</g>
+<g class="message" data-from="WhAPI" data-to="DB" data-label="Tính toán tồn kho 3 nhóm: VTYT Thường, VTYT Vô cảm, VPP" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="496.63049999999987" y1="192.45" x2="728.7839999999999" y2="192.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="612.7072499999999" y="182.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">Tính toán tồn kho 3 nhóm: VTYT Thường, VTYT Vô cảm, VPP</text>
+</g>
+<g class="message" data-from="WhAPI" data-to="DB" data-label="Lọc danh sách: Tồn dưới định mức, Sắp hết hạn (&lt;90 ngày), Đã hết hạn" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="496.63049999999987" y1="232.45" x2="728.7839999999999" y2="232.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="612.7072499999999" y="222.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">Lọc danh sách: Tồn dưới định mức, Sắp hết hạn (&lt;90 ngày), Đã hết hạn</text>
+</g>
+<g class="message" data-from="WhAPI" data-to="Web" data-label="Hiển thị 4 thẻ KPI + 3 bảng cảnh báo" data-line-style="dashed" data-arrow-head="filled" data-self="false">
+  <line x1="496.63049999999987" y1="272.45" x2="268.18199999999996" y2="272.45" stroke="var(--_line)" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#seq-arrow)" />
+  <text x="382.4062499999999" y="262.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">Hiển thị 4 thẻ KPI + 3 bảng cảnh báo</text>
+</g>
+<g class="message" data-from="WhStaff" data-to="Web" data-label="Bấm &quot;Xuất hủy&quot; tại lô thuốc đã hết hạn" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="102.34799999999996" y1="340.45" x2="268.18199999999996" y2="340.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="185.26499999999996" y="330.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">Bấm &quot;Xuất hủy&quot; tại lô thuốc đã hết hạn</text>
+</g>
+<g class="message" data-from="Web" data-to="WhAPI" data-label="POST /warehouse/disposal" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="268.18199999999996" y1="380.45" x2="496.63049999999987" y2="380.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="382.4062499999999" y="370.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">POST /warehouse/disposal</text>
+</g>
+<g class="message" data-from="WhAPI" data-to="DB" data-label="Kiểm tra lô hàng quá hạn sử dụng" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="496.63049999999987" y1="420.45" x2="728.7839999999999" y2="420.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="612.7072499999999" y="410.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">Kiểm tra lô hàng quá hạn sử dụng</text>
+</g>
+<g class="message" data-from="WhAPI" data-to="DB" data-label="Tạo StockDocument (type: OUT, outboundType: DISPOSAL)" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="496.63049999999987" y1="460.45" x2="728.7839999999999" y2="460.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="612.7072499999999" y="450.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">Tạo StockDocument (type: OUT, outboundType: DISPOSAL)</text>
+</g>
+<g class="message" data-from="WhAPI" data-to="DB" data-label="Trừ số lượng lô về 0, chuyển dữ liệu sang bảng Deleted" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="496.63049999999987" y1="500.45" x2="728.7839999999999" y2="500.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="612.7072499999999" y="490.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">Trừ số lượng lô về 0, chuyển dữ liệu sang bảng Deleted</text>
+</g>
+<g class="message" data-from="WhAPI" data-to="DB" data-label="Ghi thẻ kho StockLedgerEntry &amp; Nhật ký kiểm toán kho" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="496.63049999999987" y1="540.45" x2="728.7839999999999" y2="540.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="612.7072499999999" y="530.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">Ghi thẻ kho StockLedgerEntry &amp; Nhật ký kiểm toán kho</text>
+</g>
+<g class="message" data-from="WhAPI" data-to="Web" data-label="Cập nhật trạng thái xuất hủy thành công" data-line-style="dashed" data-arrow-head="filled" data-self="false">
+  <line x1="496.63049999999987" y1="580.45" x2="268.18199999999996" y2="580.45" stroke="var(--_line)" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#seq-arrow)" />
+  <text x="382.4062499999999" y="570.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">Cập nhật trạng thái xuất hủy thành công</text>
+</g>
+<g class="message" data-from="WhStaff" data-to="Web" data-label="2. Lập phiếu nhập kho (Chọn NCC, Vật tư, Số lô, Hạn dùng, Giá nhập)" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="102.34799999999996" y1="644.45" x2="268.18199999999996" y2="644.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="185.26499999999996" y="634.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">2. Lập phiếu nhập kho (Chọn NCC, Vật tư, Số lô, Hạn dùng, Giá nhập)</text>
+</g>
+<g class="message" data-from="Web" data-to="WhAPI" data-label="POST /warehouse/documents (type: IN)" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="268.18199999999996" y1="684.45" x2="496.63049999999987" y2="684.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="382.4062499999999" y="674.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">POST /warehouse/documents (type: IN)</text>
+</g>
+<g class="message" data-from="WhAPI" data-to="DB" data-label="Lưu phiếu nhập ở trạng thái DRAFT" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="496.63049999999987" y1="724.45" x2="728.7839999999999" y2="724.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="612.7072499999999" y="714.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">Lưu phiếu nhập ở trạng thái DRAFT</text>
+</g>
+<g class="message" data-from="WhStaff" data-to="Web" data-label="3. Kiểm đếm thực tế &amp; Bấm &quot;Duyệt phiếu nhập&quot;" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="102.34799999999996" y1="764.45" x2="268.18199999999996" y2="764.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="185.26499999999996" y="754.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">3. Kiểm đếm thực tế &amp; Bấm &quot;Duyệt phiếu nhập&quot;</text>
+</g>
+<g class="message" data-from="Web" data-to="WhAPI" data-label="POST /warehouse/documents/{id}/post" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="268.18199999999996" y1="804.45" x2="496.63049999999987" y2="804.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="382.4062499999999" y="794.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">POST /warehouse/documents/{id}/post</text>
+</g>
+<g class="message" data-from="WhAPI" data-to="DB" data-label="Kiểm tra tính hợp lệ của hạn dùng (HSD phải ở tương lai)" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="496.63049999999987" y1="844.45" x2="728.7839999999999" y2="844.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="612.7072499999999" y="834.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">Kiểm tra tính hợp lệ của hạn dùng (HSD phải ở tương lai)</text>
+</g>
+<g class="message" data-from="WhAPI" data-to="DB" data-label="Tạo InventoryBatch mới (hoặc cộng dồn lô cùng HSD)" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="496.63049999999987" y1="884.45" x2="728.7839999999999" y2="884.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="612.7072499999999" y="874.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">Tạo InventoryBatch mới (hoặc cộng dồn lô cùng HSD)</text>
+</g>
+<g class="message" data-from="WhAPI" data-to="DB" data-label="Tăng inStock MedicalSupply, ghi StockLedgerEntry (IN)" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="496.63049999999987" y1="924.45" x2="728.7839999999999" y2="924.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="612.7072499999999" y="914.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">Tăng inStock MedicalSupply, ghi StockLedgerEntry (IN)</text>
+</g>
+<g class="message" data-from="WhAPI" data-to="DB" data-label="Đẩy phát sinh Nợ Kho / Có Phải trả NCC sang Kế toán" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="496.63049999999987" y1="964.45" x2="728.7839999999999" y2="964.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="612.7072499999999" y="954.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">Đẩy phát sinh Nợ Kho / Có Phải trả NCC sang Kế toán</text>
+</g>
+<g class="message" data-from="WhAPI" data-to="Web" data-label="Phiếu nhập POSTED, tồn kho cập nhật ngay lập tức" data-line-style="dashed" data-arrow-head="filled" data-self="false">
+  <line x1="496.63049999999987" y1="1004.45" x2="268.18199999999996" y2="1004.45" stroke="var(--_line)" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#seq-arrow)" />
+  <text x="382.4062499999999" y="994.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">Phiếu nhập POSTED, tồn kho cập nhật ngay lập tức</text>
+</g>
+<g class="actor" data-id="WhStaff" data-label="Quản lý kho" data-type="actor">
+  <g transform="translate(84.34799999999996,32) scale(1.5)">
+    <path d="M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" fill="none" stroke="var(--_line)" stroke-width="0.6666666666666666" />
+    <path d="M15 10C15 11.6569 13.6569 13 12 13C10.3431 13 9 11.6569 9 10C9 8.34315 10.3431 7 12 7C13.6569 7 15 8.34315 15 10Z" fill="none" stroke="var(--_line)" stroke-width="0.6666666666666666" />
+    <path d="M5.62842 18.3563C7.08963 17.0398 9.39997 16 12 16C14.6 16 16.9104 17.0398 18.3716 18.3563" fill="none" stroke="var(--_line)" stroke-width="0.6666666666666666" />
+  </g>
+  <text x="102.34799999999996" y="84" font-size="13" text-anchor="middle" font-weight="500" fill="var(--_text)" dy="4.55">Quản lý kho</text>
+</g>
+<g class="actor" data-id="Web" data-label="Giao diện Kho (Web)" data-type="participant">
+  <rect x="193.40899999999996" y="30" width="149.546" height="40" rx="4" ry="4" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="268.18199999999996" y="50" font-size="13" text-anchor="middle" font-weight="500" fill="var(--_text)" dy="4.55">Giao diện Kho (Web)</text>
+</g>
+<g class="actor" data-id="WhAPI" data-label="Warehouse API (/api/warehouse)" data-type="participant">
+  <rect x="382.95499999999987" y="30" width="227.35099999999997" height="40" rx="4" ry="4" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="496.63049999999987" y="50" font-size="13" text-anchor="middle" font-weight="500" fill="var(--_text)" dy="4.55">Warehouse API (/api/warehouse)</text>
+</g>
+<g class="actor" data-id="DB" data-label="SQL Server (Prisma)" data-type="participant">
+  <rect x="650.3059999999998" y="30" width="156.95600000000002" height="40" rx="4" ry="4" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="728.7839999999999" y="50" font-size="13" text-anchor="middle" font-weight="500" fill="var(--_text)" dy="4.55">SQL Server (Prisma)</text>
+</g>
+</svg>

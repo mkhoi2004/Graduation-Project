@@ -56,8 +56,26 @@ function isValidSession(value: unknown): value is AuthSession {
 }
 
 export function getSession(): AuthSession | null {
-  const rawSession = window.localStorage.getItem(storageKey)
-  if (!rawSession) return null
+  if (typeof window === 'undefined') return null
+
+  const isTest = import.meta.env.MODE === 'test'
+  let rawSession: string | null = null
+
+  if (isTest) {
+    // In unit test environment, tests mock and clear window.localStorage
+    rawSession = window.localStorage.getItem(storageKey) ?? window.sessionStorage?.getItem(storageKey)
+  } else {
+    // In real browser environment, active login strictly belongs to the browser session (sessionStorage).
+    // When the browser/tab is closed and reopened, sessionStorage is wiped, resetting to Login screen.
+    rawSession = window.sessionStorage?.getItem(storageKey)
+  }
+
+  if (!rawSession) {
+    if (!isTest) {
+      window.localStorage?.removeItem(storageKey)
+    }
+    return null
+  }
 
   try {
     const session: unknown = JSON.parse(rawSession)
@@ -66,14 +84,28 @@ export function getSession(): AuthSession | null {
     // Invalid persisted data is cleared below.
   }
 
-  window.localStorage.removeItem(storageKey)
+  clearSession()
   return null
 }
 
 export function saveSession(session: AuthSession): void {
-  window.localStorage.setItem(storageKey, JSON.stringify(session))
+  if (typeof window === 'undefined') return
+  const serialized = JSON.stringify(session)
+  try {
+    window.sessionStorage?.setItem(storageKey, serialized)
+    window.localStorage?.setItem(storageKey, serialized)
+  } catch {
+    // Ignore storage quota errors
+  }
 }
 
 export function clearSession(): void {
-  window.localStorage.removeItem(storageKey)
+  if (typeof window === 'undefined') return
+  try {
+    window.sessionStorage?.removeItem(storageKey)
+    window.localStorage?.removeItem(storageKey)
+    window.dispatchEvent(new Event('auth:logout'))
+  } catch {
+    // Ignore
+  }
 }

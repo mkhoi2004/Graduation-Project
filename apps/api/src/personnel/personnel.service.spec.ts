@@ -44,11 +44,17 @@ describe('PersonnelService', () => {
         findMany: vi.fn(),
         findUnique: vi.fn(),
         create: vi.fn(),
+        upsert: vi.fn(),
       },
       shiftAssignment: {
         count: vi.fn(),
         findMany: vi.fn(),
+        findFirst: vi.fn(),
         create: vi.fn(),
+        update: vi.fn(),
+      },
+      clinicRoom: {
+        findMany: vi.fn(),
       },
       attendanceRecord: {
         findMany: vi.fn(),
@@ -483,6 +489,41 @@ describe('PersonnelService', () => {
           mockHrActor,
         ),
       ).rejects.toThrow(BadRequestException);
+    });
+
+    it('generates weekly shifts for Mon-Sat based on active HR working hours', async () => {
+      prismaMock.workingHoursConfig.findFirst.mockResolvedValueOnce({
+        id: 1,
+        startTime: '08:00',
+        endTime: '17:30',
+        splitTime: '12:00',
+      });
+      prismaMock.workShift.upsert.mockResolvedValueOnce({
+        id: 10,
+        code: 'CA_HANH_CHINH',
+        name: 'Ca hành chính (08:00 - 17:30)',
+        startTime: '08:00',
+        endTime: '17:30',
+      });
+      prismaMock.employee.findMany.mockResolvedValueOnce([
+        { id: 1, code: 'NV-0003', fullName: 'Reception', roomId: null, user: { role: { code: 'RECEPTION' } } },
+        { id: 2, code: 'NV-0006', fullName: 'Dr. Minh', roomId: 1, user: { role: { code: 'DOCTOR' } } },
+      ]);
+      prismaMock.clinicRoom.findMany.mockResolvedValueOnce([
+        { id: 1, code: 'room-01', name: 'Phòng khám 01' },
+      ]);
+      prismaMock.shiftAssignment.findFirst.mockResolvedValue(null);
+      prismaMock.shiftAssignment.create.mockResolvedValue({ id: 100 });
+
+      const res = await service.generateWeeklyShifts(
+        { year: 2026, month: 10 },
+        mockHrActor,
+      );
+
+      expect(res.success).toBe(true);
+      expect(res.workingHours).toEqual({ startTime: '08:00', endTime: '17:30' });
+      expect(res.totalStaff).toBe(2);
+      expect(prismaMock.shiftAssignment.create).toHaveBeenCalled();
     });
   });
 });

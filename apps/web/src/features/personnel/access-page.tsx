@@ -504,6 +504,7 @@ export function AccessPage() {
               totalItems={filteredUsers.length}
               pageSize={10}
               onPageChange={setUserPage}
+              itemName="tài khoản"
             />
           </Card>
         </div>

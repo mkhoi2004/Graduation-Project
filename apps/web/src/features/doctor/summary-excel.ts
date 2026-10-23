@@ -227,6 +227,15 @@ export async function downloadSummaryWorkbook(
 
   const template = await response.arrayBuffer()
   const buffer = await createSummaryWorkbook(template, data)
+
+  // Auto-save to Report/PhieuKham
+  try {
+    const { saveExcelReportLocally } = await import('../../lib/report-storage')
+    await saveExcelReportLocally('PhieuKham', data.fileName, buffer)
+  } catch (err) {
+    console.warn('Lưu Excel vào Report thất bại:', err)
+  }
+
   const blob = new Blob([buffer as BlobPart], {
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   })

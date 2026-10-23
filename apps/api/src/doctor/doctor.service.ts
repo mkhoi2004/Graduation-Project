@@ -117,18 +117,34 @@ export class DoctorService {
   async getSuppliesCatalog() {
     const supplies = await this.prisma.medicalSupply.findMany({
       where: { isActive: true, group: { in: ['THUONG', 'VO_CAM'] } },
+      include: {
+        inventoryBatches: {
+          where: { quantity: { gt: 0 } },
+        },
+      },
       orderBy: [{ group: 'asc' }, { id: 'asc' }],
     });
 
-    return supplies.map((s) => ({
-      id: s.code,
-      name: s.name,
-      group: s.group as 'THUONG' | 'VO_CAM',
-      baseUnit: s.baseUnit,
-      conversionUnit: s.conversionUnit,
-      conversionRate: s.conversionRate,
-      inStock: s.inStock,
-    }));
+    const now = new Date();
+    const todayUtc = Date.UTC(now.getUTCFullYear(), now.getUTCMonth(), now.getUTCDate());
+
+    return supplies.map((s) => {
+      const availableStock = s.inventoryBatches && s.inventoryBatches.length > 0
+        ? s.inventoryBatches
+            .filter((b) => !b.expiryDate || Date.UTC(b.expiryDate.getUTCFullYear(), b.expiryDate.getUTCMonth(), b.expiryDate.getUTCDate()) > todayUtc)
+            .reduce((sum, b) => sum + Number(b.quantity), 0)
+        : s.inStock;
+
+      return {
+        id: s.code,
+        name: s.name,
+        group: s.group as 'THUONG' | 'VO_CAM',
+        baseUnit: s.baseUnit,
+        conversionUnit: s.conversionUnit,
+        conversionRate: s.conversionRate,
+        inStock: availableStock,
+      };
+    });
   }
 
   /**

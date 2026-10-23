@@ -1,6 +1,7 @@
 import { ClipboardPlus, CreditCard, Database, FileText, LayoutDashboard, LogOut, Send, Sparkles, Stethoscope, UsersRound } from 'lucide-react'
 import { NavLink, Outlet, useNavigate } from 'react-router-dom'
-import { clearSession, type AuthSession } from '@/lib/auth-session'
+import { type AuthSession } from '@/lib/auth-session'
+import { useAuth } from '@/features/auth/auth-context'
 import { ReceptionProvider, useReception } from './reception-context'
 
 import { AttendanceHeaderWidget } from '../personnel/attendance-header-widget'
@@ -96,14 +97,15 @@ function ReceptionLayoutInner({ session, onLogout }: { session: AuthSession; onL
 
 export function ReceptionLayout({ session }: { session: AuthSession }) {
   const navigate = useNavigate()
-  function logout() {
-    clearSession()
+  const { logout } = useAuth()
+  function handleLogout() {
+    logout()
     navigate('/login', { replace: true })
   }
 
   return (
     <ReceptionProvider>
-      <ReceptionLayoutInner session={session} onLogout={logout} />
+      <ReceptionLayoutInner session={session} onLogout={handleLogout} />
     </ReceptionProvider>
   )
 }

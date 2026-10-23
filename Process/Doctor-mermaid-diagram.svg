@@ -1,0 +1,187 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 1229.8940000000002 1412.45" width="1229.8940000000002" height="1412.45" style="--bg:#1F1F1F;--fg:#CCCCCC;--line:#CCCCCC;--accent:#0078D4;--muted:#CCCCCCCC;--surface:#181818;--border:#CCCCCC;background:var(--bg)">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap');
+  text { font-family: 'Inter', system-ui, sans-serif; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          var(--fg);
+    --_text-sec:      var(--muted, color-mix(in srgb, var(--fg) 60%, var(--bg)));
+    --_text-muted:    var(--muted, color-mix(in srgb, var(--fg) 40%, var(--bg)));
+    --_text-faint:    color-mix(in srgb, var(--fg) 25%, var(--bg));
+    --_line:          var(--line, color-mix(in srgb, var(--fg) 50%, var(--bg)));
+    --_arrow:         var(--accent, color-mix(in srgb, var(--fg) 85%, var(--bg)));
+    --_node-fill:     var(--surface, color-mix(in srgb, var(--fg) 3%, var(--bg)));
+    --_node-stroke:   var(--border, color-mix(in srgb, var(--fg) 20%, var(--bg)));
+    --_group-fill:    var(--bg);
+    --_group-hdr:     color-mix(in srgb, var(--fg) 5%, var(--bg));
+    --_inner-stroke:  color-mix(in srgb, var(--fg) 12%, var(--bg));
+    --_key-badge:     color-mix(in srgb, var(--fg) 10%, var(--bg));
+  }
+</style>
+<defs>
+  <marker id="seq-arrow" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto-start-reverse">
+    <polygon points="0 0, 8 2.5, 0 5" fill="var(--_arrow)" />
+  </marker>
+  <marker id="seq-arrow-open" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto-start-reverse">
+    <polyline points="0 0, 8 2.5, 0 5" fill="none" stroke="var(--_arrow)" stroke-width="1" />
+  </marker>
+</defs>
+<line class="lifeline" data-actor="Doc" x1="94.02850000000001" y1="92.45" x2="94.02850000000001" y2="1382.45" stroke="var(--_line)" stroke-width="0.75" stroke-dasharray="6 4" />
+<line class="lifeline" data-actor="Web" x1="281.3515" y1="70" x2="281.3515" y2="1382.45" stroke="var(--_line)" stroke-width="0.75" stroke-dasharray="6 4" />
+<line class="lifeline" data-actor="DocAPI" x1="489.793" y1="70" x2="489.793" y2="1382.45" stroke="var(--_line)" stroke-width="0.75" stroke-dasharray="6 4" />
+<line class="lifeline" data-actor="WH" x1="697.4935" y1="70" x2="697.4935" y2="1382.45" stroke="var(--_line)" stroke-width="0.75" stroke-dasharray="6 4" />
+<line class="lifeline" data-actor="Acc" x1="911.4925000000001" y1="70" x2="911.4925000000001" y2="1382.45" stroke="var(--_line)" stroke-width="0.75" stroke-dasharray="6 4" />
+<line class="lifeline" data-actor="DB" x1="1121.4160000000002" y1="70" x2="1121.4160000000002" y2="1382.45" stroke="var(--_line)" stroke-width="0.75" stroke-dasharray="6 4" />
+<g class="message" data-from="Doc" data-to="Web" data-label="1. Xem danh sách chờ phòng trực &amp; Bấm &quot;Gọi số tiếp theo&quot;" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="94.02850000000001" y1="112.45" x2="281.3515" y2="112.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="187.69" y="102.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">1. Xem danh sách chờ phòng trực &amp; Bấm &quot;Gọi số tiếp theo&quot;</text>
+</g>
+<g class="message" data-from="Web" data-to="DocAPI" data-label="POST /doctor/queue/call-next" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="281.3515" y1="152.45" x2="489.793" y2="152.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="385.57225" y="142.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">POST /doctor/queue/call-next</text>
+</g>
+<g class="message" data-from="DocAPI" data-to="DB" data-label="QueueTicket.status: CALLED, tạo DoctorExamination (status: IN_PROGRESS)" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="489.793" y1="192.45" x2="1121.4160000000002" y2="192.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="805.6045000000001" y="182.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">QueueTicket.status: CALLED, tạo DoctorExamination (status: IN_PROGRESS)</text>
+</g>
+<g class="message" data-from="DB" data-to="DocAPI" data-label="Trả về thông tin ca khám (Mã PKB...)" data-line-style="dashed" data-arrow-head="filled" data-self="false">
+  <line x1="1121.4160000000002" y1="232.45" x2="489.793" y2="232.45" stroke="var(--_line)" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#seq-arrow)" />
+  <text x="805.6045000000001" y="222.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">Trả về thông tin ca khám (Mã PKB...)</text>
+</g>
+<g class="message" data-from="DocAPI" data-to="Web" data-label="Chuyển sang Bước 2 (Chỉ định VTYT)" data-line-style="dashed" data-arrow-head="filled" data-self="false">
+  <line x1="489.793" y1="272.45" x2="281.3515" y2="272.45" stroke="var(--_line)" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#seq-arrow)" />
+  <text x="385.57225" y="262.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">Chuyển sang Bước 2 (Chỉ định VTYT)</text>
+</g>
+<g class="message" data-from="Doc" data-to="Web" data-label="2. Chọn VTYT tiêu hao (Thuốc tê, găng tay, composite...)" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="94.02850000000001" y1="312.45" x2="281.3515" y2="312.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="187.69" y="302.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">2. Chọn VTYT tiêu hao (Thuốc tê, găng tay, composite...)</text>
+</g>
+<g class="message" data-from="Web" data-to="DocAPI" data-label="GET /doctor/supplies/catalog" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="281.3515" y1="352.45" x2="489.793" y2="352.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="385.57225" y="342.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">GET /doctor/supplies/catalog</text>
+</g>
+<g class="message" data-from="DocAPI" data-to="DB" data-label="Lấy danh mục VTYT (Chỉ tính số lượng tồn còn hạn sử dụng)" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="489.793" y1="392.45" x2="1121.4160000000002" y2="392.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="805.6045000000001" y="382.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">Lấy danh mục VTYT (Chỉ tính số lượng tồn còn hạn sử dụng)</text>
+</g>
+<g class="message" data-from="DocAPI" data-to="Web" data-label="Render danh sách tồn khả dụng" data-line-style="dashed" data-arrow-head="filled" data-self="false">
+  <line x1="489.793" y1="432.45" x2="281.3515" y2="432.45" stroke="var(--_line)" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#seq-arrow)" />
+  <text x="385.57225" y="422.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">Render danh sách tồn khả dụng</text>
+</g>
+<g class="message" data-from="Doc" data-to="Web" data-label="Thêm VTYT &amp; Bấm &quot;Lưu vật tư&quot;" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="94.02850000000001" y1="472.45" x2="281.3515" y2="472.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="187.69" y="462.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">Thêm VTYT &amp; Bấm &quot;Lưu vật tư&quot;</text>
+</g>
+<g class="message" data-from="Web" data-to="DocAPI" data-label="PUT /doctor/examinations/{id}/supplies" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="281.3515" y1="512.45" x2="489.793" y2="512.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="385.57225" y="502.45000000000005" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">PUT /doctor/examinations/{id}/supplies</text>
+</g>
+<g class="message" data-from="DocAPI" data-to="WH" data-label="reserveStock(supplyCode, quantity)" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="489.793" y1="552.45" x2="697.4935" y2="552.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="593.6432500000001" y="542.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">reserveStock(supplyCode, quantity)</text>
+</g>
+<g class="message" data-from="WH" data-to="DB" data-label="Tạo SupplyReservation (status: RESERVED)" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="697.4935" y1="592.45" x2="1121.4160000000002" y2="592.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="909.4547500000001" y="582.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">Tạo SupplyReservation (status: RESERVED)</text>
+</g>
+<g class="message" data-from="DocAPI" data-to="Web" data-label="Lưu và giữ chỗ thành công" data-line-style="dashed" data-arrow-head="filled" data-self="false">
+  <line x1="489.793" y1="632.45" x2="281.3515" y2="632.45" stroke="var(--_line)" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#seq-arrow)" />
+  <text x="385.57225" y="622.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">Lưu và giữ chỗ thành công</text>
+</g>
+<g class="message" data-from="Doc" data-to="Web" data-label="3. Nhập kết luận khám, dặn dò &amp; In phiếu chỉ định" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="94.02850000000001" y1="672.45" x2="281.3515" y2="672.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="187.69" y="662.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">3. Nhập kết luận khám, dặn dò &amp; In phiếu chỉ định</text>
+</g>
+<g class="message" data-from="Web" data-to="DocAPI" data-label="PUT /doctor/examinations/{id}/result" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="281.3515" y1="712.45" x2="489.793" y2="712.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="385.57225" y="702.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">PUT /doctor/examinations/{id}/result</text>
+</g>
+<g class="message" data-from="DocAPI" data-to="DB" data-label="Lưu DoctorExaminationResult" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="489.793" y1="752.45" x2="1121.4160000000002" y2="752.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="805.6045000000001" y="742.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">Lưu DoctorExaminationResult</text>
+</g>
+<g class="message" data-from="Doc" data-to="Web" data-label="Bấm &quot;In phiếu điều trị&quot;" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="94.02850000000001" y1="792.45" x2="281.3515" y2="792.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="187.69" y="782.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">Bấm &quot;In phiếu điều trị&quot;</text>
+</g>
+<g class="message" data-from="Web" data-to="DocAPI" data-label="POST /doctor/examinations/{id}/print" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="281.3515" y1="832.45" x2="489.793" y2="832.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="385.57225" y="822.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">POST /doctor/examinations/{id}/print</text>
+</g>
+<g class="message" data-from="DocAPI" data-to="DB" data-label="Ghi log ExaminationPrintHistory" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="489.793" y1="872.45" x2="1121.4160000000002" y2="872.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="805.6045000000001" y="862.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">Ghi log ExaminationPrintHistory</text>
+</g>
+<g class="message" data-from="DocAPI" data-to="Web" data-label="Hiển thị mẫu in chuẩn y khoa" data-line-style="dashed" data-arrow-head="filled" data-self="false">
+  <line x1="489.793" y1="912.45" x2="281.3515" y2="912.45" stroke="var(--_line)" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#seq-arrow)" />
+  <text x="385.57225" y="902.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">Hiển thị mẫu in chuẩn y khoa</text>
+</g>
+<g class="message" data-from="Doc" data-to="Web" data-label="4. Bấm &quot;Ghi sổ (Hoàn thành ca khám)&quot;" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="94.02850000000001" y1="952.45" x2="281.3515" y2="952.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="187.69" y="942.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">4. Bấm &quot;Ghi sổ (Hoàn thành ca khám)&quot;</text>
+</g>
+<g class="message" data-from="Web" data-to="DocAPI" data-label="POST /doctor/examinations/{id}/complete" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="281.3515" y1="992.45" x2="489.793" y2="992.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="385.57225" y="982.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">POST /doctor/examinations/{id}/complete</text>
+</g>
+<g class="message" data-from="DocAPI" data-to="WH" data-label="deductStock(examinationId)" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="489.793" y1="1032.45" x2="697.4935" y2="1032.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="593.6432500000001" y="1022.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">deductStock(examinationId)</text>
+</g>
+<g class="message" data-from="WH" data-to="WH" data-label="allocateStock(FEFO: Lô còn hạn sử dụng)" data-line-style="solid" data-arrow-head="filled" data-self="true">
+  <polyline points="697.4935,1072.45 727.4935,1072.45 727.4935,1092.45 697.4935,1092.45" fill="none" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="735.4935" y="1082.45" font-size="11" text-anchor="start" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">allocateStock(FEFO: Lô còn hạn sử dụng)</text>
+</g>
+<g class="message" data-from="WH" data-to="DB" data-label="Trừ tồn kho InventoryBatch, tạo StockDocument &amp; StockLedgerEntry (OUT)" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="697.4935" y1="1142.45" x2="1121.4160000000002" y2="1142.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="909.4547500000001" y="1132.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">Trừ tồn kho InventoryBatch, tạo StockDocument &amp; StockLedgerEntry (OUT)</text>
+</g>
+<g class="message" data-from="WH" data-to="DB" data-label="Cập nhật SupplyReservation status: DEDUCTED" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="697.4935" y1="1182.45" x2="1121.4160000000002" y2="1182.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="909.4547500000001" y="1172.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">Cập nhật SupplyReservation status: DEDUCTED</text>
+</g>
+<g class="message" data-from="DocAPI" data-to="Acc" data-label="enqueueJournalEntry(Doanh thu dịch vụ + Giá vốn VTYT)" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="489.793" y1="1222.45" x2="911.4925000000001" y2="1222.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="700.64275" y="1212.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">enqueueJournalEntry(Doanh thu dịch vụ + Giá vốn VTYT)</text>
+</g>
+<g class="message" data-from="Acc" data-to="DB" data-label="Tạo bút toán Outbox sang phân hệ Kế toán" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="911.4925000000001" y1="1262.45" x2="1121.4160000000002" y2="1262.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="1016.4542500000001" y="1252.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">Tạo bút toán Outbox sang phân hệ Kế toán</text>
+</g>
+<g class="message" data-from="DocAPI" data-to="DB" data-label="Khóa hồ sơ (isLocked: true, status: COMPLETED)" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="489.793" y1="1302.45" x2="1121.4160000000002" y2="1302.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="805.6045000000001" y="1292.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">Khóa hồ sơ (isLocked: true, status: COMPLETED)</text>
+</g>
+<g class="message" data-from="DocAPI" data-to="Web" data-label="Báo Ghi sổ thành công, tự động làm mới hàng đợi gọi số mới" data-line-style="dashed" data-arrow-head="filled" data-self="false">
+  <line x1="489.793" y1="1342.45" x2="281.3515" y2="1342.45" stroke="var(--_line)" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#seq-arrow)" />
+  <text x="385.57225" y="1332.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">Báo Ghi sổ thành công, tự động làm mới hàng đợi gọi số mới</text>
+</g>
+<g class="actor" data-id="Doc" data-label="Bác sĩ lâm sàng" data-type="actor">
+  <g transform="translate(76.02850000000001,32) scale(1.5)">
+    <path d="M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" fill="none" stroke="var(--_line)" stroke-width="0.6666666666666666" />
+    <path d="M15 10C15 11.6569 13.6569 13 12 13C10.3431 13 9 11.6569 9 10C9 8.34315 10.3431 7 12 7C13.6569 7 15 8.34315 15 10Z" fill="none" stroke="var(--_line)" stroke-width="0.6666666666666666" />
+    <path d="M5.62842 18.3563C7.08963 17.0398 9.39997 16 12 16C14.6 16 16.9104 17.0398 18.3716 18.3563" fill="none" stroke="var(--_line)" stroke-width="0.6666666666666666" />
+  </g>
+  <text x="94.02850000000001" y="84" font-size="13" text-anchor="middle" font-weight="500" fill="var(--_text)" dy="4.55">Bác sĩ lâm sàng</text>
+</g>
+<g class="actor" data-id="Web" data-label="Giao diện Bác sĩ (Web)" data-type="participant">
+  <rect x="198.057" y="30" width="166.589" height="40" rx="4" ry="4" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="281.3515" y="50" font-size="13" text-anchor="middle" font-weight="500" fill="var(--_text)" dy="4.55">Giao diện Bác sĩ (Web)</text>
+</g>
+<g class="actor" data-id="DocAPI" data-label="Doctor API (/api/doctor)" data-type="participant">
+  <rect x="404.646" y="30" width="170.29399999999998" height="40" rx="4" ry="4" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="489.793" y="50" font-size="13" text-anchor="middle" font-weight="500" fill="var(--_text)" dy="4.55">Doctor API (/api/doctor)</text>
+</g>
+<g class="actor" data-id="WH" data-label="Warehouse Stub (Kho)" data-type="participant">
+  <rect x="614.94" y="30" width="165.107" height="40" rx="4" ry="4" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="697.4935" y="50" font-size="13" text-anchor="middle" font-weight="500" fill="var(--_text)" dy="4.55">Warehouse Stub (Kho)</text>
+</g>
+<g class="actor" data-id="Acc" data-label="Accounting Stub (Kế toán)" data-type="participant">
+  <rect x="820.047" y="30" width="182.89099999999996" height="40" rx="4" ry="4" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="911.4925000000001" y="50" font-size="13" text-anchor="middle" font-weight="500" fill="var(--_text)" dy="4.55">Accounting Stub (Kế toán)</text>
+</g>
+<g class="actor" data-id="DB" data-label="SQL Server (Prisma)" data-type="participant">
+  <rect x="1042.938" y="30" width="156.95600000000002" height="40" rx="4" ry="4" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="1121.4160000000002" y="50" font-size="13" text-anchor="middle" font-weight="500" fill="var(--_text)" dy="4.55">SQL Server (Prisma)</text>
+</g>
+</svg>

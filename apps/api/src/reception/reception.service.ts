@@ -7,6 +7,7 @@ import type { CreateIntakeDto, UpdateIntakeServicesDto } from './dto/intake.dto.
 import type { IntakeFiltersDto } from './dto/queue-actions.dto.js';
 import { clinicDateToDbDate, getClinicTimeParts, isClinicShiftActive, previousClinicDate } from '../common/clinic-time.js';
 import { ReceptionQueueService } from './reception-queue.service.js';
+import { validateCitizenId } from './citizen-id.validator.js';
 
 function dateStamp(date = new Date()): string {
   const year = date.getFullYear();
@@ -111,6 +112,7 @@ export class ReceptionService {
       dateOfBirth: p.dateOfBirth.toISOString().split('T')[0],
       gender: p.gender,
       phone: p.phone,
+      citizenId: p.citizenId ?? '',
       address: p.address ?? '',
       note: p.note ?? '',
       createdAt: p.createdAt.toISOString(),
@@ -137,6 +139,19 @@ export class ReceptionService {
         throw new NotFoundException('Không tìm thấy hồ sơ bệnh nhân cần cập nhật.');
       }
 
+      const birthDateStr = dto.dateOfBirth ?? existing.dateOfBirth.toISOString().split('T')[0];
+      const genderStr = dto.gender ?? existing.gender;
+
+      if (dto.citizenId) {
+        validateCitizenId(dto.citizenId, birthDateStr, genderStr);
+        const existingWithCid = await this.prisma.patient.findFirst({
+          where: { citizenId: dto.citizenId, NOT: { code: patientCode } },
+        });
+        if (existingWithCid) {
+          throw new BadRequestException('Số CCCD đã được sử dụng bởi một bệnh nhân khác.');
+        }
+      }
+
       const updated = await this.prisma.patient.update({
         where: { code: patientCode },
         data: {
@@ -144,6 +159,7 @@ export class ReceptionService {
           dateOfBirth: dto.dateOfBirth ? new Date(dto.dateOfBirth) : existing.dateOfBirth,
           gender: dto.gender ?? existing.gender,
           phone: dto.phone ?? existing.phone,
+          citizenId: dto.citizenId ?? existing.citizenId,
           address: dto.address ?? existing.address,
           note: dto.note ?? existing.note,
         },
@@ -155,6 +171,7 @@ export class ReceptionService {
         dateOfBirth: updated.dateOfBirth.toISOString().split('T')[0],
         gender: updated.gender,
         phone: updated.phone,
+        citizenId: updated.citizenId ?? '',
         address: updated.address ?? '',
         note: updated.note ?? '',
         createdAt: updated.createdAt.toISOString(),
@@ -162,9 +179,18 @@ export class ReceptionService {
       };
     }
 
-    // Creating new patient
-    if (!dto.fullName || !dto.dateOfBirth || !dto.gender || !dto.phone) {
-      throw new BadRequestException('Vui lòng cung cấp đầy đủ thông tin bệnh nhân.');
+    // Creating new patient - citizenId is required
+    if (!dto.fullName || !dto.dateOfBirth || !dto.gender || !dto.phone || !dto.citizenId) {
+      throw new BadRequestException('Vui lòng cung cấp đầy đủ thông tin bệnh nhân (bao gồm số CCCD bắt buộc).');
+    }
+
+    validateCitizenId(dto.citizenId, dto.dateOfBirth, dto.gender);
+
+    const existingWithCid = await this.prisma.patient.findFirst({
+      where: { citizenId: dto.citizenId },
+    });
+    if (existingWithCid) {
+      throw new BadRequestException('Số CCCD đã được sử dụng bởi một bệnh nhân khác.');
     }
 
     const todayPrefix = `MBN${dateStamp()}/`;
@@ -187,6 +213,7 @@ export class ReceptionService {
         dateOfBirth: new Date(dto.dateOfBirth),
         gender: dto.gender,
         phone: dto.phone,
+        citizenId: dto.citizenId,
         address: dto.address,
         note: dto.note,
       },
@@ -198,6 +225,7 @@ export class ReceptionService {
       dateOfBirth: created.dateOfBirth.toISOString().split('T')[0],
       gender: created.gender,
       phone: created.phone,
+      citizenId: created.citizenId ?? '',
       address: created.address ?? '',
       note: created.note ?? '',
       createdAt: created.createdAt.toISOString(),
@@ -282,7 +310,7 @@ export class ReceptionService {
         transferredAt: intake.transferredAt ? intake.transferredAt.toISOString() : undefined,
         payment: latestPayment
           ? {
-              method: latestPayment.method as 'CASH' | 'MOMO',
+              method: latestPayment.method as 'CASH' | 'MOMO' | 'VNPAY',
               status: latestPayment.status as 'PENDING' | 'PAID' | 'FAILED',
               orderId: latestPayment.orderId,
               paidAt: latestPayment.paidAt ? latestPayment.paidAt.toISOString() : undefined,
@@ -800,7 +828,7 @@ export class ReceptionService {
       transferredAt: intake.transferredAt ? intake.transferredAt.toISOString() : undefined,
       payment: latestPayment
         ? {
-            method: latestPayment.method as 'CASH' | 'MOMO',
+            method: latestPayment.method as 'CASH' | 'MOMO' | 'VNPAY',
             status: latestPayment.status as 'PENDING' | 'PAID' | 'FAILED',
             orderId: latestPayment.orderId,
             paidAt: latestPayment.paidAt ? latestPayment.paidAt.toISOString() : undefined,
@@ -838,6 +866,7 @@ export class ReceptionService {
           dateOfBirth: patient.dateOfBirth,
           gender: patient.gender,
           phone: patient.phone,
+          citizenId: patient.citizenId,
           address: patient.address,
           note: patient.note,
           createdAt: patient.createdAt,

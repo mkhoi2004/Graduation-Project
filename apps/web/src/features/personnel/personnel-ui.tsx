@@ -120,47 +120,75 @@ export function PaginationBar({
   totalItems,
   pageSize = 10,
   onPageChange,
+  itemName = 'dòng',
 }: {
   currentPage: number;
   totalItems: number;
   pageSize?: number;
   onPageChange: (page: number) => void;
+  itemName?: string;
 }) {
   const totalPages = Math.max(1, Math.ceil(totalItems / pageSize));
   const start = totalItems === 0 ? 0 : (currentPage - 1) * pageSize + 1;
   const end = Math.min(currentPage * pageSize, totalItems);
 
-  if (totalItems <= pageSize && currentPage === 1) {
-    return (
-      <div className="flex items-center justify-between border-t border-slate-100 px-5 py-3 text-xs text-slate-500">
-        <span>Hiển thị tất cả <strong>{totalItems}</strong> dòng (cố định 10 dòng/trang)</span>
-        <span className="font-medium text-slate-400">Trang 1 / 1</span>
-      </div>
-    );
-  }
+  // Generate page numbers with smart ellipsis for larger page counts
+  const getPageNumbers = (): (number | string)[] => {
+    if (totalPages <= 7) {
+      return Array.from({ length: totalPages }, (_, i) => i + 1);
+    }
+    if (currentPage <= 4) {
+      return [1, 2, 3, 4, 5, '...', totalPages];
+    }
+    if (currentPage >= totalPages - 3) {
+      return [1, '...', totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+    }
+    return [1, '...', currentPage - 1, currentPage, currentPage + 1, '...', totalPages];
+  };
+
+  const pages = getPageNumbers();
 
   return (
-    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 px-5 py-3 text-xs text-slate-600">
-      <span>
-        Hiển thị <strong>{start}</strong> - <strong>{end}</strong> trên tổng số <strong>{totalItems}</strong> dòng (cố định 10 dòng/trang)
-      </span>
-      <div className="flex items-center gap-2">
+    <div className="flex flex-wrap items-center justify-between gap-3 border-t border-slate-100 bg-white px-5 py-3.5 text-xs text-slate-600">
+      <p className="text-slate-500">
+        Hiển thị <strong>{start}</strong> - <strong>{end}</strong> trên tổng số <strong>{totalItems}</strong> {itemName} (cố định {pageSize} {itemName}/trang)
+      </p>
+      <div className="flex items-center gap-1.5">
         <button
           type="button"
           disabled={currentPage <= 1}
-          onClick={() => onPageChange(currentPage - 1)}
-          className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-semibold hover:bg-slate-50 disabled:opacity-40 disabled:hover:bg-transparent"
+          onClick={() => onPageChange(Math.max(1, currentPage - 1))}
+          className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-95 disabled:pointer-events-none disabled:opacity-40"
         >
           Trước
         </button>
-        <span className="font-semibold text-slate-700">
-          Trang {currentPage} / {totalPages}
-        </span>
+
+        {pages.map((p, idx) =>
+          typeof p === 'number' ? (
+            <button
+              key={p}
+              type="button"
+              onClick={() => onPageChange(p)}
+              className={`flex size-8 items-center justify-center rounded-lg text-xs font-bold transition active:scale-95 ${
+                currentPage === p
+                  ? 'bg-indigo-600 text-white shadow-xs'
+                  : 'border border-slate-200 text-slate-700 hover:bg-slate-50'
+              }`}
+            >
+              {p}
+            </button>
+          ) : (
+            <span key={`ellipsis-${idx}`} className="px-1 font-bold text-slate-400">
+              ...
+            </span>
+          )
+        )}
+
         <button
           type="button"
           disabled={currentPage >= totalPages}
-          onClick={() => onPageChange(currentPage + 1)}
-          className="rounded-lg border border-slate-200 px-2.5 py-1 text-xs font-semibold hover:bg-slate-50 disabled:opacity-40 disabled:hover:bg-transparent"
+          onClick={() => onPageChange(Math.min(totalPages, currentPage + 1))}
+          className="rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-semibold text-slate-700 transition hover:bg-slate-50 active:scale-95 disabled:pointer-events-none disabled:opacity-40"
         >
           Sau
         </button>

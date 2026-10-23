@@ -15,6 +15,7 @@ export interface AuthUser {
 
 export abstract class UsersRepository {
   abstract findActiveByUsername(username: string): Promise<AuthUser | null>;
+  abstract findById(id: number): Promise<AuthUser | null>;
 }
 
 @Injectable()
@@ -33,6 +34,28 @@ export class PrismaUsersRepository implements UsersRepository {
     return this.prisma.user.findFirst({
       where: {
         username: searchUsername,
+        isActive: true,
+      },
+      select: {
+        id: true,
+        username: true,
+        fullName: true,
+        passwordHash: true,
+        isActive: true,
+        role: {
+          select: {
+            code: true,
+            name: true,
+          },
+        },
+      },
+    });
+  }
+
+  findById(id: number): Promise<AuthUser | null> {
+    return this.prisma.user.findFirst({
+      where: {
+        id,
         isActive: true,
       },
       select: {

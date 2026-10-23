@@ -26,6 +26,7 @@ describe('ReceptionService', () => {
       patient: {
         findMany: vi.fn(),
         findUnique: vi.fn(),
+        findFirst: vi.fn(),
         create: vi.fn(),
         update: vi.fn(),
         delete: vi.fn(),
@@ -300,6 +301,7 @@ describe('ReceptionService', () => {
   describe('upsertPatient', () => {
     it('creates a new patient with daily MBN code and saves to database', async () => {
       mockPrisma.patient.findUnique.mockResolvedValue(null);
+      mockPrisma.patient.findFirst.mockResolvedValue(null);
       mockPrisma.patient.findMany.mockResolvedValue([{ code: 'MBN20261710/0001' }]);
       mockPrisma.patient.create.mockImplementation((args: any) => ({
         ...args.data,
@@ -312,11 +314,13 @@ describe('ReceptionService', () => {
         dateOfBirth: '1995-03-20',
         gender: 'Nam',
         phone: '0933112233',
+        citizenId: '079095123789',
         address: 'Quận 10, TP.HCM',
         note: 'Tiền sử sâu răng',
       });
 
       expect(res.fullName).toBe('Lê Văn C');
+      expect(res.citizenId).toBe('079095123789');
       expect(res.id).toMatch(/^MBN\d{8}\/\d{4}$/);
       expect(mockPrisma.patient.create).toHaveBeenCalled();
     });
@@ -334,8 +338,95 @@ describe('ReceptionService', () => {
           dateOfBirth: '1990-01-01',
           gender: 'Nam',
           phone: '0912345678',
+          citizenId: '079090123456',
         }),
       ).rejects.toThrow(BadRequestException);
+    });
+
+    it('rejects invalid or missing CCCD', async () => {
+      // Missing CCCD
+      await expect(
+        service.upsertPatient({
+          fullName: 'Bệnh nhân thiếu CCCD',
+          dateOfBirth: '1990-01-01',
+          gender: 'Nam',
+          phone: '0912345678',
+        } as any),
+      ).rejects.toThrow(/CCCD/i);
+
+      // Dummy repeating 12 digits
+      await expect(
+        service.upsertPatient({
+          fullName: 'Bệnh nhân CCCD sai',
+          dateOfBirth: '1990-01-01',
+          gender: 'Nam',
+          phone: '0912345678',
+          citizenId: '000000000000',
+        }),
+      ).rejects.toThrow(/CCCD/i);
+
+      // Invalid province code (> 096)
+      await expect(
+        service.upsertPatient({
+          fullName: 'Bệnh nhân tỉnh sai',
+          dateOfBirth: '1990-01-01',
+          gender: 'Nam',
+          phone: '0912345678',
+          citizenId: '099090123789',
+        }),
+      ).rejects.toThrow(/mã tỉnh/i);
+
+      // Wrong gender/century digit (female digit 1 for male born 1990)
+      await expect(
+        service.upsertPatient({
+          fullName: 'Bệnh nhân giới tính sai',
+          dateOfBirth: '1990-01-01',
+          gender: 'Nam',
+          phone: '0912345678',
+          citizenId: '001190123789',
+        }),
+      ).rejects.toThrow(/Chữ số thứ 4 của CCCD/i);
+
+      // Wrong birth year (95 != 90)
+      await expect(
+        service.upsertPatient({
+          fullName: 'Bệnh nhân năm sinh sai',
+          dateOfBirth: '1990-01-01',
+          gender: 'Nam',
+          phone: '0912345678',
+          citizenId: '001095123789',
+        }),
+      ).rejects.toThrow(/2 số cuối/i);
+
+      // 6 random digits are 000000
+      await expect(
+        service.upsertPatient({
+          fullName: 'Bệnh nhân random 000000',
+          dateOfBirth: '1990-01-01',
+          gender: 'Nam',
+          phone: '0912345678',
+          citizenId: '001090000000',
+        }),
+      ).rejects.toThrow(/000000/i);
+    });
+
+    it('rejects duplicate CCCD for another patient', async () => {
+      mockPrisma.patient.findUnique.mockResolvedValue(null);
+      mockPrisma.patient.findFirst.mockResolvedValue({
+        id: 2,
+        code: 'MBN20261710/0002',
+        citizenId: '079090123789',
+      });
+
+      await expect(
+        service.upsertPatient({
+          fullName: 'Trùng CCCD',
+          dateOfBirth: '1990-01-01',
+          gender: 'Nam',
+          phone: '0919999888',
+          citizenId: '079090123789',
+        }),
+      ).rejects.toThrow(/Số CCCD đã được sử dụng/i);
     });
 
     it('updates existing patient without creating duplicate', async () => {

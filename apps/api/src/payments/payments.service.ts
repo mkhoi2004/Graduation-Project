@@ -1,4 +1,5 @@
-import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
+import { BadRequestException, Injectable, NotFoundException, Optional } from '@nestjs/common';
+import { VnpayGateway } from './vnpay.gateway.js';
 
 export type PaymentStatus = 'PENDING' | 'PAID' | 'FAILED';
 
@@ -9,6 +10,7 @@ export interface StoredPayment {
   intakeCode: string;
   amount: number;
   status: PaymentStatus;
+  method?: string;
 }
 
 export abstract class PaymentRepository {
@@ -35,6 +37,7 @@ export class PaymentsService {
   constructor(
     private readonly repository: PaymentRepository,
     private readonly gateway: PaymentGateway,
+    @Optional() private readonly vnpayGateway?: VnpayGateway,
   ) {}
 
   async createMomoPayment(input: { intakeCode: string; amount: number }): Promise<MomoCheckout> {
@@ -43,7 +46,14 @@ export class PaymentsService {
     }
     const checkout = await this.gateway.createPayment(input);
     if (!checkout.payUrl) throw new BadRequestException('MoMo không trả về đường dẫn thanh toán.');
-    await this.repository.createPending({ orderId: checkout.orderId, requestId: checkout.requestId, partnerCode: checkout.partnerCode, intakeCode: input.intakeCode, amount: input.amount });
+    await this.repository.createPending({
+      orderId: checkout.orderId,
+      requestId: checkout.requestId,
+      partnerCode: checkout.partnerCode,
+      intakeCode: input.intakeCode,
+      amount: input.amount,
+      method: 'MOMO',
+    });
     return { orderId: checkout.orderId, requestId: checkout.requestId, payUrl: checkout.payUrl };
   }
 
@@ -62,6 +72,97 @@ export class PaymentsService {
     if (payment.status === 'PAID') return { orderId: payment.orderId, status: payment.status };
     const status: PaymentStatus = Number(payload.resultCode) === 0 ? 'PAID' : 'FAILED';
     return this.repository.updateResult(orderId, status, payload);
+  }
+
+  async createVnpayPayment(input: {
+    intakeCode: string;
+    amount: number;
+    bankCode?: string;
+    ipAddr?: string;
+  }): Promise<MomoCheckout> {
+    if (!input.intakeCode.trim() || !Number.isInteger(input.amount) || input.amount < 1_000) {
+      throw new BadRequestException('Thông tin thanh toán không hợp lệ.');
+    }
+    if (!this.vnpayGateway) {
+      throw new BadRequestException('Cổng thanh toán VNPAY chưa được cấu hình.');
+    }
+    const checkout = await this.vnpayGateway.createPayment(input);
+    if (!checkout.payUrl) throw new BadRequestException('VNPAY không trả về đường dẫn thanh toán.');
+    await this.repository.createPending({
+      orderId: checkout.orderId,
+      requestId: checkout.requestId,
+      partnerCode: checkout.partnerCode,
+      intakeCode: input.intakeCode,
+      amount: input.amount,
+      method: 'VNPAY',
+    });
+    return { orderId: checkout.orderId, requestId: checkout.requestId, payUrl: checkout.payUrl };
+  }
+
+  async handleVnpayResult(payload: Record<string, unknown>): Promise<Pick<StoredPayment, 'orderId' | 'status'>> {
+    if (!this.vnpayGateway) throw new BadRequestException('Cổng thanh toán VNPAY chưa được cấu hình.');
+    if (!this.vnpayGateway.verifyResult(payload)) throw new BadRequestException('Chữ ký phản hồi VNPAY không hợp lệ.');
+
+    const orderId = typeof payload.vnp_TxnRef === 'string' ? payload.vnp_TxnRef : '';
+    if (!orderId) throw new BadRequestException('Phản hồi VNPAY thiếu mã giao dịch.');
+
+    const payment = await this.repository.findByOrderId(orderId);
+    if (!payment) throw new NotFoundException('Không tìm thấy giao dịch thanh toán.');
+
+    const vnpAmount = Number(payload.vnp_Amount);
+    if (vnpAmount !== payment.amount * 100) {
+      throw new BadRequestException('Số tiền phản hồi VNPAY không khớp giao dịch.');
+    }
+
+    const tmnCode = typeof payload.vnp_TmnCode === 'string' ? payload.vnp_TmnCode : '';
+    if (tmnCode !== payment.partnerCode) {
+      throw new BadRequestException('Thông tin định danh giao dịch VNPAY không khớp.');
+    }
+
+    if (payment.status === 'PAID') return { orderId: payment.orderId, status: payment.status };
+
+    const responseCode = typeof payload.vnp_ResponseCode === 'string' ? payload.vnp_ResponseCode : '';
+    const transactionStatus = typeof payload.vnp_TransactionStatus === 'string' ? payload.vnp_TransactionStatus : responseCode;
+    const isSuccess = responseCode === '00' && (transactionStatus === '00' || !transactionStatus);
+    const status: PaymentStatus = isSuccess ? 'PAID' : 'FAILED';
+
+    return this.repository.updateResult(orderId, status, payload);
+  }
+
+  async handleVnpayIpn(payload: Record<string, unknown>): Promise<{ RspCode: string; Message: string }> {
+    if (!this.vnpayGateway) {
+      return { RspCode: '99', Message: 'VNPAY gateway not configured' };
+    }
+    if (!this.vnpayGateway.verifyResult(payload)) {
+      return { RspCode: '97', Message: 'Invalid Checksum' };
+    }
+
+    const orderId = typeof payload.vnp_TxnRef === 'string' ? payload.vnp_TxnRef : '';
+    if (!orderId) {
+      return { RspCode: '01', Message: 'Order not found' };
+    }
+
+    const payment = await this.repository.findByOrderId(orderId);
+    if (!payment) {
+      return { RspCode: '01', Message: 'Order not found' };
+    }
+
+    const vnpAmount = Number(payload.vnp_Amount);
+    if (vnpAmount !== payment.amount * 100) {
+      return { RspCode: '04', Message: 'Invalid amount' };
+    }
+
+    if (payment.status === 'PAID') {
+      return { RspCode: '02', Message: 'Order already confirmed' };
+    }
+
+    const responseCode = typeof payload.vnp_ResponseCode === 'string' ? payload.vnp_ResponseCode : '';
+    const transactionStatus = typeof payload.vnp_TransactionStatus === 'string' ? payload.vnp_TransactionStatus : responseCode;
+    const isSuccess = responseCode === '00' && (transactionStatus === '00' || !transactionStatus);
+    const status: PaymentStatus = isSuccess ? 'PAID' : 'FAILED';
+
+    await this.repository.updateResult(orderId, status, payload);
+    return { RspCode: '00', Message: 'Confirm Success' };
   }
 
   async getStatus(orderId: string): Promise<StoredPayment> {

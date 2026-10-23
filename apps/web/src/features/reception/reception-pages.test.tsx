@@ -19,7 +19,7 @@ describe('reception pages', () => {
   it('offers only Thường and Ưu tiên and requires a reason for priority intake', async () => {
     const user = userEvent.setup()
     window.localStorage.setItem('dental-erp.reception-workspace', JSON.stringify({
-      patients: [{ id: 'MBN1', fullName: 'Nguyễn Văn An', dateOfBirth: '1990-01-01', gender: 'Nam', phone: '0901', address: '', note: '', createdAt: '', updatedAt: '' }],
+      patients: [{ id: 'MBN1', fullName: 'Nguyễn Văn An', dateOfBirth: '1990-01-01', gender: 'Nam', phone: '0901', citizenId: '001090123789', address: '', note: '', createdAt: '', updatedAt: '' }],
       intakes: [],
     }))
     render(<MemoryRouter initialEntries={['/reception/intakes/new']}><ReceptionProvider><Routes>
@@ -45,7 +45,7 @@ describe('reception pages', () => {
       doctors: [{ id: 'doctor-minh', name: 'BS. Minh', specialty: 'Nha khoa', isOnDuty: true, assignedRoom: { id: 'room-01', name: 'Phòng 01' } }],
     })
     window.localStorage.setItem('dental-erp.reception-workspace', JSON.stringify({
-      patients: [{ id: 'MBN1', fullName: 'Nguyễn Văn An', dateOfBirth: '1990-01-01', gender: 'Nam', phone: '0901', address: '', note: '', createdAt: '', updatedAt: '' }],
+      patients: [{ id: 'MBN1', fullName: 'Nguyễn Văn An', dateOfBirth: '1990-01-01', gender: 'Nam', phone: '0901', citizenId: '001090123789', address: '', note: '', createdAt: '', updatedAt: '' }],
       intakes: [{ id: 'TNK1', patientId: 'MBN1', symptoms: 'Đau răng', priority: 'Thường', services: [{ serviceId: 'filling', quantity: 1 }], roomId: 'room-01', doctorId: 'doctor-minh', status: 'READY', queueNumber: '0005', createdAt: '' }],
     }))
     render(<MemoryRouter initialEntries={['/reception/services?intake=TNK1']}><ReceptionProvider><ServicesPage /></ReceptionProvider></MemoryRouter>)
@@ -63,6 +63,7 @@ describe('reception pages', () => {
     await user.type(screen.getByLabelText(/họ và tên/i), 'Nguyễn Văn An')
     await user.type(screen.getByLabelText(/ngày sinh/i), '1990-01-01')
     await user.type(screen.getByLabelText(/số điện thoại/i), '0901234567')
+    await user.type(screen.getByLabelText(/số cccd/i), '001090123789')
     await user.click(screen.getByRole('button', { name: /lưu hồ sơ bệnh nhân/i }))
 
     expect(screen.getByRole('status')).toHaveTextContent(/đã tạo bệnh nhân MBN\d{8}\/0001/i)
@@ -72,7 +73,7 @@ describe('reception pages', () => {
   it('downloads a populated Excel receipt from the print action', async () => {
     const user = userEvent.setup()
     window.localStorage.setItem('dental-erp.reception-workspace', JSON.stringify({
-      patients: [{ id: 'MBN20261610/0001', fullName: 'Nguyễn Văn An', dateOfBirth: '1990-01-01', gender: 'Nam', phone: '0901', address: '', note: '', createdAt: '2026-10-16T00:00:00.000Z', updatedAt: '2026-10-16T00:00:00.000Z' }],
+      patients: [{ id: 'MBN20261610/0001', fullName: 'Nguyễn Văn An', dateOfBirth: '1990-01-01', gender: 'Nam', phone: '0901', citizenId: '001090123789', address: '', note: '', createdAt: '2026-10-16T00:00:00.000Z', updatedAt: '2026-10-16T00:00:00.000Z' }],
       intakes: [{ id: 'TNK20261610/0001', patientId: 'MBN20261610/0001', patientName: 'Nguyễn Văn An', symptoms: 'Đau răng', priority: 'Thường', services: [{ serviceId: 'filling', quantity: 1 }], roomId: 'room-01', roomName: 'Phòng 01', doctorId: 'doctor-minh', doctorName: 'BS. Minh', queueNumber: '0005', queueDate: '2026-10-21', queueStatus: 'WAITING', currentCallingNumber: '0003', status: 'PAID', payment: { method: 'CASH', status: 'PAID', paidAt: '2026-10-16T00:10:00.000Z' }, createdAt: '2026-10-16T00:00:00.000Z' }],
     }))
     render(<MemoryRouter><ReceptionProvider><ReceiptPage /></ReceptionProvider></MemoryRouter>)
@@ -90,7 +91,7 @@ describe('reception pages', () => {
 
   it('allows printing a reception ticket before payment once STT exists', () => {
     window.localStorage.setItem('dental-erp.reception-workspace', JSON.stringify({
-      patients: [{ id: 'MBN1', fullName: 'Nguyễn Văn An', dateOfBirth: '1990-01-01', gender: 'Nam', phone: '0901', address: '', note: '', createdAt: '', updatedAt: '' }],
+      patients: [{ id: 'MBN1', fullName: 'Nguyễn Văn An', dateOfBirth: '1990-01-01', gender: 'Nam', phone: '0901', citizenId: '001090123789', address: '', note: '', createdAt: '', updatedAt: '' }],
       intakes: [{ id: 'TNK1', patientId: 'MBN1', symptoms: 'Đau răng', priority: 'Thường', services: [{ serviceId: 'filling', quantity: 1 }], roomId: 'room-01', doctorId: 'doctor-minh', queueNumber: '0001', queueStatus: 'WAITING', status: 'READY', createdAt: '' }],
     }))
     render(<MemoryRouter><ReceptionProvider><ReceiptPage /></ReceptionProvider></MemoryRouter>)

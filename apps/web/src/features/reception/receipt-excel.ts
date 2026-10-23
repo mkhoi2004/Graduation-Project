@@ -16,6 +16,7 @@ export interface ReceiptExportData {
   createdAt: string
   rows: ReceiptServiceRow[]
   total: number
+  isPaid?: boolean
   fileName: string
 }
 
@@ -29,6 +30,13 @@ function safeFileSegment(value: string): string {
 }
 
 export function buildReceiptExportData(patient: Patient, intake: Intake): ReceiptExportData {
+  const isPaid =
+    intake.status === 'PAID' ||
+    intake.status === 'TRANSFERRED' ||
+    intake.status === 'IN_PROGRESS' ||
+    intake.status === 'COMPLETED' ||
+    intake.payment?.status === 'PAID'
+
   const rows = intake.services.flatMap((selection) => {
     const service = dentalServices.find((item) => item.id === selection.serviceId)
     if (!service || selection.quantity <= 0) return []
@@ -50,6 +58,7 @@ export function buildReceiptExportData(patient: Patient, intake: Intake): Receip
     createdAt: new Date(intake.createdAt).toLocaleDateString('vi-VN'),
     rows,
     total: rows.reduce((sum, row) => sum + row.amount, 0),
+    isPaid,
     fileName: `phieu-thu-tien-${safeFileSegment(intake.id)}.xlsx`,
   }
 }
@@ -113,7 +122,13 @@ export function fillReceiptSheetXml(sourceXml: string, data: ReceiptExportData):
 
   xml = formulaCell(xml, 'G30', `SUM(G${firstServiceRow}:G${lastServiceRow})`, data.total)
   if (xml.includes('r="A32"')) {
-    xml = stringCell(xml, 'A32', 'Cảm ơn quý khách đã sử dụng dịch vụ tại DentalKhoi.')
+    xml = stringCell(
+      xml,
+      'A32',
+      data.isPaid
+        ? 'Cảm ơn quý khách đã sử dụng dịch vụ tại DentalKhoi (ĐÃ THANH TOÁN).'
+        : 'Phiếu tiếp nhận & chỉ định dịch vụ (CHƯA THANH TOÁN - Vui lòng thanh toán tại quầy trước khi khám).'
+    )
   }
   xml = xml.replace(/DentalERP/g, 'DentalKhoi')
   return xml
@@ -154,6 +169,15 @@ export async function downloadReceiptWorkbook(patient: Patient, intake: Intake):
 
   const template = await response.arrayBuffer()
   const buffer = await createReceiptWorkbook(template, data)
+
+  // Auto-save to Report/PhieuTiepNhan
+  try {
+    const { saveExcelReportLocally } = await import('../../lib/report-storage')
+    await saveExcelReportLocally('PhieuTiepNhan', data.fileName, buffer)
+  } catch (err) {
+    console.warn('Lưu Excel vào Report thất bại:', err)
+  }
+
   const blob = new Blob([buffer as BlobPart], { type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' })
   const url = URL.createObjectURL(blob)
   const anchor = document.createElement('a')

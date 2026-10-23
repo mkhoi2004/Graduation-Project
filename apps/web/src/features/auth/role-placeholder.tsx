@@ -1,11 +1,13 @@
 import { useNavigate } from 'react-router-dom'
-import { clearSession, type AuthSession } from '@/lib/auth-session'
+import { type AuthSession } from '@/lib/auth-session'
+import { useAuth } from './auth-context'
 
 export function RolePlaceholder({ title, session }: { title: string; session: AuthSession }) {
   const navigate = useNavigate()
+  const { logout } = useAuth()
 
-  function logout() {
-    clearSession()
+  function handleLogout() {
+    logout()
     navigate('/login', { replace: true })
   }
 
@@ -13,7 +15,7 @@ export function RolePlaceholder({ title, session }: { title: string; session: Au
     <main className="min-h-screen bg-white p-8">
       <h1 className="text-xl font-semibold">{title}</h1>
       <p className="mt-2 text-sm text-slate-500">{session.user.fullName}</p>
-      <button type="button" onClick={logout} className="mt-6 text-sm text-slate-600 underline underline-offset-4">
+      <button type="button" onClick={handleLogout} className="mt-6 text-sm text-slate-600 underline underline-offset-4">
         Đăng xuất
       </button>
     </main>

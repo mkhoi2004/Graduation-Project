@@ -85,6 +85,12 @@ export class AssignShiftDto {
   @IsOptional() @IsString() note?: string;
 }
 
+export class GenerateWeeklyShiftsDto {
+  @IsOptional() @Type(() => Number) @IsInt() @Min(2000) year?: number;
+  @IsOptional() @Type(() => Number) @IsInt() @Min(1) @Max(12) month?: number;
+  @IsOptional() @IsBoolean() overwriteExisting?: boolean;
+}
+
 export class RecordAttendanceDto {
   @IsInt() employeeId!: number;
   @IsDateString() date!: string;

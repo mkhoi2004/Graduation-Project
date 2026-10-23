@@ -5,6 +5,7 @@ export interface PatientDraft {
   dateOfBirth: string
   gender: Gender
   phone: string
+  citizenId: string
   address: string
   note: string
 }
@@ -20,10 +21,19 @@ export interface ServiceSelection {
   quantity: number
 }
 
-export type IntakeStatus = 'DRAFT' | 'READY' | 'PAID' | 'TRANSFERRED' | 'CANCELLED_RECEPTION'
+export type IntakeStatus =
+  | 'DRAFT'
+  | 'READY'
+  | 'PAID'
+  | 'TRANSFERRED'
+  | 'IN_PROGRESS'
+  | 'COMPLETED'
+  | 'ABSENT'
+  | 'CANCELLED'
+  | 'CANCELLED_RECEPTION'
 
 export interface IntakePayment {
-  method: 'CASH' | 'MOMO'
+  method: 'CASH' | 'MOMO' | 'VNPAY'
   status: 'PENDING' | 'PAID' | 'FAILED'
   orderId?: string
   paidAt?: string
@@ -113,14 +123,122 @@ function normalizePhone(phone: string): string {
   return phone.replace(/\D/g, '')
 }
 
+export function validateCitizenId(citizenId: string, dateOfBirth?: string, gender?: Gender): void {
+  const trimmed = citizenId?.trim() ?? ''
+  if (!trimmed) {
+    throw new Error('Số CCCD là bắt buộc trong hồ sơ khi khám.')
+  }
+  if (!/^\d{12}$/.test(trimmed)) {
+    throw new Error('Số CCCD phải có đúng 12 chữ số.')
+  }
+  if (/^(\d)\1{11}$/.test(trimmed)) {
+    throw new Error('Số CCCD không hợp lệ (không được trùng lặp toàn bộ 12 chữ số).')
+  }
+
+  // 1. 3 số đầu tiên: Mã tỉnh, thành phố trực thuộc trung ương (từ 001 đến 096)
+  const provinceCode = trimmed.slice(0, 3)
+  const provinceNum = parseInt(provinceCode, 10)
+  if (provinceNum < 1 || provinceNum > 96) {
+    throw new Error(`3 chữ số đầu của CCCD (${provinceCode}) không hợp lệ. Mã tỉnh/thành phố phải nằm trong khoảng từ 001 đến 096.`)
+  }
+
+  // 2 & 3. Đối chiếu thế kỷ, giới tính và 2 số cuối năm sinh nếu có thông tin
+  if (dateOfBirth) {
+    const birthYear = parseInt(dateOfBirth.split('-')[0], 10)
+    if (!isNaN(birthYear)) {
+      const centuryGenderChar = trimmed[3]
+      const centuryGenderDigit = parseInt(centuryGenderChar, 10)
+
+      let expectedMaleDigit: number
+      let expectedFemaleDigit: number
+
+      if (birthYear >= 1900 && birthYear <= 1999) {
+        expectedMaleDigit = 0
+        expectedFemaleDigit = 1
+      } else if (birthYear >= 2000 && birthYear <= 2099) {
+        expectedMaleDigit = 2
+        expectedFemaleDigit = 3
+      } else if (birthYear >= 1800 && birthYear <= 1899) {
+        expectedMaleDigit = 8
+        expectedFemaleDigit = 9
+      } else if (birthYear >= 2100 && birthYear <= 2199) {
+        expectedMaleDigit = 4
+        expectedFemaleDigit = 5
+      } else {
+        expectedMaleDigit = 0
+        expectedFemaleDigit = 1
+      }
+
+      if (gender === 'Nam' && centuryGenderDigit !== expectedMaleDigit) {
+        throw new Error(
+          `Chữ số thứ 4 của CCCD (${centuryGenderChar}) không hợp lệ với nam giới sinh năm ${birthYear}. Theo quy định pháp luật phải là chữ số ${expectedMaleDigit}.`
+        )
+      } else if (gender === 'Nữ' && centuryGenderDigit !== expectedFemaleDigit) {
+        throw new Error(
+          `Chữ số thứ 4 của CCCD (${centuryGenderChar}) không hợp lệ với nữ giới sinh năm ${birthYear}. Theo quy định pháp luật phải là chữ số ${expectedFemaleDigit}.`
+        )
+      } else if (
+        gender === 'Khác' &&
+        centuryGenderDigit !== expectedMaleDigit &&
+        centuryGenderDigit !== expectedFemaleDigit
+      ) {
+        throw new Error(
+          `Chữ số thứ 4 của CCCD (${centuryGenderChar}) không hợp lệ với người sinh năm ${birthYear}. Theo quy định pháp luật phải là chữ số ${expectedMaleDigit} hoặc ${expectedFemaleDigit}.`
+        )
+      }
+
+      // 2 số kế tiếp: Hai số cuối của năm sinh công dân
+      const yearDigits = trimmed.slice(4, 6)
+      const expectedYearDigits = String(birthYear).slice(-2)
+      if (yearDigits !== expectedYearDigits) {
+        throw new Error(
+          `Chữ số thứ 5 và 6 của CCCD (${yearDigits}) không khớp với 2 số cuối của năm sinh (${expectedYearDigits}).`
+        )
+      }
+    }
+  }
+
+  // 4. 6 số cuối cùng: Khoảng số ngẫu nhiên giúp phân biệt cá nhân
+  const randomPart = trimmed.slice(6, 12)
+  if (randomPart === '000000') {
+    throw new Error('6 chữ số cuối của CCCD không được là 000000 (dãy số ngẫu nhiên không hợp lệ).')
+  }
+  if (/^(\d)\1{5}$/.test(randomPart)) {
+    throw new Error(
+      `6 chữ số cuối của CCCD (${randomPart}) không hợp lệ (không được là các chữ số lặp lại giống nhau).`
+    )
+  }
+  if (randomPart === '123456' || randomPart === '654321') {
+    throw new Error('6 chữ số cuối của CCCD không được là dãy số liên tiếp đơn giản (123456/654321).')
+  }
+}
+
 export function upsertPatient(patients: Patient[], draft: PatientDraft, now = new Date(), patientId?: string) {
+  if (draft.phone && draft.phone.trim().length > 0 && draft.phone.trim().length < 9) {
+    throw new Error('Số điện thoại không hợp lệ.')
+  }
+  validateCitizenId(draft.citizenId, draft.dateOfBirth, draft.gender)
+
+  const citizenOwner = draft.citizenId ? patients.find((p) => p.citizenId && p.citizenId === draft.citizenId) : undefined
   const phoneOwner = patients.find((patient) => normalizePhone(patient.phone) === normalizePhone(draft.phone))
   const selectedPatient = patientId ? patients.find((patient) => patient.id === patientId) : undefined
   if (patientId && !selectedPatient) throw new Error('Không tìm thấy hồ sơ bệnh nhân cần cập nhật.')
-  if (selectedPatient && phoneOwner && phoneOwner.id !== selectedPatient.id) {
-    throw new Error('Số điện thoại đã được sử dụng bởi một bệnh nhân khác.')
+  if (selectedPatient) {
+    if (phoneOwner && phoneOwner.id !== selectedPatient.id) {
+      throw new Error('Số điện thoại đã được sử dụng bởi một bệnh nhân khác.')
+    }
+    if (citizenOwner && citizenOwner.id !== selectedPatient.id) {
+      throw new Error('Số CCCD đã được sử dụng bởi một bệnh nhân khác.')
+    }
+  } else {
+    if (phoneOwner && citizenOwner && phoneOwner.id !== citizenOwner.id) {
+      throw new Error('Số điện thoại và số CCCD thuộc về hai bệnh nhân khác nhau.')
+    }
+    if (!phoneOwner && citizenOwner) {
+      throw new Error('Số CCCD đã được sử dụng bởi một bệnh nhân khác.')
+    }
   }
-  const existing = selectedPatient ?? phoneOwner
+  const existing = selectedPatient ?? phoneOwner ?? citizenOwner
   if (existing) {
     const patient = { ...existing, ...draft, updatedAt: now.toISOString() }
     return {
@@ -163,6 +281,7 @@ export const demoReceptionData: { patients: Patient[]; intakes: Intake[] } = {
       dateOfBirth: '1992-05-14',
       gender: 'Nam',
       phone: '0912345678',
+      citizenId: '079092123457',
       address: '123 Nguyễn Trãi, Quận 1, TP.HCM',
       note: 'Dị ứng nhẹ với penicillin, ê buốt răng hàm dưới khi uống nước đá.',
       createdAt: '2026-10-17T01:00:00.000Z',
@@ -174,6 +293,7 @@ export const demoReceptionData: { patients: Patient[]; intakes: Intake[] } = {
       dateOfBirth: '1998-11-20',
       gender: 'Nữ',
       phone: '0987654321',
+      citizenId: '048198234567',
       address: '45 Lê Lợi, Quận Hải Châu, Đà Nẵng',
       note: 'Nhu cầu niềng răng khay trong suốt và tẩy trắng răng thẩm mỹ 2 hàm.',
       createdAt: '2026-10-17T01:10:00.000Z',
@@ -185,6 +305,7 @@ export const demoReceptionData: { patients: Patient[]; intakes: Intake[] } = {
       dateOfBirth: '1985-08-03',
       gender: 'Nam',
       phone: '0903112233',
+      citizenId: '001085345678',
       address: '88 Cầu Giấy, Hà Nội',
       note: 'Sưng đau nướu răng khôn hàm dưới bên trái, há miệng khó khăn.',
       createdAt: '2026-10-17T01:15:00.000Z',
@@ -196,6 +317,7 @@ export const demoReceptionData: { patients: Patient[]; intakes: Intake[] } = {
       dateOfBirth: '2001-02-28',
       gender: 'Nữ',
       phone: '0934567890',
+      citizenId: '079301456789',
       address: '12 Đinh Tiên Hoàng, Quận Bình Thạnh, TP.HCM',
       note: 'Khám định kỳ 6 tháng, cạo vôi răng và đánh bóng 2 hàm.',
       createdAt: '2026-10-17T01:20:00.000Z',
@@ -207,6 +329,7 @@ export const demoReceptionData: { patients: Patient[]; intakes: Intake[] } = {
       dateOfBirth: '1978-10-10',
       gender: 'Nam',
       phone: '0978999888',
+      citizenId: '001078567891',
       address: '67 Trần Hưng Đạo, Hoàn Kiếm, Hà Nội',
       note: 'Răng cửa bị mẻ lớn sau va chạm, muốn bọc răng toàn sứ cao cấp.',
       createdAt: '2026-10-17T01:25:00.000Z',

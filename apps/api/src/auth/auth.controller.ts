@@ -1,14 +1,17 @@
-import { Body, Controller, HttpCode, HttpStatus, Post } from '@nestjs/common';
+import { Body, Controller, Get, HttpCode, HttpStatus, Post, Req, UnauthorizedException, UseGuards } from '@nestjs/common';
 import {
+  ApiBearerAuth,
   ApiBody,
   ApiOperation,
   ApiOkResponse,
   ApiResponse,
   ApiTags,
 } from '@nestjs/swagger';
+import type { Request } from 'express';
 import { AuthService } from './auth.service.js';
 import { LoginDto } from './dto/login.dto.js';
 import { LoginResponseDto } from './dto/login-response.dto.js';
+import { AuthenticatedUserPayload, JwtAuthGuard } from './jwt-auth.guard.js';
 import { Throttle } from '@nestjs/throttler';
 
 @ApiTags('Authentication')
@@ -26,5 +29,18 @@ export class AuthController {
   @ApiResponse({ status: 429, description: 'Quá nhiều lần đăng nhập trong một phút' })
   login(@Body() credentials: LoginDto) {
     return this.authService.login(credentials);
+  }
+
+  @Get('me')
+  @UseGuards(JwtAuthGuard)
+  @ApiBearerAuth()
+  @ApiOperation({ summary: 'Lấy thông tin tài khoản hiện tại từ JWT token (khôi phục phiên đăng nhập)' })
+  @ApiResponse({ status: 200, description: 'Xác thực token thành công, trả về thông tin user' })
+  @ApiResponse({ status: 401, description: 'Token không hợp lệ hoặc đã hết hạn' })
+  getMe(@Req() req: Request & { user?: AuthenticatedUserPayload }) {
+    if (!req.user) {
+      throw new UnauthorizedException('Không tìm thấy thông tin phiên đăng nhập.');
+    }
+    return this.authService.getMe(req.user.sub);
   }
 }

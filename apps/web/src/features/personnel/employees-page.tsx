@@ -327,6 +327,7 @@ export function EmployeesPage() {
           totalItems={employees.length}
           pageSize={10}
           onPageChange={setPage}
+          itemName="nhân viên"
         />
       </Card>
 

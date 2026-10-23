@@ -11,9 +11,13 @@ export class PrismaPaymentRepository extends PaymentRepository {
     const intake = await this.prisma.intake.findUnique({ where: { code: payment.intakeCode } });
     return this.prisma.payment.create({
       data: {
-        ...payment,
+        orderId: payment.orderId,
+        requestId: payment.requestId,
+        partnerCode: payment.partnerCode,
+        intakeCode: payment.intakeCode,
+        amount: payment.amount,
         intakeId: intake?.id,
-        method: 'MOMO',
+        method: payment.method ?? 'MOMO',
         status: 'PENDING',
       },
       select: { orderId: true, requestId: true, partnerCode: true, intakeCode: true, amount: true, status: true },
@@ -27,14 +31,14 @@ export class PrismaPaymentRepository extends PaymentRepository {
     });
     const payment = await this.prisma.payment.findUniqueOrThrow({
       where: { orderId },
-      select: { id: true, orderId: true, status: true, intakeCode: true },
+      select: { id: true, orderId: true, status: true, intakeCode: true, method: true },
     });
     if (status === 'PAID') {
       await this.prisma.intake.updateMany({
         where: { code: payment.intakeCode, status: { not: 'TRANSFERRED' } },
         data: { status: 'PAID' },
       });
-      await this.accounting.ingestReceptionPayment(payment.id, `momo-payment-${payment.id}-paid`);
+      await this.accounting.ingestReceptionPayment(payment.id, `${payment.method.toLowerCase()}-payment-${payment.id}-paid`);
     }
     return payment as { orderId: string; status: PaymentStatus };
   }

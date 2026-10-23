@@ -341,6 +341,7 @@ export function AccountingCashPage() {
               <option value="TRANSFER">Chuyển khoản</option>
               <option value="CARD">Thẻ POS</option>
               <option value="MOMO">Ví MoMo</option>
+              <option value="VNPAY">Cổng VNPAY</option>
             </select>
           </div>
 

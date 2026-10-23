@@ -1,6 +1,7 @@
 import { Module } from '@nestjs/common';
 import { AuthModule } from '../auth/auth.module.js';
 import { MomoGateway } from './momo.gateway.js';
+import { VnpayGateway } from './vnpay.gateway.js';
 import { PrismaPaymentRepository } from './payment.repository.js';
 import { PaymentsController } from './payments.controller.js';
 import { PaymentGateway, PaymentRepository, PaymentsService } from './payments.service.js';
@@ -15,6 +16,8 @@ import { AccountingModule } from '../accounting/accounting.module.js';
     PaymentAccessGuard,
     { provide: PaymentRepository, useClass: PrismaPaymentRepository },
     { provide: PaymentGateway, useClass: MomoGateway },
+    VnpayGateway,
   ],
+  exports: [PaymentsService],
 })
 export class PaymentsModule {}

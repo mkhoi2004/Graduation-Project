@@ -10,7 +10,8 @@ import {
   Users,
 } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
-import { clearSession, type AuthSession } from '../../lib/auth-session'
+import { type AuthSession } from '../../lib/auth-session'
+import { useAuth } from '../auth/auth-context'
 import { DoctorProvider, useDoctor } from './doctor-context'
 import { QueueStep } from './steps/queue-step'
 import { SuppliesStep } from './steps/supplies-step'
@@ -168,9 +169,10 @@ function DoctorLayoutInner({ session, onLogout }: { session: AuthSession; onLogo
 
 export function DoctorLayout({ session }: { session: AuthSession }) {
   const navigate = useNavigate()
+  const { logout } = useAuth()
 
   function handleLogout() {
-    clearSession()
+    logout()
     navigate('/login', { replace: true })
   }
 

@@ -287,6 +287,7 @@ export function IncentivePage() {
           totalItems={incentives.length}
           pageSize={10}
           onPageChange={setPage}
+          itemName="khoản thưởng"
         />
       </Card>
     </div>

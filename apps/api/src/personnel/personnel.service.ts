@@ -28,6 +28,7 @@ import type {
   CreatePayrollDto,
   CreateShiftDto,
   CreateUserAccountDto,
+  GenerateWeeklyShiftsDto,
   RecordAttendanceDto,
   ResetUserPasswordDto,
   SaveWorkingHoursConfigDto,
@@ -720,7 +721,27 @@ export class PersonnelService {
     });
     if (!assignment) throw new NotFoundException('Không tìm thấy phân quyền.');
 
-    await this.prisma.userRoleAssignment.delete({ where: { id: assignmentId } });
+    const now = new Date();
+    await this.prisma.$transaction(async (tx) => {
+      await tx.userRoleAssignmentDeleted.create({
+        data: {
+          originalId: assignment.id,
+          userId: assignment.userId,
+          roleId: assignment.roleId,
+          isPrimary: assignment.isPrimary,
+          isApproved: assignment.isApproved,
+          assignedById: assignment.assignedById,
+          approvedById: assignment.approvedById,
+          approvedAt: assignment.approvedAt,
+          createdAt: assignment.createdAt,
+          deletedAt: now,
+          deletedBy: actor.username,
+          deleteReason: `Thu hồi vai trò ${assignment.role.name} của ${assignment.user.fullName}`,
+        },
+      });
+
+      await tx.userRoleAssignment.delete({ where: { id: assignmentId } });
+    });
 
     await this.logAudit('USER_ROLE', assignmentId, 'REVOKE_ROLE', actor.sub, {
       roleCode: assignment.role.code,
@@ -816,6 +837,131 @@ export class PersonnelService {
     });
 
     return assignment;
+  }
+
+  async generateWeeklyShifts(dto: GenerateWeeklyShiftsDto, actor: AuthenticatedPersonnelUser) {
+    const { dateUtcMidnight } = getVietnamDateNow();
+    const targetYear = dto.year ?? dateUtcMidnight.getUTCFullYear();
+    const targetMonth = dto.month ?? (dateUtcMidnight.getUTCMonth() + 1);
+
+    const monthStart = new Date(Date.UTC(targetYear, targetMonth - 1, 1));
+    const monthEnd = new Date(Date.UTC(targetYear, targetMonth, 0));
+
+    const activeConfig = await this.prisma.workingHoursConfig.findFirst({
+      where: { effectiveDate: { lte: monthEnd } },
+      orderBy: { effectiveDate: 'desc' },
+    });
+
+    const startTime = activeConfig?.startTime || '08:00';
+    const endTime = activeConfig?.endTime || '17:30';
+
+    const adminShift = await this.prisma.workShift.upsert({
+      where: { code: 'CA_HANH_CHINH' },
+      update: {
+        name: `Ca hành chính (${startTime} - ${endTime})`,
+        startTime,
+        endTime,
+        shiftType: 'REGULAR',
+      },
+      create: {
+        code: 'CA_HANH_CHINH',
+        name: `Ca hành chính (${startTime} - ${endTime})`,
+        startTime,
+        endTime,
+        shiftType: 'REGULAR',
+      },
+    });
+
+    const employees = await this.prisma.employee.findMany({
+      where: { status: 'ACTIVE' },
+      include: {
+        user: { include: { role: true } },
+      },
+    });
+
+    const clinicRooms = await this.prisma.clinicRoom.findMany();
+    const room1 = clinicRooms.find((r) => r.code === 'room-01')?.id ?? 1;
+    const room2 = clinicRooms.find((r) => r.code === 'room-02')?.id ?? 2;
+    const room3 = clinicRooms.find((r) => r.code === 'room-03')?.id ?? 3;
+
+    const doctorRoomMap: Record<string, number> = {
+      'NV-0006': room1,
+      'NV-0007': room2,
+      'NV-0008': room3,
+    };
+
+    let totalCreated = 0;
+    let totalUpdated = 0;
+    const daysInMonth = monthEnd.getUTCDate();
+
+    for (let day = 1; day <= daysInMonth; day++) {
+      const dayDate = new Date(Date.UTC(targetYear, targetMonth - 1, day));
+      const dayOfWeek = dayDate.getUTCDay(); // 0 = Sunday
+
+      // Only Monday to Saturday (Thứ 2 đến Thứ 7, skip Sunday)
+      if (dayOfWeek === 0) continue;
+
+      for (const emp of employees) {
+        const isDoctor =
+          emp.code === 'NV-0006' ||
+          emp.code === 'NV-0007' ||
+          emp.code === 'NV-0008' ||
+          emp.user?.role?.code === 'DOCTOR';
+
+        const assignedRoomId = isDoctor
+          ? (doctorRoomMap[emp.code] || emp.roomId || room1)
+          : null;
+
+        const existing = await this.prisma.shiftAssignment.findFirst({
+          where: { employeeId: emp.id, date: dayDate },
+        });
+
+        if (existing) {
+          if (dto.overwriteExisting !== false) {
+            await this.prisma.shiftAssignment.update({
+              where: { id: existing.id },
+              data: {
+                shiftId: adminShift.id,
+                roomId: assignedRoomId,
+                note: `Ca hành chính Thứ 2 - Thứ 7 theo giờ HR (${startTime} - ${endTime})`,
+              },
+            });
+            totalUpdated++;
+          }
+        } else {
+          await this.prisma.shiftAssignment.create({
+            data: {
+              employeeId: emp.id,
+              shiftId: adminShift.id,
+              date: dayDate,
+              roomId: assignedRoomId,
+              note: `Ca hành chính Thứ 2 - Thứ 7 theo giờ HR (${startTime} - ${endTime})`,
+            },
+          });
+          totalCreated++;
+        }
+      }
+    }
+
+    await this.logAudit('SHIFT_ASSIGNMENT', 0, 'GENERATE_WEEKLY_SHIFTS', actor.sub, {
+      year: targetYear,
+      month: targetMonth,
+      startTime,
+      endTime,
+      totalCreated,
+      totalUpdated,
+    });
+
+    return {
+      success: true,
+      year: targetYear,
+      month: targetMonth,
+      workingHours: { startTime, endTime },
+      totalCreated,
+      totalUpdated,
+      totalStaff: employees.length,
+      message: `Đã xếp lịch làm việc Thứ 2 - Thứ 7 cho ${employees.length} nhân sự tháng ${targetMonth}/${targetYear} theo khung giờ HR (${startTime} - ${endTime}). Tạo mới: ${totalCreated}, Cập nhật: ${totalUpdated}.`,
+    };
   }
 
   // -------------------------------------------------------------
@@ -916,6 +1062,24 @@ export class PersonnelService {
       endTime: dto.endTime,
       splitTime: dto.splitTime,
       effectiveDate: dto.effectiveDate,
+    });
+
+    // Synchronize CA_HANH_CHINH work shift to reflect new HR working hours
+    await this.prisma.workShift.upsert({
+      where: { code: 'CA_HANH_CHINH' },
+      update: {
+        name: `Ca hành chính (${dto.startTime} - ${dto.endTime})`,
+        startTime: dto.startTime,
+        endTime: dto.endTime,
+        shiftType: 'REGULAR',
+      },
+      create: {
+        code: 'CA_HANH_CHINH',
+        name: `Ca hành chính (${dto.startTime} - ${dto.endTime})`,
+        startTime: dto.startTime,
+        endTime: dto.endTime,
+        shiftType: 'REGULAR',
+      },
     });
 
     return config;

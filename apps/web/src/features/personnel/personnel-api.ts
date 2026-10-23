@@ -1,4 +1,4 @@
-import { getSession } from '@/lib/auth-session';
+import { clearSession, getSession } from '@/lib/auth-session';
 import type {
   AttendanceRecord,
   Employee,
@@ -13,13 +13,14 @@ import type {
   WorkShift,
 } from './personnel-types';
 
-const API_BASE = '/api/hr';
+const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api';
+const API_BASE = `${apiUrl}/hr`;
 
 function getAuthHeaders(): HeadersInit {
   const session = getSession();
   return {
     'Content-Type': 'application/json',
-    ...(session?.accessToken ? { Authorization: `Bearer ${session.accessToken}` } : {}),
+    ...(session ? { Authorization: `${session.tokenType} ${session.accessToken}` } : {}),
   };
 }
 
@@ -33,6 +34,9 @@ async function request<T>(endpoint: string, options?: RequestInit): Promise<T> {
   });
 
   if (!res.ok) {
+    if (res.status === 401) {
+      clearSession();
+    }
     const errorData = await res.json().catch(() => ({}));
     throw new Error(errorData.message || `Lỗi yêu cầu máy chủ: ${res.status}`);
   }
@@ -148,6 +152,21 @@ export const personnelApi = {
     request<ShiftAssignment>('/shift-assignments', {
       method: 'POST',
       body: JSON.stringify(data),
+    }),
+
+  generateWeeklyShifts: (data?: { year?: number; month?: number; overwriteExisting?: boolean }) =>
+    request<{
+      success: boolean;
+      year: number;
+      month: number;
+      workingHours: { startTime: string; endTime: string };
+      totalCreated: number;
+      totalUpdated: number;
+      totalStaff: number;
+      message: string;
+    }>('/shift-assignments/generate-weekly', {
+      method: 'POST',
+      body: JSON.stringify(data || {}),
     }),
 
   getWorkingHoursConfig: (date?: string) =>

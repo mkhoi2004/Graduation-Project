@@ -6,7 +6,7 @@ describe('reception workflow state', () => {
   it('stores patients, creates multiple intakes and transfers one to a doctor', () => {
     const patient = {
       id: 'MBN20261610/0001', fullName: 'Nguyễn Văn An', dateOfBirth: '1990-01-01',
-      gender: 'Nam' as const, phone: '0901234567', address: '', note: '',
+      gender: 'Nam' as const, phone: '0901234567', citizenId: '001090123789', address: '', note: '',
       createdAt: '2026-10-16T00:00:00.000Z', updatedAt: '2026-10-16T00:00:00.000Z',
     }
     const intake = {

@@ -67,6 +67,7 @@ export function FinishStep() {
       const updated = await completeExaminationApi(currentExam.id)
       dispatch({ type: 'SET_CURRENT_EXAM', exam: updated })
       setSuccessMessage('Đã Ghi sổ hoàn thành ca khám thành công! Hồ sơ đã được khóa.')
+      await refreshAll()
     } catch (err: any) {
       setErrorMessage(err.message ?? 'Không thể ghi sổ hoàn thành ca khám.')
     } finally {

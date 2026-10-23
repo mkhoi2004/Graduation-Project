@@ -1,6 +1,7 @@
 import { Award, Banknote, CalendarDays, Clock, LogOut, ShieldCheck, Users } from 'lucide-react';
 import { NavLink, Outlet, useNavigate } from 'react-router-dom';
-import { clearSession, type AuthSession } from '@/lib/auth-session';
+import { type AuthSession } from '@/lib/auth-session';
+import { useAuth } from '@/features/auth/auth-context';
 import { AttendanceHeaderWidget } from './attendance-header-widget';
 
 const tabs = [
@@ -14,8 +15,9 @@ const tabs = [
 
 export function PersonnelLayout({ session }: { session: AuthSession }) {
   const navigate = useNavigate();
-  const logout = () => {
-    clearSession();
+  const { logout } = useAuth();
+  const handleLogout = () => {
+    logout();
     navigate('/login', { replace: true });
   };
 
@@ -38,7 +40,7 @@ export function PersonnelLayout({ session }: { session: AuthSession }) {
             </div>
             <button
               aria-label="Đăng xuất"
-              onClick={logout}
+              onClick={handleLogout}
               className="grid size-10 place-items-center rounded-xl border border-slate-200 text-slate-600 transition hover:bg-slate-50 hover:text-slate-900"
             >
               <LogOut className="size-4" />

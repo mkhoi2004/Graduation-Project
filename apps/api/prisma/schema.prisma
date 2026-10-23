@@ -57,6 +57,7 @@ model Patient {
   dateOfBirth        DateTime            @db.Date
   gender             String              @db.NVarChar(10)
   phone              String              @unique @db.VarChar(20)
+  citizenId          String?             @db.VarChar(20)
   address            String?             @db.NVarChar(500)
   note               String?             @db.NVarChar(1000)
   intakes            Intake[]
@@ -65,6 +66,7 @@ model Patient {
   updatedAt          DateTime            @updatedAt @db.DateTime2
 
   @@index([phone])
+  @@index([citizenId])
   @@index([fullName])
 }
 
@@ -307,6 +309,7 @@ model PatientDeleted {
   dateOfBirth  DateTime  @db.Date
   gender       String    @db.NVarChar(10)
   phone        String    @db.VarChar(20)
+  citizenId    String?   @db.VarChar(20)
   address      String?   @db.NVarChar(500)
   note         String?   @db.NVarChar(1000)
   createdAt    DateTime? @db.DateTime2
@@ -1440,6 +1443,27 @@ model UserRoleAssignment {
   @@unique([userId, roleId])
   @@index([userId])
   @@index([roleId])
+}
+
+model UserRoleAssignmentDeleted {
+  id           Int       @id @default(autoincrement())
+  originalId   Int?
+  userId       Int
+  roleId       Int
+  isPrimary    Boolean   @default(false)
+  isApproved   Boolean   @default(true)
+  assignedById Int?
+  approvedById Int?
+  approvedAt   DateTime? @db.DateTime2
+  createdAt    DateTime? @db.DateTime2
+  deletedAt    DateTime  @default(now()) @db.DateTime2
+  deletedBy    String?   @db.NVarChar(100)
+  deleteReason String?   @db.NVarChar(500)
+
+  @@index([userId])
+  @@index([roleId])
+  @@index([originalId])
+  @@index([deletedAt])
 }
 
 model WorkShift {

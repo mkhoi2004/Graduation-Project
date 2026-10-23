@@ -12,6 +12,8 @@ import {
   UsersRepository,
 } from './users.repository.js';
 
+import { JwtAuthGuard } from './jwt-auth.guard.js';
+
 @Module({
   imports: [
     JwtModule.registerAsync({
@@ -25,9 +27,10 @@ import {
   controllers: [AuthController],
   providers: [
     AuthService,
+    JwtAuthGuard,
     { provide: UsersRepository, useClass: PrismaUsersRepository },
     { provide: PasswordHasher, useClass: BcryptPasswordHasher },
   ],
-  exports: [JwtModule],
+  exports: [JwtModule, JwtAuthGuard],
 })
 export class AuthModule {}

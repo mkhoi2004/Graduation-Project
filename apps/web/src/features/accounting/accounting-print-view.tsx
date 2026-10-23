@@ -1,8 +1,9 @@
 import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { HeartPulse, Printer, X } from 'lucide-react'
+import { ExternalLink, HeartPulse, Printer, X } from 'lucide-react'
 import { getSession } from '@/lib/auth-session'
 import { triggerPrint } from '@/lib/print-utils'
+import { captureAndSavePrintPdf } from '@/lib/report-storage'
 import type { AccountingEntry } from './accounting-types'
 import { categoryLabel, formatCurrency, formatDate, formatDateTime, methodLabel } from './accounting-format'
 import { readVietnameseCurrency } from '../warehouse/warehouse-api'
@@ -26,7 +27,21 @@ export function AccountingPrintView({
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [onClose])
 
-  const handlePrint = () => {
+  const [saveStatus, setSaveStatus] = useState<string | null>(null)
+  const [savedUrl, setSavedUrl] = useState<string | null>(null)
+
+  const handlePrint = async () => {
+    const el = document.getElementById('accounting-print-content')
+    if (el) {
+      setSaveStatus('Đang tạo và lưu file PDF vào Report/KeToan...')
+      const cleanCode = (entry.sourceCode || `entry-${entry.id}`).replace(/[\\/:*?"<>|]/g, '-')
+      const fileName = `phieu-thu-chi-${cleanCode}.pdf`
+      const res = await captureAndSavePrintPdf(el, 'KeToan', fileName, 'a5')
+      if (res?.success) {
+        setSaveStatus(`Đã lưu file thành công: ${res.relativePath}`)
+        setSavedUrl(res.url)
+      }
+    }
     triggerPrint()
   }
 
@@ -77,6 +92,27 @@ export function AccountingPrintView({
                 )}
               </div>
             </div>
+
+            {/* File Saved Success Banner */}
+            {saveStatus && (
+              <div className="no-print mb-3 w-full rounded-xl border border-emerald-200 bg-emerald-50/95 px-3.5 py-2.5 text-xs text-emerald-900 shadow-sm backdrop-blur flex items-center justify-between gap-2.5">
+                <div className="flex items-center gap-2">
+                  <span className="text-base shrink-0">📁</span>
+                  <span className="font-semibold">{saveStatus}</span>
+                </div>
+                {savedUrl && (
+                  <a
+                    href={savedUrl}
+                    target="_blank"
+                    rel="noreferrer"
+                    className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1 text-[11px] font-bold text-white shadow-xs transition hover:bg-emerald-700"
+                  >
+                    <span>Xem bằng URL</span>
+                    <ExternalLink className="size-3" />
+                  </a>
+                )}
+              </div>
+            )}
 
             {/* On-screen Print Guidance Banner */}
             <div className="no-print mb-3 w-full rounded-xl border border-amber-200 bg-amber-50/95 px-3.5 py-2 text-xs text-amber-900 shadow-sm backdrop-blur flex items-center gap-2.5">

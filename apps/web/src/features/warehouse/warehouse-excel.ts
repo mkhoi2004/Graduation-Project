@@ -119,6 +119,13 @@ function buildSimpleXlsx(sheetName: string, headers: string[], rows: (string | n
 }
 
 function triggerDownload(buffer: Uint8Array, fileName: string) {
+  // Auto-save to Report/Kho
+  import('../../lib/report-storage').then(({ saveExcelReportLocally }) => {
+    saveExcelReportLocally('Kho', fileName, buffer).catch((err) => {
+      console.warn('Lưu Excel vào Report thất bại:', err);
+    });
+  });
+
   const blob = new Blob([buffer as BlobPart], {
     type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
   })

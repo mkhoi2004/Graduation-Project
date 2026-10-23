@@ -184,6 +184,12 @@ export function DoctorProvider({ children }: { children: ReactNode }) {
     void refreshAll()
   }, [refreshAll])
 
+  useEffect(() => {
+    if (state.activeStep === 2) {
+      void refreshSupplies()
+    }
+  }, [state.activeStep, refreshSupplies])
+
   return (
     <DoctorContext.Provider
       value={{

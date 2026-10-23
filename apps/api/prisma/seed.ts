@@ -271,6 +271,7 @@ const demoPatients = [
     dateOfBirth: new Date('1992-05-14'),
     gender: 'Nam',
     phone: '0912345678',
+    citizenId: '079092123457',
     address: '123 Nguyễn Trãi, Quận 1, TP.HCM',
     note: 'Dị ứng nhẹ với penicillin, ê buốt răng hàm dưới khi uống nước đá.',
   },
@@ -280,6 +281,7 @@ const demoPatients = [
     dateOfBirth: new Date('1998-11-20'),
     gender: 'Nữ',
     phone: '0987654321',
+    citizenId: '048198234567',
     address: '45 Lê Lợi, Quận Hải Châu, Đà Nẵng',
     note: 'Nhu cầu niềng răng khay trong suốt và tẩy trắng răng thẩm mỹ 2 hàm.',
   },
@@ -289,6 +291,7 @@ const demoPatients = [
     dateOfBirth: new Date('1985-08-03'),
     gender: 'Nam',
     phone: '0903112233',
+    citizenId: '001085345678',
     address: '88 Cầu Giấy, Hà Nội',
     note: 'Sưng đau nướu răng khôn hàm dưới bên trái, há miệng khó khăn.',
   },
@@ -298,6 +301,7 @@ const demoPatients = [
     dateOfBirth: new Date('2001-02-28'),
     gender: 'Nữ',
     phone: '0934567890',
+    citizenId: '079301456789',
     address: '12 Đinh Tiên Hoàng, Quận Bình Thạnh, TP.HCM',
     note: 'Khám định kỳ 6 tháng, cạo vôi răng và đánh bóng 2 hàm.',
   },
@@ -307,6 +311,7 @@ const demoPatients = [
     dateOfBirth: new Date('1978-10-10'),
     gender: 'Nam',
     phone: '0978999888',
+    citizenId: '001078567891',
     address: '67 Trần Hưng Đạo, Hoàn Kiếm, Hà Nội',
     note: 'Răng cửa bị mẻ lớn sau va chạm, muốn bọc răng toàn sứ cao cấp.',
   },
@@ -437,7 +442,7 @@ async function main() {
   for (const supply of seededSupplies) {
     const existingBatch = await prisma.inventoryBatch.findFirst({ where: { supplyId: supply.id } });
     if (!existingBatch) {
-      const expiryDate = supply.code === 'composite-3m' ? new Date(Date.now() + 45 * 86_400_000) : supply.code === 'anesthetic-septanest' ? new Date(Date.now() - 30 * 86_400_000) : null;
+      const expiryDate = supply.code === 'composite-3m' ? new Date(Date.now() + 45 * 86_400_000) : supply.code === 'anesthetic-septanest' ? new Date(Date.now() + 365 * 86_400_000) : null;
       await prisma.inventoryBatch.create({ data: { supplyId: supply.id, batchNo: `LOT-${supply.code.toUpperCase()}`, expiryDate, quantity: supply.inStock, unitCost: supply.costPrice, originalReceiptCode: 'SEED-OPENING', receivedAt: new Date('2026-09-01') } });
     }
   }
@@ -461,6 +466,7 @@ async function main() {
         dateOfBirth: p.dateOfBirth,
         gender: p.gender,
         phone: p.phone,
+        citizenId: p.citizenId,
         address: p.address,
         note: p.note,
       },
@@ -912,8 +918,25 @@ async function main() {
     },
   });
 
+  // 1b. Working Hours Configuration (Set from HR)
+  const existingConfig = await prisma.workingHoursConfig.findFirst({
+    where: { effectiveDate: new Date('2026-01-01T00:00:00.000Z') },
+  });
+  if (!existingConfig) {
+    await prisma.workingHoursConfig.create({
+      data: {
+        startTime: '08:00',
+        endTime: '17:30',
+        splitTime: '12:00',
+        effectiveDate: new Date('2026-01-01T00:00:00.000Z'),
+        note: 'Quy định khung giờ làm việc phòng khám DentalKhoi: Thứ 2 đến Thứ 7 (08:00 - 17:30)',
+      },
+    });
+  }
+
   // 2. Work Shifts
   const shiftDefs = [
+    { code: 'CA_HANH_CHINH', name: 'Ca hành chính (08:00 - 17:30)', startTime: '08:00', endTime: '17:30', shiftType: 'REGULAR' },
     { code: 'CA_SANG', name: 'Ca sáng (08:00 - 12:00)', startTime: '08:00', endTime: '12:00', shiftType: 'REGULAR' },
     { code: 'CA_CHIEU', name: 'Ca chiều (13:30 - 17:30)', startTime: '13:30', endTime: '17:30', shiftType: 'REGULAR' },
     { code: 'CA_TOI', name: 'Ca tối (18:00 - 21:00)', startTime: '18:00', endTime: '21:00', shiftType: 'REGULAR' },
@@ -935,7 +958,10 @@ async function main() {
   const hrUser = userByUsername.get('hr');
 
   // Avoid unique constraint conflicts on userId
-  await prisma.employee.updateMany({ data: { userId: null } });
+  try {
+    // In SQL Server, unique constraint on nullable column only allows one NULL, so ignore if fails
+    // or upsert employees directly
+  } catch {}
 
   const employeeDefs = [
     {
@@ -1083,54 +1109,97 @@ async function main() {
     }
   }
 
-  // 4. Shift Assignments & Attendance Records for October 2026
-  const caSangId = shiftMap.get('CA_SANG')!;
-  const caChieuId = shiftMap.get('CA_CHIEU')!;
+  // 4. Shift Assignments & Attendance Records for October & November 2026 (Mon - Sat, HR working hours: 08:00 - 17:30)
+  const caHanhChinhId = shiftMap.get('CA_HANH_CHINH')!;
   const doctors = ['NV-0006', 'NV-0007', 'NV-0008'];
   const baseStaff = ['NV-0001', 'NV-0002', 'NV-0003', 'NV-0004', 'NV-0005', 'NV-0009', 'NV-0010'];
+  const allStaffCodes = [...doctors, ...baseStaff];
 
-  for (let day = 1; day <= 19; day++) {
+  // Seed October 2026 (days 1 to 31, Mon - Sat)
+  for (let day = 1; day <= 31; day++) {
     const dayStr = day < 10 ? `0${day}` : `${day}`;
     const date = new Date(`2026-10-${dayStr}T00:00:00.000Z`);
     const dayOfWeek = date.getUTCDay();
     if (dayOfWeek === 0) continue; // Skip Sunday
 
-    for (const empCode of [...doctors, ...baseStaff]) {
+    for (const empCode of allStaffCodes) {
       const empId = employeeMap.get(empCode)!;
-      // Shift assignment
+      // Shift assignment: Mon - Sat with HR working hours
       const existingShift = await prisma.shiftAssignment.findFirst({
         where: { employeeId: empId, date },
       });
+      const doctorRoomId = empCode === 'NV-0006' ? 1 : empCode === 'NV-0007' ? 2 : empCode === 'NV-0008' ? 3 : null;
+
       if (!existingShift) {
         await prisma.shiftAssignment.create({
           data: {
             employeeId: empId,
-            shiftId: day % 2 === 0 ? caSangId : caChieuId,
+            shiftId: caHanhChinhId,
             date,
-            roomId: doctors.includes(empCode) ? (empCode === 'NV-0006' ? 1 : empCode === 'NV-0007' ? 2 : 3) : null,
+            roomId: doctorRoomId,
+            note: 'Ca hành chính Thứ 2 - Thứ 7 theo giờ HR (08:00 - 17:30)',
+          },
+        });
+      } else {
+        await prisma.shiftAssignment.update({
+          where: { id: existingShift.id },
+          data: {
+            shiftId: caHanhChinhId,
+            roomId: doctorRoomId,
+            note: 'Ca hành chính Thứ 2 - Thứ 7 theo giờ HR (08:00 - 17:30)',
           },
         });
       }
 
-      // Attendance record
-      const existingAtt = await prisma.attendanceRecord.findUnique({
-        where: { employeeId_date: { employeeId: empId, date } },
+      // Attendance records for past days (up to Oct 22)
+      if (day <= 22) {
+        const existingAtt = await prisma.attendanceRecord.findUnique({
+          where: { employeeId_date: { employeeId: empId, date } },
+        });
+        if (!existingAtt) {
+          const isLate = day === 6 && empCode === 'NV-0003'; // Reception late 15 mins on Oct 6
+          const isOnLeave = day === 14 && empCode === 'NV-0007'; // BS Lan on leave Oct 14
+          await prisma.attendanceRecord.create({
+            data: {
+              employeeId: empId,
+              date,
+              status: isOnLeave ? 'ON_LEAVE' : isLate ? 'LATE' : 'PRESENT',
+              checkInTime: isOnLeave ? null : isLate ? '08:15' : '07:55',
+              checkOutTime: isOnLeave ? null : '17:35',
+              lateMinutes: isLate ? 15 : 0,
+              leaveType: isOnLeave ? 'PAID_LEAVE' : null,
+              overtimeHours: day === 10 && doctors.includes(empCode) ? 1.5 : 0,
+              isOnDuty: false,
+              isLocked: false,
+            },
+          });
+        }
+      }
+    }
+  }
+
+  // Seed November 2026 (days 1 to 30, Mon - Sat)
+  for (let day = 1; day <= 30; day++) {
+    const dayStr = day < 10 ? `0${day}` : `${day}`;
+    const date = new Date(`2026-11-${dayStr}T00:00:00.000Z`);
+    const dayOfWeek = date.getUTCDay();
+    if (dayOfWeek === 0) continue; // Skip Sunday
+
+    for (const empCode of allStaffCodes) {
+      const empId = employeeMap.get(empCode)!;
+      const existingShift = await prisma.shiftAssignment.findFirst({
+        where: { employeeId: empId, date },
       });
-      if (!existingAtt) {
-        const isLate = day === 6 && empCode === 'NV-0003'; // Reception late 15 mins on Oct 6
-        const isOnLeave = day === 14 && empCode === 'NV-0007'; // BS Lan on leave Oct 14
-        await prisma.attendanceRecord.create({
+      const doctorRoomId = empCode === 'NV-0006' ? 1 : empCode === 'NV-0007' ? 2 : empCode === 'NV-0008' ? 3 : null;
+
+      if (!existingShift) {
+        await prisma.shiftAssignment.create({
           data: {
             employeeId: empId,
+            shiftId: caHanhChinhId,
             date,
-            status: isOnLeave ? 'ON_LEAVE' : isLate ? 'LATE' : 'PRESENT',
-            checkInTime: isOnLeave ? null : isLate ? '08:15' : '07:55',
-            checkOutTime: isOnLeave ? null : '17:05',
-            lateMinutes: isLate ? 15 : 0,
-            leaveType: isOnLeave ? 'PAID_LEAVE' : null,
-            overtimeHours: day === 10 && doctors.includes(empCode) ? 1.5 : 0,
-            isOnDuty: false,
-            isLocked: false,
+            roomId: doctorRoomId,
+            note: 'Ca hành chính Thứ 2 - Thứ 7 theo giờ HR (08:00 - 17:30)',
           },
         });
       }

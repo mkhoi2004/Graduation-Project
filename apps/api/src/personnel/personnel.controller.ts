@@ -27,6 +27,7 @@ import {
   CreatePayrollDto,
   CreateShiftDto,
   CreateUserAccountDto,
+  GenerateWeeklyShiftsDto,
   LockAttendanceDto,
   RecordAttendanceDto,
   ResetUserPasswordDto,
@@ -232,6 +233,12 @@ export class PersonnelController {
   @ApiOperation({ summary: 'Phân ca làm việc (chống chồng giờ và trùng phòng)' })
   assignShift(@Body() dto: AssignShiftDto, @Req() req: PersonnelRequest) {
     return this.service.assignShift(dto, getActor(req));
+  }
+
+  @Post('shift-assignments/generate-weekly')
+  @ApiOperation({ summary: 'Tự động xếp lịch làm việc Thứ 2 đến Thứ 7 theo giờ chuẩn từ HR' })
+  generateWeeklyShifts(@Body() dto: GenerateWeeklyShiftsDto, @Req() req: PersonnelRequest) {
+    return this.service.generateWeeklyShifts(dto, getActor(req));
   }
 
   // -----------------------------------------------------------

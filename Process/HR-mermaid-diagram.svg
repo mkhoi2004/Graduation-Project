@@ -1,0 +1,183 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 981.8090000000001 1317.45" width="981.8090000000001" height="1317.45" style="--bg:#1F1F1F;--fg:#CCCCCC;--line:#CCCCCC;--accent:#0078D4;--muted:#CCCCCCCC;--surface:#181818;--border:#CCCCCC;background:var(--bg)">
+<style>
+  @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&amp;display=swap');
+  text { font-family: 'Inter', system-ui, sans-serif; }
+  svg {
+    /* Derived from --bg and --fg (overridable via --line, --accent, etc.) */
+    --_text:          var(--fg);
+    --_text-sec:      var(--muted, color-mix(in srgb, var(--fg) 60%, var(--bg)));
+    --_text-muted:    var(--muted, color-mix(in srgb, var(--fg) 40%, var(--bg)));
+    --_text-faint:    color-mix(in srgb, var(--fg) 25%, var(--bg));
+    --_line:          var(--line, color-mix(in srgb, var(--fg) 50%, var(--bg)));
+    --_arrow:         var(--accent, color-mix(in srgb, var(--fg) 85%, var(--bg)));
+    --_node-fill:     var(--surface, color-mix(in srgb, var(--fg) 3%, var(--bg)));
+    --_node-stroke:   var(--border, color-mix(in srgb, var(--fg) 20%, var(--bg)));
+    --_group-fill:    var(--bg);
+    --_group-hdr:     color-mix(in srgb, var(--fg) 5%, var(--bg));
+    --_inner-stroke:  color-mix(in srgb, var(--fg) 12%, var(--bg));
+    --_key-badge:     color-mix(in srgb, var(--fg) 10%, var(--bg));
+  }
+</style>
+<defs>
+  <marker id="seq-arrow" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto-start-reverse">
+    <polygon points="0 0, 8 2.5, 0 5" fill="var(--_arrow)" />
+  </marker>
+  <marker id="seq-arrow-open" markerWidth="8" markerHeight="5" refX="8" refY="2.5" orient="auto-start-reverse">
+    <polyline points="0 0, 8 2.5, 0 5" fill="none" stroke="var(--_arrow)" stroke-width="1" />
+  </marker>
+</defs>
+<line class="lifeline" data-actor="HR" x1="96.9925" y1="92.45" x2="96.9925" y2="1287.45" stroke="var(--_line)" stroke-width="0.75" stroke-dasharray="6 4" />
+<line class="lifeline" data-actor="Web" x1="290.9845" y1="70" x2="290.9845" y2="1287.45" stroke="var(--_line)" stroke-width="0.75" stroke-dasharray="6 4" />
+<line class="lifeline" data-actor="HRAPI" x1="501.649" y1="70" x2="501.649" y2="1287.45" stroke="var(--_line)" stroke-width="0.75" stroke-dasharray="6 4" />
+<line class="lifeline" data-actor="DB" x1="703.792" y1="70" x2="703.792" y2="1287.45" stroke="var(--_line)" stroke-width="0.75" stroke-dasharray="6 4" />
+<line class="lifeline" data-actor="Staff" x1="887.0395000000001" y1="92.45" x2="887.0395000000001" y2="1287.45" stroke="var(--_line)" stroke-width="0.75" stroke-dasharray="6 4" />
+<g class="message" data-from="HR" data-to="Web" data-label="1. Tạo hồ sơ nhân sự mới (Bác sĩ, Tiếp nhận, Kho...)" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="96.9925" y1="112.45" x2="290.9845" y2="112.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="193.98850000000002" y="102.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">1. Tạo hồ sơ nhân sự mới (Bác sĩ, Tiếp nhận, Kho...)</text>
+</g>
+<g class="message" data-from="Web" data-to="HRAPI" data-label="POST /hr/employees" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="290.9845" y1="152.45" x2="501.649" y2="152.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="396.31675" y="142.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">POST /hr/employees</text>
+</g>
+<g class="message" data-from="HRAPI" data-to="DB" data-label="Lưu Employee (Thông tin cá nhân, chức vụ, mức lương cơ bản)" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="501.649" y1="192.45" x2="703.792" y2="192.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="602.7205" y="182.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">Lưu Employee (Thông tin cá nhân, chức vụ, mức lương cơ bản)</text>
+</g>
+<g class="message" data-from="DB" data-to="HRAPI" data-label="Employee Record" data-line-style="dashed" data-arrow-head="filled" data-self="false">
+  <line x1="703.792" y1="232.45" x2="501.649" y2="232.45" stroke="var(--_line)" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#seq-arrow)" />
+  <text x="602.7205" y="222.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">Employee Record</text>
+</g>
+<g class="message" data-from="HRAPI" data-to="Web" data-label="Cập nhật danh sách nhân sự" data-line-style="dashed" data-arrow-head="filled" data-self="false">
+  <line x1="501.649" y1="272.45" x2="290.9845" y2="272.45" stroke="var(--_line)" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#seq-arrow)" />
+  <text x="396.31675" y="262.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">Cập nhật danh sách nhân sự</text>
+</g>
+<g class="message" data-from="HR" data-to="Web" data-label="2. Cấp tài khoản &amp; Phân quyền bảo mật (SoD)" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="96.9925" y1="312.45" x2="290.9845" y2="312.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="193.98850000000002" y="302.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">2. Cấp tài khoản &amp; Phân quyền bảo mật (SoD)</text>
+</g>
+<g class="message" data-from="Web" data-to="HRAPI" data-label="POST /hr/access/request" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="290.9845" y1="352.45" x2="501.649" y2="352.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="396.31675" y="342.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">POST /hr/access/request</text>
+</g>
+<g class="message" data-from="HRAPI" data-to="DB" data-label="Tạo yêu cầu phân quyền RoleAssignment (status: PENDING)" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="501.649" y1="392.45" x2="703.792" y2="392.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="602.7205" y="382.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">Tạo yêu cầu phân quyền RoleAssignment (status: PENDING)</text>
+</g>
+<g class="message" data-from="HR" data-to="Web" data-label="Quản lý thẩm định &amp; Duyệt phân quyền" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="96.9925" y1="432.45" x2="290.9845" y2="432.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="193.98850000000002" y="422.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">Quản lý thẩm định &amp; Duyệt phân quyền</text>
+</g>
+<g class="message" data-from="Web" data-to="HRAPI" data-label="POST /hr/access/approve" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="290.9845" y1="472.45" x2="501.649" y2="472.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="396.31675" y="462.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">POST /hr/access/approve</text>
+</g>
+<g class="message" data-from="HRAPI" data-to="DB" data-label="Tạo User (password bcypt, gán Role)" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="501.649" y1="512.45" x2="703.792" y2="512.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="602.7205" y="502.45000000000005" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">Tạo User (password bcypt, gán Role)</text>
+</g>
+<g class="message" data-from="HRAPI" data-to="DB" data-label="Lưu log kiểm toán phân quyền UserRoleAssignment" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="501.649" y1="552.45" x2="703.792" y2="552.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="602.7205" y="542.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">Lưu log kiểm toán phân quyền UserRoleAssignment</text>
+</g>
+<g class="message" data-from="HR" data-to="Web" data-label="3. Phân ca trực &amp; Gán phòng khám cho Bác sĩ theo ngày" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="96.9925" y1="592.45" x2="290.9845" y2="592.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="193.98850000000002" y="582.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">3. Phân ca trực &amp; Gán phòng khám cho Bác sĩ theo ngày</text>
+</g>
+<g class="message" data-from="Web" data-to="HRAPI" data-label="POST /hr/working-hours/assign" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="290.9845" y1="632.45" x2="501.649" y2="632.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="396.31675" y="622.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">POST /hr/working-hours/assign</text>
+</g>
+<g class="message" data-from="HRAPI" data-to="DB" data-label="Lưu ShiftAssignment (Bác sĩ Minh -&gt; Phòng khám 01, Ngày làm việc)" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="501.649" y1="672.45" x2="703.792" y2="672.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="602.7205" y="662.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">Lưu ShiftAssignment (Bác sĩ Minh -&gt; Phòng khám 01, Ngày làm việc)</text>
+</g>
+<g class="message" data-from="Staff" data-to="Web" data-label="4. Điểm danh đầu ca (Check-in) / Cuối ca (Check-out)" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="887.0395000000001" y1="727.45" x2="290.9845" y2="727.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="589.0120000000001" y="717.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">4. Điểm danh đầu ca (Check-in) / Cuối ca (Check-out)</text>
+</g>
+<g class="message" data-from="Web" data-to="HRAPI" data-label="POST /hr/attendance/check-in" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="290.9845" y1="767.45" x2="501.649" y2="767.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="396.31675" y="757.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">POST /hr/attendance/check-in</text>
+</g>
+<g class="message" data-from="HRAPI" data-to="DB" data-label="Lưu AttendanceRecord (Thời gian, trạng thái Đúng giờ/Đi muộn)" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="501.649" y1="807.45" x2="703.792" y2="807.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="602.7205" y="797.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">Lưu AttendanceRecord (Thời gian, trạng thái Đúng giờ/Đi muộn)</text>
+</g>
+<g class="message" data-from="HRAPI" data-to="Web" data-label="Cập nhật trạng thái chấm công trên Header widget" data-line-style="dashed" data-arrow-head="filled" data-self="false">
+  <line x1="501.649" y1="847.45" x2="290.9845" y2="847.45" stroke="var(--_line)" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#seq-arrow)" />
+  <text x="396.31675" y="837.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">Cập nhật trạng thái chấm công trên Header widget</text>
+</g>
+<g class="message" data-from="HR" data-to="Web" data-label="5. Cuối tháng: Bấm &quot;Tính lương &amp; Quyết toán hoa hồng&quot;" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="96.9925" y1="887.45" x2="290.9845" y2="887.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="193.98850000000002" y="877.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">5. Cuối tháng: Bấm &quot;Tính lương &amp; Quyết toán hoa hồng&quot;</text>
+</g>
+<g class="message" data-from="Web" data-to="HRAPI" data-label="POST /hr/payroll/calculate" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="290.9845" y1="927.45" x2="501.649" y2="927.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="396.31675" y="917.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">POST /hr/payroll/calculate</text>
+</g>
+<g class="message" data-from="HRAPI" data-to="DB" data-label="Đọc số ngày công thực tế từ AttendanceRecord" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="501.649" y1="967.45" x2="703.792" y2="967.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="602.7205" y="957.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">Đọc số ngày công thực tế từ AttendanceRecord</text>
+</g>
+<g class="message" data-from="HRAPI" data-to="DB" data-label="Đọc số ca khám &amp; doanh thu điều trị hoàn thành của từng Bác sĩ" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="501.649" y1="1007.45" x2="703.792" y2="1007.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="602.7205" y="997.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">Đọc số ca khám &amp; doanh thu điều trị hoàn thành của từng Bác sĩ</text>
+</g>
+<g class="message" data-from="HRAPI" data-to="DB" data-label="Tính toán: Lương thực nhận = Lương CB + Hoa hồng ca khám - Giảm trừ" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="501.649" y1="1047.45" x2="703.792" y2="1047.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="602.7205" y="1037.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">Tính toán: Lương thực nhận = Lương CB + Hoa hồng ca khám - Giảm trừ</text>
+</g>
+<g class="message" data-from="HRAPI" data-to="DB" data-label="Tạo bảng Payroll (status: CALCULATED)" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="501.649" y1="1087.45" x2="703.792" y2="1087.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="602.7205" y="1077.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">Tạo bảng Payroll (status: CALCULATED)</text>
+</g>
+<g class="message" data-from="HR" data-to="Web" data-label="Bấm &quot;Duyệt chi trả lương&quot;" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="96.9925" y1="1127.45" x2="290.9845" y2="1127.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="193.98850000000002" y="1117.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">Bấm &quot;Duyệt chi trả lương&quot;</text>
+</g>
+<g class="message" data-from="Web" data-to="HRAPI" data-label="POST /hr/payroll/approve" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="290.9845" y1="1167.45" x2="501.649" y2="1167.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="396.31675" y="1157.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">POST /hr/payroll/approve</text>
+</g>
+<g class="message" data-from="HRAPI" data-to="DB" data-label="Cập nhật Payroll status: APPROVED, đẩy chi phí lương sang Kế toán" data-line-style="solid" data-arrow-head="filled" data-self="false">
+  <line x1="501.649" y1="1207.45" x2="703.792" y2="1207.45" stroke="var(--_line)" stroke-width="1" marker-end="url(#seq-arrow)" />
+  <text x="602.7205" y="1197.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">Cập nhật Payroll status: APPROVED, đẩy chi phí lương sang Kế toán</text>
+</g>
+<g class="message" data-from="HRAPI" data-to="Web" data-label="Hoàn tất kỳ tính lương" data-line-style="dashed" data-arrow-head="filled" data-self="false">
+  <line x1="501.649" y1="1247.45" x2="290.9845" y2="1247.45" stroke="var(--_line)" stroke-width="1" stroke-dasharray="6 4" marker-end="url(#seq-arrow)" />
+  <text x="396.31675" y="1237.45" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">Hoàn tất kỳ tính lương</text>
+</g>
+<g class="note" data-position="over" data-actors="HRAPI,DB">
+  <polygon points="430.1095,680.45 769.3315,680.45 775.3315,686.45 775.3315,703.45 430.1095,703.45" fill="var(--bg)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <polygon points="769.3315,680.45 775.3315,686.45 769.3315,686.45" fill="var(--_inner-stroke)" stroke="var(--_node-stroke)" stroke-width="0.75" />
+  <text x="602.7205" y="691.95" font-size="11" text-anchor="middle" font-weight="400" fill="var(--_text-muted)" dy="3.8499999999999996">Dữ liệu này làm căn cứ để Quầy Tiếp nhận gán phòng và Bác sĩ gọi số</text>
+</g>
+<g class="actor" data-id="HR" data-label="Nhân sự / Quản lý" data-type="actor">
+  <g transform="translate(78.9925,32) scale(1.5)">
+    <path d="M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" fill="none" stroke="var(--_line)" stroke-width="0.6666666666666666" />
+    <path d="M15 10C15 11.6569 13.6569 13 12 13C10.3431 13 9 11.6569 9 10C9 8.34315 10.3431 7 12 7C13.6569 7 15 8.34315 15 10Z" fill="none" stroke="var(--_line)" stroke-width="0.6666666666666666" />
+    <path d="M5.62842 18.3563C7.08963 17.0398 9.39997 16 12 16C14.6 16 16.9104 17.0398 18.3716 18.3563" fill="none" stroke="var(--_line)" stroke-width="0.6666666666666666" />
+  </g>
+  <text x="96.9925" y="84" font-size="13" text-anchor="middle" font-weight="500" fill="var(--_text)" dy="4.55">Nhân sự / Quản lý</text>
+</g>
+<g class="actor" data-id="Web" data-label="Giao diện Nhân sự (Web)" data-type="participant">
+  <rect x="203.985" y="30" width="173.999" height="40" rx="4" ry="4" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="290.9845" y="50" font-size="13" text-anchor="middle" font-weight="500" fill="var(--_text)" dy="4.55">Giao diện Nhân sự (Web)</text>
+</g>
+<g class="actor" data-id="HRAPI" data-label="Personnel API (/api/hr)" data-type="participant">
+  <rect x="417.984" y="30" width="167.33" height="40" rx="4" ry="4" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="501.649" y="50" font-size="13" text-anchor="middle" font-weight="500" fill="var(--_text)" dy="4.55">Personnel API (/api/hr)</text>
+</g>
+<g class="actor" data-id="DB" data-label="SQL Server (Prisma)" data-type="participant">
+  <rect x="625.3140000000001" y="30" width="156.95600000000002" height="40" rx="4" ry="4" fill="var(--_node-fill)" stroke="var(--_node-stroke)" stroke-width="1" />
+  <text x="703.792" y="50" font-size="13" text-anchor="middle" font-weight="500" fill="var(--_text)" dy="4.55">SQL Server (Prisma)</text>
+</g>
+<g class="actor" data-id="Staff" data-label="Nhân viên bất kỳ" data-type="actor">
+  <g transform="translate(869.0395000000001,32) scale(1.5)">
+    <path d="M21 12C21 16.9706 16.9706 21 12 21C7.02944 21 3 16.9706 3 12C3 7.02944 7.02944 3 12 3C16.9706 3 21 7.02944 21 12Z" fill="none" stroke="var(--_line)" stroke-width="0.6666666666666666" />
+    <path d="M15 10C15 11.6569 13.6569 13 12 13C10.3431 13 9 11.6569 9 10C9 8.34315 10.3431 7 12 7C13.6569 7 15 8.34315 15 10Z" fill="none" stroke="var(--_line)" stroke-width="0.6666666666666666" />
+    <path d="M5.62842 18.3563C7.08963 17.0398 9.39997 16 12 16C14.6 16 16.9104 17.0398 18.3716 18.3563" fill="none" stroke="var(--_line)" stroke-width="0.6666666666666666" />
+  </g>
+  <text x="887.0395000000001" y="84" font-size="13" text-anchor="middle" font-weight="500" fill="var(--_text)" dy="4.55">Nhân viên bất kỳ</text>
+</g>
+</svg>

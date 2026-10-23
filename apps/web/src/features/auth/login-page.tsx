@@ -2,8 +2,9 @@ import { useState, type FormEvent } from 'react'
 import { useNavigate } from 'react-router-dom'
 import { ArrowRight, Eye, EyeOff, LockKeyhole, ShieldCheck, Sparkles, UserRound } from 'lucide-react'
 import { Button } from '@/components/ui/button'
-import { saveSession, type AuthSession } from '@/lib/auth-session'
+import { type AuthSession } from '@/lib/auth-session'
 import { getRoleRoute } from '@/lib/role-routes'
+import { useAuth } from './auth-context'
 
 const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api'
 const demoAccounts = [
@@ -17,6 +18,7 @@ const demoAccounts = [
 
 export function LoginPage() {
   const navigate = useNavigate()
+  const { login } = useAuth()
   const [username, setUsername] = useState('')
   const [password, setPassword] = useState('')
   const [showPassword, setShowPassword] = useState(false)
@@ -40,7 +42,7 @@ export function LoginPage() {
         throw new Error(typeof payload.message === 'string' ? payload.message : 'Không thể đăng nhập. Vui lòng thử lại.')
       }
 
-      saveSession(payload)
+      login(payload)
       navigate(getRoleRoute(payload.user.role), { replace: true })
     } catch (caughtError) {
       setError(caughtError instanceof Error ? caughtError.message : 'Không thể kết nối tới máy chủ.')

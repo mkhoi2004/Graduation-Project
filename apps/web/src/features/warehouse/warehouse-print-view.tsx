@@ -1,8 +1,9 @@
-import { useEffect } from 'react'
+import { useEffect, useState } from 'react'
 import { createPortal } from 'react-dom'
-import { FileSpreadsheet, HeartPulse, Printer, X } from 'lucide-react'
+import { ExternalLink, FileSpreadsheet, HeartPulse, Printer, X } from 'lucide-react'
 import { getSession } from '@/lib/auth-session'
 import { triggerPrint } from '@/lib/print-utils'
+import { captureAndSavePrintPdf } from '@/lib/report-storage'
 import type { StockDocument } from './warehouse-api'
 
 const money = (v: number) => new Intl.NumberFormat('vi-VN').format(Math.round(v)) + ' đ'
@@ -42,7 +43,21 @@ export function WarehousePrintView({
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [onClose])
 
-  const handlePrint = () => {
+  const [saveStatus, setSaveStatus] = useState<string | null>(null)
+  const [savedUrl, setSavedUrl] = useState<string | null>(null)
+
+  const handlePrint = async () => {
+    const el = window.document.getElementById('warehouse-print-content')
+    if (el) {
+      setSaveStatus('Đang tạo và lưu file PDF vào Report/Kho...')
+      const cleanCode = document.code.replace(/[\\/:*?"<>|]/g, '-')
+      const fileName = `phieu-kho-${cleanCode}.pdf`
+      const res = await captureAndSavePrintPdf(el, 'Kho', fileName, 'a5')
+      if (res?.success) {
+        setSaveStatus(`Đã lưu file thành công: ${res.relativePath}`)
+        setSavedUrl(res.url)
+      }
+    }
     triggerPrint()
   }
 
@@ -97,6 +112,27 @@ export function WarehousePrintView({
             )}
           </div>
         </div>
+
+        {/* File Saved Success Banner */}
+        {saveStatus && (
+          <div className="no-print mb-3 w-full rounded-xl border border-emerald-200 bg-emerald-50/95 px-3.5 py-2.5 text-xs text-emerald-900 shadow-sm backdrop-blur flex items-center justify-between gap-2.5">
+            <div className="flex items-center gap-2">
+              <span className="text-base shrink-0">📁</span>
+              <span className="font-semibold">{saveStatus}</span>
+            </div>
+            {savedUrl && (
+              <a
+                href={savedUrl}
+                target="_blank"
+                rel="noreferrer"
+                className="inline-flex items-center gap-1 rounded-lg bg-emerald-600 px-2.5 py-1 text-[11px] font-bold text-white shadow-xs transition hover:bg-emerald-700"
+              >
+                <span>Xem bằng URL</span>
+                <ExternalLink className="size-3" />
+              </a>
+            )}
+          </div>
+        )}
 
         {/* On-screen Print Guidance Banner */}
         <div className="no-print mb-3 w-full rounded-xl border border-amber-200 bg-amber-50/95 px-3.5 py-2 text-xs text-amber-900 shadow-sm backdrop-blur flex items-center gap-2.5">

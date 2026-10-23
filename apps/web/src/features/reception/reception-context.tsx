@@ -1,11 +1,9 @@
 import { createContext, useCallback, useContext, useEffect, useReducer, type ReactNode } from 'react'
 import {
-  createPatientApi,
   fetchIntakes,
   fetchPatients,
   payCashApi,
   transferIntakeApi,
-  updatePatientApi,
 } from './reception-api'
 import { demoReceptionData, type Intake, type Patient } from './reception-data'
 
@@ -50,7 +48,7 @@ export function receptionReducer(state: ReceptionState, action: ReceptionAction)
     case 'UPDATE_INTAKE':
       return { ...state, intakes: state.intakes.map((intake) => {
         if (intake.id !== action.intake.id) return intake
-        if (intake.status === 'TRANSFERRED' && action.intake.status !== 'TRANSFERRED') return intake
+        if (intake.status === 'TRANSFERRED' && (action.intake.status === 'DRAFT' || action.intake.status === 'READY')) return intake
         return action.intake
       }) }
     case 'TRANSFER_INTAKE':
@@ -111,15 +109,9 @@ export function ReceptionProvider({ children }: { children: ReactNode }) {
 
     // Background sync to SQL Server database
     switch (action.type) {
-      case 'UPSERT_PATIENT': {
-        const isExisting = state.patients.some((p) => p.id === action.patient.id)
-        if (isExisting) {
-          updatePatientApi(action.patient.id, action.patient).catch(console.error)
-        } else {
-          createPatientApi(action.patient).catch(console.error)
-        }
+      case 'UPSERT_PATIENT':
+        // PatientsPage awaits createPatientApi / updatePatientApi directly before dispatching this action.
         break
-      }
       case 'ADD_INTAKE':
         // NewIntakePage awaits the server response before dispatching this action.
         break

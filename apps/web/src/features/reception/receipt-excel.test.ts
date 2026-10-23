@@ -15,7 +15,7 @@ describe('receipt Excel export data', () => {
   it('maps patient and selected services into the three receipt columns', () => {
     const patient: Patient = {
       id: 'MBN20261710/0001', fullName: 'Nguyễn Văn An', dateOfBirth: '1990-05-21', gender: 'Nam',
-      phone: '0901234567', address: 'Quận 1', note: '', createdAt: '2026-10-17T01:00:00.000Z', updatedAt: '2026-10-17T01:00:00.000Z',
+      phone: '0901234567', citizenId: '001090123789', address: 'Quận 1', note: '', createdAt: '2026-10-17T01:00:00.000Z', updatedAt: '2026-10-17T01:00:00.000Z',
     }
     const intake: Intake = {
       id: 'TNK20261710/0001', patientId: patient.id, symptoms: 'Đau răng', priority: 'Thường',
@@ -34,7 +34,7 @@ describe('receipt Excel export data', () => {
   })
 
   it('rejects a receipt with no valid selected services', () => {
-    const patient = { id: 'MBN1', fullName: 'An', dateOfBirth: '', gender: 'Nam' as const, phone: '', address: '', note: '', createdAt: '', updatedAt: '' }
+    const patient: Patient = { id: 'MBN1', fullName: 'An', dateOfBirth: '', gender: 'Nam', phone: '', citizenId: '', address: '', note: '', createdAt: '', updatedAt: '' }
     const intake = { id: 'TNK1', patientId: patient.id, symptoms: '', priority: 'Thường' as const, services: [{ serviceId: 'missing', quantity: 1 }], roomId: '', doctorId: '', status: 'DRAFT' as const, createdAt: '' }
     expect(() => buildReceiptExportData(patient, intake)).toThrow(/dịch vụ hợp lệ/i)
   })

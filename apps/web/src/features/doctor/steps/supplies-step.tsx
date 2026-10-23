@@ -1,4 +1,4 @@
-import { useState } from 'react'
+import { useEffect, useState } from 'react'
 import {
   AlertCircle,
   ArrowRight,
@@ -37,6 +37,10 @@ export function SuppliesStep() {
   const [errorMessage, setErrorMessage] = useState<string | null>(null)
 
   const [lastExamId, setLastExamId] = useState<number | null>(null)
+
+  useEffect(() => {
+    void refreshSupplies()
+  }, [refreshSupplies])
 
   // Synchronize selected items when switching examination
   if (currentExam && currentExam.id !== lastExamId) {

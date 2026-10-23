@@ -361,6 +361,7 @@ export function PayrollPage() {
             totalItems={currentPayroll.items.length}
             pageSize={10}
             onPageChange={setItemPage}
+            itemName="khoản lương"
           />
         </Card>
       )}

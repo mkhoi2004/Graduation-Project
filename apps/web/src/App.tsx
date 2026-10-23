@@ -1,4 +1,3 @@
-import type { ReactNode } from 'react'
 import { BrowserRouter, Navigate, Route, Routes } from 'react-router-dom'
 import { LoginPage } from '@/features/auth/login-page'
 import { RolePlaceholder } from '@/features/auth/role-placeholder'
@@ -10,7 +9,8 @@ import { ReceptionDashboard } from '@/features/reception/reception-dashboard'
 import { ReceptionLayout } from '@/features/reception/reception-layout'
 import { ServicesPage } from '@/features/reception/services-page'
 import { TransferPage } from '@/features/reception/transfer-page'
-import { getSession } from '@/lib/auth-session'
+import { AuthProvider, useAuth } from '@/features/auth/auth-context'
+import { ProtectedRoute } from '@/features/auth/protected-route'
 import { getRoleRoute } from '@/lib/role-routes'
 
 import { DoctorLayout } from '@/features/doctor/doctor-layout'
@@ -32,72 +32,71 @@ import { WorkingHoursPage } from '@/features/personnel/working-hours-page'
 import { PayrollPage } from '@/features/personnel/payroll-page'
 import { IncentivePage } from '@/features/personnel/incentive-page'
 
-function RequireRole({ role, children }: { role: string; children: ReactNode }) {
-  const session = getSession()
-
-  if (!session) return <Navigate to="/login" replace />
-  if (session.user.role !== role) {
-    return <Navigate to={getRoleRoute(session.user.role)} replace />
-  }
-
-  return children
-}
-
 function ProtectedRoleRoute({ role, title }: { role: string; title: string }) {
-  const session = getSession()
-  if (!session) return <Navigate to="/login" replace />
-  return <RequireRole role={role}><RolePlaceholder title={title} session={session} /></RequireRole>
+  const { session } = useAuth()
+  return (
+    <ProtectedRoute allowedRoles={[role]}>
+      {session ? <RolePlaceholder title={title} session={session} /> : null}
+    </ProtectedRoute>
+  )
 }
 
 function ProtectedReceptionRoute() {
-  const session = getSession()
-  if (!session) return <Navigate to="/login" replace />
-  if (session.user.role !== 'RECEPTION_STAFF') {
-    return <Navigate to={getRoleRoute(session.user.role)} replace />
-  }
-  return <ReceptionLayout session={session} />
+  const { session } = useAuth()
+  return (
+    <ProtectedRoute allowedRoles={['RECEPTION_STAFF']}>
+      {session ? <ReceptionLayout session={session} /> : null}
+    </ProtectedRoute>
+  )
 }
 
 function ProtectedDoctorRoute() {
-  const session = getSession()
-  if (!session) return <Navigate to="/login" replace />
-  if (session.user.role !== 'DOCTOR' && session.user.role !== 'ADMIN') {
-    return <Navigate to={getRoleRoute(session.user.role)} replace />
-  }
-  return <DoctorLayout session={session} />
+  const { session } = useAuth()
+  return (
+    <ProtectedRoute allowedRoles={['DOCTOR', 'ADMIN']}>
+      {session ? <DoctorLayout session={session} /> : null}
+    </ProtectedRoute>
+  )
 }
 
 function ProtectedWarehouseRoute() {
-  const session = getSession()
-  if (!session) return <Navigate to="/login" replace />
-  if (session.user.role !== 'WAREHOUSE_MANAGEMENT' && session.user.role !== 'ADMIN') return <Navigate to={getRoleRoute(session.user.role)} replace />
-  return <WarehouseLayout session={session} />
+  const { session } = useAuth()
+  return (
+    <ProtectedRoute allowedRoles={['WAREHOUSE_MANAGEMENT', 'ADMIN']}>
+      {session ? <WarehouseLayout session={session} /> : null}
+    </ProtectedRoute>
+  )
 }
 
 function ProtectedAccountingRoute() {
-  const session = getSession()
-  if (!session) return <Navigate to="/login" replace />
-  if (session.user.role !== 'ACCOUNTING_STAFF' && session.user.role !== 'ADMIN') return <Navigate to={getRoleRoute(session.user.role)} replace />
-  return <AccountingLayout session={session} />
+  const { session } = useAuth()
+  return (
+    <ProtectedRoute allowedRoles={['ACCOUNTING_STAFF', 'ADMIN']}>
+      {session ? <AccountingLayout session={session} /> : null}
+    </ProtectedRoute>
+  )
 }
 
 function ProtectedPersonnelRoute() {
-  const session = getSession()
-  if (!session) return <Navigate to="/login" replace />
-  const allowed = ['HR', 'HR_STAFF', 'MANAGER', 'ADMIN']
-  if (!allowed.includes(session.user.role)) return <Navigate to={getRoleRoute(session.user.role)} replace />
-  return <PersonnelLayout session={session} />
+  const { session } = useAuth()
+  return (
+    <ProtectedRoute allowedRoles={['HR', 'HR_STAFF', 'MANAGER', 'ADMIN']}>
+      {session ? <PersonnelLayout session={session} /> : null}
+    </ProtectedRoute>
+  )
 }
 
 function PublicLoginRoute() {
-  const session = getSession()
-  if (session) return <Navigate to={getRoleRoute(session.user.role)} replace />
+  const { user, isAuthenticated, isLoading } = useAuth()
+  if (isLoading) return null
+  if (isAuthenticated && user) return <Navigate to={getRoleRoute(user.role)} replace />
   return <LoginPage />
 }
 
 function AppRoutes() {
   return (
     <Routes>
+      <Route path="/" element={<PublicLoginRoute />} />
       <Route path="/login" element={<PublicLoginRoute />} />
       <Route path="/admin" element={<ProtectedRoleRoute role="ADMIN" title="Quản trị viên" />} />
       <Route path="/reception" element={<ProtectedReceptionRoute />}>
@@ -140,7 +139,13 @@ function AppRoutes() {
 }
 
 function App() {
-  return <BrowserRouter><AppRoutes /></BrowserRouter>
+  return (
+    <BrowserRouter>
+      <AuthProvider>
+        <AppRoutes />
+      </AuthProvider>
+    </BrowserRouter>
+  )
 }
 
 export default App

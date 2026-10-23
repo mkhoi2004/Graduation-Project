@@ -52,6 +52,7 @@ export const methodLabel = (value?: string) => {
     TRANSFER: 'Chuyển khoản ngân hàng',
     CARD: 'Thẻ thanh toán (POS)',
     MOMO: 'Cổng điện tử MoMo',
+    VNPAY: 'Cổng thanh toán VNPAY',
   }
   return map[value] ?? value
 }

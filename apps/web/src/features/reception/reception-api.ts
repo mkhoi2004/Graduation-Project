@@ -48,29 +48,57 @@ export async function fetchPatients(): Promise<Patient[]> {
 }
 
 export async function createPatientApi(draft: PatientDraft): Promise<Patient> {
+  const payload = {
+    fullName: draft.fullName?.trim(),
+    dateOfBirth: draft.dateOfBirth,
+    gender: draft.gender,
+    phone: draft.phone?.trim(),
+    citizenId: draft.citizenId?.trim(),
+    ...(draft.address?.trim() ? { address: draft.address.trim() } : {}),
+    ...(draft.note?.trim() ? { note: draft.note.trim() } : {}),
+  }
   const response = await fetch(`${apiUrl}/reception/patients`, {
     method: 'POST',
     headers: authorizedHeaders(),
-    body: JSON.stringify(draft),
+    body: JSON.stringify(payload),
   })
-  const payload = (await response.json().catch(() => ({}))) as Patient & { message?: string }
+  const resData = (await response.json().catch(() => ({}))) as Record<string, unknown>
   if (!response.ok) {
-    throw new Error(payload.message ?? 'Không thể tạo mới hồ sơ bệnh nhân.')
+    const errorMsg = Array.isArray(resData.message)
+      ? resData.message.join(', ')
+      : typeof resData.message === 'string'
+        ? resData.message
+        : 'Không thể tạo mới hồ sơ bệnh nhân.'
+    throw new Error(errorMsg)
   }
-  return payload
+  return resData as unknown as Patient
 }
 
 export async function updatePatientApi(patientCode: string, draft: Partial<PatientDraft>): Promise<Patient> {
+  const payload: Record<string, unknown> = {}
+  if (draft.fullName !== undefined) payload.fullName = draft.fullName.trim()
+  if (draft.dateOfBirth !== undefined) payload.dateOfBirth = draft.dateOfBirth
+  if (draft.gender !== undefined) payload.gender = draft.gender
+  if (draft.phone !== undefined) payload.phone = draft.phone.trim()
+  if (draft.citizenId !== undefined) payload.citizenId = draft.citizenId.trim()
+  if (draft.address !== undefined) payload.address = draft.address.trim() || undefined
+  if (draft.note !== undefined) payload.note = draft.note.trim() || undefined
+
   const response = await fetch(`${apiUrl}/reception/patients/${encodeURIComponent(patientCode)}`, {
     method: 'PUT',
     headers: authorizedHeaders(),
-    body: JSON.stringify(draft),
+    body: JSON.stringify(payload),
   })
-  const payload = (await response.json().catch(() => ({}))) as Patient & { message?: string }
+  const resData = (await response.json().catch(() => ({}))) as Record<string, unknown>
   if (!response.ok) {
-    throw new Error(payload.message ?? 'Không thể cập nhật hồ sơ bệnh nhân.')
+    const errorMsg = Array.isArray(resData.message)
+      ? resData.message.join(', ')
+      : typeof resData.message === 'string'
+        ? resData.message
+        : 'Không thể cập nhật hồ sơ bệnh nhân.'
+    throw new Error(errorMsg)
   }
-  return payload
+  return resData as unknown as Patient
 }
 
 export async function fetchIntakes(filters: { date?: string; roomCode?: string; priority?: Intake['priority'] } = {}): Promise<Intake[]> {

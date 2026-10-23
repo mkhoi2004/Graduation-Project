@@ -25,7 +25,45 @@ export function EmptyState({ icon, title, description, action }: { icon: ReactNo
 }
 
 export function StatusPill({ status }: { status: string }) {
-  const style = status === 'CANCELLED_RECEPTION' ? 'bg-rose-50 text-rose-700' : status === 'TRANSFERRED' ? 'bg-emerald-50 text-emerald-700' : status === 'PAID' ? 'bg-violet-50 text-violet-700' : status === 'READY' ? 'bg-blue-50 text-blue-700' : 'bg-amber-50 text-amber-700'
-  const label = status === 'CANCELLED_RECEPTION' ? 'Đã hủy' : status === 'TRANSFERRED' ? 'Đã chuyển bác sĩ' : status === 'PAID' ? 'Đã thanh toán' : status === 'READY' ? 'Đã cấp STT' : 'Đang chuẩn bị'
-  return <span className={`inline-flex rounded-full px-2.5 py-1 text-xs font-semibold ${style}`}>{label}</span>
+  let style = 'bg-amber-50 text-amber-700 border border-amber-200'
+  let label = 'Đang chuẩn bị'
+
+  switch (status) {
+    case 'COMPLETED':
+      style = 'bg-emerald-100 text-emerald-800 border border-emerald-300 font-bold'
+      label = 'Đã khám xong'
+      break
+    case 'IN_PROGRESS':
+      style = 'bg-indigo-50 text-indigo-700 border border-indigo-200 font-bold'
+      label = 'Đang khám'
+      break
+    case 'TRANSFERRED':
+      style = 'bg-blue-50 text-blue-700 border border-blue-200 font-medium'
+      label = 'Đã chuyển bác sĩ'
+      break
+    case 'PAID':
+      style = 'bg-violet-50 text-violet-700 border border-violet-200 font-medium'
+      label = 'Đã thanh toán'
+      break
+    case 'READY':
+      style = 'bg-sky-50 text-sky-700 border border-sky-200 font-medium'
+      label = 'Đã cấp STT'
+      break
+    case 'ABSENT':
+      style = 'bg-slate-100 text-slate-600 border border-slate-300 font-medium'
+      label = 'Vắng mặt'
+      break
+    case 'CANCELLED':
+    case 'CANCELLED_RECEPTION':
+      style = 'bg-rose-50 text-rose-700 border border-rose-200 font-medium'
+      label = 'Đã hủy'
+      break
+    case 'DRAFT':
+    default:
+      style = 'bg-amber-50 text-amber-700 border border-amber-200 font-medium'
+      label = 'Đang chuẩn bị'
+      break
+  }
+
+  return <span className={`inline-flex items-center rounded-full px-2.5 py-1 text-xs ${style}`}>{label}</span>
 }

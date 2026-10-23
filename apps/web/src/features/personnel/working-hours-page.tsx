@@ -1,5 +1,5 @@
 import { useEffect, useState } from 'react';
-import { Check, Info, Save } from 'lucide-react';
+import { CalendarCheck, Check, Info, Save } from 'lucide-react';
 import { personnelApi } from './personnel-api';
 import type { WorkingHoursConfig } from './personnel-types';
 import { Card, formatDate, inputClass, Message, PageHeading, PaginationBar } from './personnel-ui';
@@ -9,7 +9,23 @@ export function WorkingHoursPage() {
   const [history, setHistory] = useState<WorkingHoursConfig[]>([]);
   const [loading, setLoading] = useState(true);
   const [saving, setSaving] = useState(false);
+  const [syncingShifts, setSyncingShifts] = useState(false);
   const [message, setMessage] = useState<{ text: string; error?: boolean } | null>(null);
+
+  const handleSyncShifts = async () => {
+    try {
+      setSyncingShifts(true);
+      setMessage(null);
+      const res = await personnelApi.generateWeeklyShifts({
+        overwriteExisting: true,
+      });
+      setMessage({ text: res.message, error: false });
+    } catch (err: any) {
+      setMessage({ text: err.message || 'Lỗi khi xếp lịch làm việc theo giờ HR', error: true });
+    } finally {
+      setSyncingShifts(false);
+    }
+  };
 
   // Form state
   const [form, setForm] = useState({
@@ -323,8 +339,18 @@ export function WorkingHoursPage() {
               <div className="rounded-xl border border-slate-200 bg-white p-4">
                 <p className="text-xs font-bold text-slate-800">Phạm vi áp dụng:</p>
                 <p className="mt-1 text-xs text-slate-500 leading-relaxed">
-                  Áp dụng thống nhất cho toàn bộ nhân viên và phòng khám trực thuộc DentalKhoi.
+                  Áp dụng thống nhất cho toàn bộ nhân viên và phòng khám trực thuộc DentalKhoi (Thứ 2 đến Thứ 7).
                 </p>
+                <button
+                  type="button"
+                  onClick={handleSyncShifts}
+                  disabled={syncingShifts || loading}
+                  className="mt-3 flex w-full items-center justify-center gap-2 rounded-xl bg-emerald-600 px-3 py-2 text-xs font-bold text-white shadow-xs transition hover:bg-emerald-700 disabled:opacity-50"
+                  title="Áp dụng và xếp lịch Thứ 2 - Thứ 7 cho toàn bộ nhân sự theo cấu hình hiện tại"
+                >
+                  <CalendarCheck className="size-3.5" />
+                  <span>{syncingShifts ? 'Đang xếp lịch...' : 'Xếp lịch T2 - T7 theo giờ HR'}</span>
+                </button>
               </div>
             </div>
           </Card>
@@ -384,6 +410,7 @@ export function WorkingHoursPage() {
               totalItems={history.length}
               pageSize={pageSize}
               onPageChange={setCurrentPage}
+              itemName="bản ghi"
             />
           </div>
         )}
