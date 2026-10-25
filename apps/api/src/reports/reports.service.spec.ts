@@ -37,6 +37,30 @@ describe('ReportsService', () => {
     }
   });
 
+  it('successfully handles large base64 payload (1MB+)', async () => {
+    const testFolder = 'PhieuKham';
+    const testFileName = `phieu-kham-large-${Date.now()}.pdf`;
+    // 1MB of mock PDF binary data
+    const largeBuffer = Buffer.alloc(1024 * 1024, 65); // 1MB of 'A's
+    const base64 = largeBuffer.toString('base64');
+
+    const result = await service.saveReport({
+      folder: testFolder,
+      fileName: testFileName,
+      fileBase64: base64,
+      contentType: 'application/pdf',
+    });
+
+    expect(result.success).toBe(true);
+    expect(result.folder).toBe('PhieuKham');
+    expect(result.fileName).toBe(testFileName);
+    expect(fs.existsSync(result.fullPath)).toBe(true);
+    expect(result.size).toBe(1024 * 1024);
+
+    // Clean up
+    fs.unlinkSync(result.fullPath);
+  });
+
   it('lists saved reports', async () => {
     const list = service.listReports();
     expect(list).toBeDefined();

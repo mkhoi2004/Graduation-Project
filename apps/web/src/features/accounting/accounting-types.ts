@@ -192,3 +192,75 @@ export interface AccountingAuditLog {
   afterJson?: string
   createdAt: string
 }
+
+export interface WarehouseReceiptItem {
+  id: number
+  documentId: number
+  supplyId: number
+  supply: {
+    id: number
+    code: string
+    name: string
+    group: 'THUONG' | 'VO_CAM' | 'VAN_PHONG' | string
+    baseUnit: string
+  }
+  inputQuantity: number
+  inputUnit: string
+  conversionFactor: number
+  convertedQuantity: number
+  batchNo?: string
+  expiryDate?: string
+  inputUnitPrice: number
+  vatRate: number
+  goodsAmount: number
+  vatAmount: number
+  totalAmount: number
+}
+
+export interface WarehouseReceiptDocument {
+  id: number
+  code: string
+  type: 'IN'
+  status: 'PENDING_APPROVAL' | 'POSTED' | 'REJECTED' | 'CANCELLED' | 'DRAFT' | 'PRINTED' | string
+  supplierId?: number
+  supplier?: {
+    id: number
+    code: string
+    name: string
+    phone?: string
+    address?: string
+    taxCode?: string
+  }
+  reason?: string
+  goodsAmount: number
+  vatAmount: number
+  totalAmount: number
+  totalAmountInWords?: string
+  isLocked: boolean
+  createdById?: number
+  postedById?: number
+  printedAt?: string
+  postedAt?: string
+  cancelledAt?: string
+  createdAt: string
+  updatedAt: string
+  lines: WarehouseReceiptItem[]
+  auditLogs?: Array<{
+    id: number
+    action: string
+    actorId?: number
+    changesJson?: string
+    createdAt: string
+  }>
+}
+
+export interface WarehouseReceiptsResponse {
+  documents: WarehouseReceiptDocument[]
+  counts: {
+    pending: number
+    posted: number
+    rejected: number
+    total: number
+  }
+}
+

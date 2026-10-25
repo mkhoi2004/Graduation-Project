@@ -7,6 +7,7 @@ import { AccountingCashPage } from './cash-page'
 import { AccountingDebtsPage } from './debts-page'
 import { AccountingInvoicesPage } from './invoices-page'
 import { AccountingControlsPage } from './controls-page'
+import { AccountingWarehouseReceiptsPage } from './warehouse-receipts-page'
 import * as accountingApi from './accounting-api'
 import type {
   AccountingAuditLog,
@@ -257,6 +258,54 @@ describe('Accounting Feature Pages', () => {
     vi.spyOn(accountingApi, 'fetchPeriodLocks').mockResolvedValue(mockPeriodLocks)
     vi.spyOn(accountingApi, 'fetchRefunds').mockResolvedValue(mockRefunds)
     vi.spyOn(accountingApi, 'fetchAuditLogs').mockResolvedValue(mockAuditLogs)
+    vi.spyOn(accountingApi, 'fetchWarehouseReceipts').mockResolvedValue({
+      documents: [
+        {
+          id: 101,
+          code: 'MVT-20261025-0001',
+          type: 'IN',
+          status: 'PENDING_APPROVAL',
+          supplier: { id: 1, code: 'NCC-01', name: 'Công ty Dược Medipro', taxCode: '0312345678' },
+          goodsAmount: 1500000,
+          vatAmount: 150000,
+          totalAmount: 1650000,
+          totalAmountInWords: 'Một triệu sáu trăm năm mươi nghìn đồng',
+          isLocked: false,
+          createdAt: '2026-10-25T10:00:00.000Z',
+          updatedAt: '2026-10-25T10:00:00.000Z',
+          lines: [
+            {
+              id: 1,
+              documentId: 101,
+              supplyId: 10,
+              supply: { id: 10, code: 'VT-0001', name: 'Găng tay y tế Nitrile', group: 'THUONG', baseUnit: 'Hộp' },
+              inputQuantity: 10,
+              inputUnit: 'Hộp',
+              conversionFactor: 1,
+              convertedQuantity: 10,
+              inputUnitPrice: 150000,
+              vatRate: 10,
+              goodsAmount: 1500000,
+              vatAmount: 150000,
+              totalAmount: 1650000,
+              batchNo: 'LOT-9988',
+              expiryDate: '2027-12-31',
+            },
+          ],
+        },
+      ],
+      counts: { pending: 1, posted: 0, rejected: 0, total: 1 },
+    })
+    vi.spyOn(accountingApi, 'approveWarehouseReceipt').mockResolvedValue({
+      id: 101,
+      code: 'MVT-20261025-0001',
+      status: 'POSTED',
+    } as any)
+    vi.spyOn(accountingApi, 'rejectWarehouseReceipt').mockResolvedValue({
+      id: 101,
+      code: 'MVT-20261025-0001',
+      status: 'REJECTED',
+    } as any)
     vi.spyOn(accountingApi, 'createExpense').mockResolvedValue({ id: 99, sourceCode: 'PC20261019/0099' } as any)
     vi.spyOn(accountingApi, 'payDebt').mockResolvedValue({ id: 1, remainingAmount: 0, status: 'PAID' } as any)
   })
@@ -363,5 +412,33 @@ describe('Accounting Feature Pages', () => {
     // Switch to Refund tab
     await user.click(screen.getByRole('button', { name: /Duyệt hoàn tiền \(1\)/i }))
     expect(screen.getByText(/Bệnh nhân điều chỉnh phác đồ/i)).toBeInTheDocument()
+  })
+
+  it('6. Warehouse Receipts Page renders pending receipts and approves receipt into stock', async () => {
+    const user = userEvent.setup()
+    render(
+      <MemoryRouter initialEntries={['/accounting/warehouse-receipts']}>
+        <Routes>
+          <Route path="/accounting/warehouse-receipts" element={<AccountingWarehouseReceiptsPage />} />
+        </Routes>
+      </MemoryRouter>,
+    )
+
+    expect(await screen.findByText('MVT-20261025-0001')).toBeInTheDocument()
+    expect(screen.getByText('Công ty Dược Medipro')).toBeInTheDocument()
+    expect(screen.getByText('Găng tay y tế Nitrile')).toBeInTheDocument()
+    expect(screen.getByText('VTTH thường')).toBeInTheDocument()
+    expect(screen.getByText(/Chờ Kế toán duyệt/i)).toBeInTheDocument()
+
+    // Click Approve button
+    const approveBtn = screen.getByRole('button', { name: /Phê duyệt & Nhập kho/i })
+    await user.click(approveBtn)
+
+    // Confirm modal opens
+    expect(screen.getByText(/Xác nhận duyệt nhập kho:/i)).toBeInTheDocument()
+    const confirmBtn = screen.getByRole('button', { name: /Xác nhận duyệt nhập kho/i })
+    await user.click(confirmBtn)
+
+    expect(accountingApi.approveWarehouseReceipt).toHaveBeenCalledWith(101)
   })
 })

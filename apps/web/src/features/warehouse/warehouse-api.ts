@@ -95,7 +95,7 @@ export interface StockDocument {
   code: string
   type: 'IN' | 'OUT'
   outboundType?: 'INTERNAL' | 'DISPOSAL' | 'PATIENT_USE' | string
-  status: 'DRAFT' | 'PRINTED' | 'POSTED' | 'CANCELLED' | string
+  status: 'DRAFT' | 'PRINTED' | 'POSTED' | 'CANCELLED' | 'PENDING_APPROVAL' | 'REJECTED' | string
   supplierId?: number
   supplier?: {
     id: number

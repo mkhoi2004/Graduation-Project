@@ -12,6 +12,10 @@ export function configureApp(app: INestApplication): void {
   const reportDir = getReportRootDir();
   app.use('/reports', express.static(reportDir));
 
+  // Increase payload limit for base64 PDF and Excel reports
+  app.use(express.json({ limit: '50mb' }));
+  app.use(express.urlencoded({ limit: '50mb', extended: true }));
+
   app.setGlobalPrefix('api');
   app.enableCors({
     origin: [frontendUrl, 'http://localhost:5173', 'http://127.0.0.1:5173'],

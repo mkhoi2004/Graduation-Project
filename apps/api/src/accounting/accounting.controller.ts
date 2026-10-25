@@ -1,4 +1,4 @@
-import { Body, Controller, Get, Param, ParseIntPipe, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
+import { Body, Controller, Get, Headers, Param, ParseIntPipe, Post, Put, Query, Req, UseGuards } from '@nestjs/common';
 import { ApiBearerAuth, ApiOperation, ApiTags } from '@nestjs/swagger';
 import type { Request } from 'express';
 import { AccountingAccessGuard, type AuthenticatedAccountingUser } from './accounting.guard.js';
@@ -11,6 +11,7 @@ import {
   CreateSupplierInvoiceDto,
   LockPeriodDto,
   PayDebtDto,
+  RejectWarehouseReceiptDto,
 } from './dto/accounting.dto.js';
 
 type AccountingRequest = Request & { user?: AuthenticatedAccountingUser };
@@ -69,6 +70,35 @@ export class AccountingController {
   @ApiOperation({ summary: 'Danh sách hóa đơn đầu vào từ nhà cung cấp' })
   getSupplierInvoices() {
     return this.service.getSupplierInvoices();
+  }
+
+  @Get('warehouse-receipts')
+  @ApiOperation({ summary: 'Danh sách phiếu nhập kho chờ hoặc đã duyệt kế toán' })
+  getWarehouseReceipts(
+    @Query('status') status?: string,
+    @Query('search') search?: string,
+  ) {
+    return this.service.getWarehouseReceipts({ status, search });
+  }
+
+  @Post('warehouse-receipts/:id/approve')
+  @ApiOperation({ summary: 'Kế toán phê duyệt phiếu nhập kho (ghi nhận tồn kho & công nợ nhà cung cấp)' })
+  approveWarehouseReceipt(
+    @Param('id', ParseIntPipe) id: number,
+    @Headers('idempotency-key') idempotencyKey?: string,
+    @Req() req?: AccountingRequest,
+  ) {
+    return this.service.approveWarehouseReceipt(id, actor(req as any), idempotencyKey);
+  }
+
+  @Post('warehouse-receipts/:id/reject')
+  @ApiOperation({ summary: 'Kế toán từ chối phiếu nhập kho' })
+  rejectWarehouseReceipt(
+    @Param('id', ParseIntPipe) id: number,
+    @Body() dto: RejectWarehouseReceiptDto,
+    @Req() req?: AccountingRequest,
+  ) {
+    return this.service.rejectWarehouseReceipt(id, actor(req as any), dto.reason);
   }
 
   @Get('pending-stock-documents')

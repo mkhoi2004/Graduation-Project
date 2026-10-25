@@ -10,6 +10,8 @@ import type {
   PerformanceDetail,
   RefundRequest,
   SupplierInvoice,
+  WarehouseReceiptDocument,
+  WarehouseReceiptsResponse,
 } from './accounting-types'
 
 const apiUrl = import.meta.env.VITE_API_URL ?? 'http://localhost:3000/api'
@@ -103,3 +105,13 @@ export const confirmReconciliation = (id: number) =>
 
 export const lockPeriod = (body: { year: number; month: number; reason: string }) =>
   request<AccountingPeriodLock>('/period-locks', { method: 'POST', body: JSON.stringify(body) })
+
+export const fetchWarehouseReceipts = (params: { status?: string; search?: string } = {}) =>
+  request<WarehouseReceiptsResponse>(`/warehouse-receipts${buildQuery(params)}`)
+
+export const approveWarehouseReceipt = (id: number) =>
+  request<WarehouseReceiptDocument>(`/warehouse-receipts/${id}/approve`, { method: 'POST' })
+
+export const rejectWarehouseReceipt = (id: number, reason: string) =>
+  request<WarehouseReceiptDocument>(`/warehouse-receipts/${id}/reject`, { method: 'POST', body: JSON.stringify({ reason }) })
+

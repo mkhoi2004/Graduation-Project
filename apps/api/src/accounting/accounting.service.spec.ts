@@ -9,7 +9,7 @@ describe('AccountingService source ingestion', () => {
     prisma = {
       payment: { findUnique: vi.fn(), update: vi.fn() },
       accountingOutbox: { findUnique: vi.fn() },
-      accountingWarehouseEntry: { findUnique: vi.fn() },
+      accountingWarehouseEntry: { findUnique: vi.fn(), create: vi.fn(), findFirst: vi.fn() },
       accountingEvent: { findUnique: vi.fn(), findFirst: vi.fn(), create: vi.fn(), update: vi.fn() },
       accountingEntry: { create: vi.fn(), findMany: vi.fn() },
       performanceLine: { create: vi.fn(), findMany: vi.fn() },
@@ -17,7 +17,11 @@ describe('AccountingService source ingestion', () => {
       patientAdvanceAllocation: { create: vi.fn(), findMany: vi.fn().mockResolvedValue([]), updateMany: vi.fn() },
       debtPaymentAllocation: { create: vi.fn() },
       supplierInvoice: { findUnique: vi.fn(), create: vi.fn() },
-      stockDocument: { findMany: vi.fn() },
+      stockDocument: { findMany: vi.fn(), findUnique: vi.fn(), update: vi.fn(), count: vi.fn() },
+      medicalSupply: { update: vi.fn() },
+      inventoryBatch: { findFirst: vi.fn(), update: vi.fn(), create: vi.fn() },
+      stockLedgerEntry: { create: vi.fn() },
+      warehouseAuditLog: { create: vi.fn() },
       refundRequest: { create: vi.fn(), findUnique: vi.fn(), findMany: vi.fn().mockResolvedValue([]), update: vi.fn() },
       accountingPeriodLock: { findUnique: vi.fn(), create: vi.fn() },
       cashReconciliation: { findFirst: vi.fn(), findUnique: vi.fn(), create: vi.fn(), update: vi.fn() },
@@ -245,5 +249,120 @@ describe('AccountingService source ingestion', () => {
   it('requires a different confirmer for cash reconciliation', async () => {
     prisma.cashReconciliation.findUnique.mockResolvedValue({ id: 110, recordedById: 5, confirmedById: null });
     await expect(service.confirmReconciliation(110, { id: 5, role: 'ACCOUNTING_STAFF' })).rejects.toThrow('Người xác nhận phải khác người nhập');
+  });
+
+  describe('warehouse receipt approvals by accounting', () => {
+    it('returns warehouse receipts and count summary', async () => {
+      prisma.stockDocument.findMany.mockResolvedValue([
+        { id: 1, code: 'MVT-001', type: 'IN', status: 'PENDING_APPROVAL', totalAmount: 500_000, lines: [] },
+      ]);
+      prisma.stockDocument.count.mockResolvedValueOnce(1).mockResolvedValueOnce(2).mockResolvedValueOnce(0);
+
+      const res = await service.getWarehouseReceipts();
+      expect(res.documents).toHaveLength(1);
+      expect(res.counts).toEqual({ pending: 1, posted: 2, rejected: 0, total: 3 });
+    });
+
+    it('rejects approval if caller is not accounting or admin', async () => {
+      await expect(
+        service.approveWarehouseReceipt(1, { id: 10, role: 'RECEPTION_STAFF' }),
+      ).rejects.toThrow('Chỉ Kế toán hoặc Quản trị viên');
+    });
+
+    it('approves a pending inbound receipt, increments stock, and sets status to POSTED', async () => {
+      const mockDoc = {
+        id: 1,
+        code: 'MVT-001',
+        type: 'IN',
+        status: 'PENDING_APPROVAL',
+        supplierId: 2,
+        goodsAmount: 500_000,
+        vatAmount: 50_000,
+        totalAmount: 550_000,
+        lines: [
+          {
+            id: 10,
+            supplyId: 5,
+            inputUnitPrice: 50_000,
+            conversionFactor: 1,
+            convertedQuantity: 10,
+            goodsAmount: 500_000,
+            batchNo: 'BATCH-01',
+            expiryDate: new Date('2027-01-01'),
+            supply: { id: 5, inStock: 20 },
+          },
+        ],
+      };
+
+      prisma.stockDocument.findUnique
+        .mockResolvedValueOnce(mockDoc)
+        .mockResolvedValueOnce({ ...mockDoc, status: 'POSTED' });
+      prisma.inventoryBatch.findFirst.mockResolvedValue(null);
+      prisma.inventoryBatch.create.mockResolvedValue({ id: 101 });
+      prisma.medicalSupply.update.mockResolvedValue({ id: 5, inStock: 30 });
+      prisma.accountingWarehouseEntry.create.mockResolvedValue({ id: 201 });
+      prisma.accountingWarehouseEntry.findFirst.mockResolvedValue({
+        id: 201,
+        documentId: 1,
+        eventType: 'PURCHASE_PAYABLE',
+        totalAmount: 550_000,
+        payloadJson: JSON.stringify({ code: 'MVT-001', supplierId: 2 }),
+      });
+      prisma.accountingWarehouseEntry.findUnique.mockResolvedValue({
+        id: 201,
+        documentId: 1,
+        eventType: 'PURCHASE_PAYABLE',
+        totalAmount: 550_000,
+        payloadJson: JSON.stringify({ code: 'MVT-001', supplierId: 2 }),
+        document: { postedAt: new Date() },
+      });
+      prisma.accountingEvent.findUnique.mockResolvedValue(null);
+      prisma.accountingEvent.create.mockResolvedValue({ id: 50 });
+      prisma.accountingPeriodLock.findUnique.mockResolvedValue(null);
+      prisma.stockDocument.update.mockResolvedValue({ ...mockDoc, status: 'POSTED' });
+
+      const res = await service.approveWarehouseReceipt(1, { id: 8, role: 'ACCOUNTING_STAFF' });
+
+      expect(res.status).toBe('POSTED');
+      expect(prisma.medicalSupply.update).toHaveBeenCalledWith({
+        where: { id: 5 },
+        data: expect.objectContaining({ inStock: { increment: 10 } }),
+      });
+      expect(prisma.stockLedgerEntry.create).toHaveBeenCalledWith({
+        data: expect.objectContaining({ direction: 'IN', quantity: 10 }),
+      });
+    });
+
+    it('rejects a pending inbound receipt with a reason and sets status to REJECTED', async () => {
+      prisma.stockDocument.findUnique.mockResolvedValue({
+        id: 1,
+        code: 'MVT-001',
+        type: 'IN',
+        status: 'PENDING_APPROVAL',
+        totalAmount: 550_000,
+      });
+      prisma.stockDocument.update.mockResolvedValue({
+        id: 1,
+        code: 'MVT-001',
+        type: 'IN',
+        status: 'REJECTED',
+        totalAmount: 550_000,
+        lines: [],
+      });
+
+      const res = await service.rejectWarehouseReceipt(
+        1,
+        { id: 8, role: 'ACCOUNTING_STAFF' },
+        'Sai đơn giá so với hợp đồng',
+      );
+
+      expect(res.status).toBe('REJECTED');
+      expect(prisma.stockDocument.update).toHaveBeenCalledWith(
+        expect.objectContaining({
+          where: { id: 1 },
+          data: expect.objectContaining({ status: 'REJECTED' }),
+        }),
+      );
+    });
   });
 });

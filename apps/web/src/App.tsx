@@ -23,6 +23,7 @@ import { AccountingOverviewPage } from '@/features/accounting/overview-page'
 import { AccountingCashPage } from '@/features/accounting/cash-page'
 import { AccountingDebtsPage } from '@/features/accounting/debts-page'
 import { AccountingInvoicesPage } from '@/features/accounting/invoices-page'
+import { AccountingWarehouseReceiptsPage } from '@/features/accounting/warehouse-receipts-page'
 import { AccountingControlsPage } from '@/features/accounting/controls-page'
 import { PersonnelLayout } from '@/features/personnel/personnel-layout'
 import { EmployeesPage } from '@/features/personnel/employees-page'
@@ -119,6 +120,7 @@ function AppRoutes() {
         <Route path="cash" element={<AccountingCashPage />} />
         <Route path="debts" element={<AccountingDebtsPage />} />
         <Route path="invoices" element={<AccountingInvoicesPage />} />
+        <Route path="warehouse-receipts" element={<AccountingWarehouseReceiptsPage />} />
         <Route path="controls" element={<AccountingControlsPage />} />
       </Route>
       <Route path="/hr" element={<ProtectedPersonnelRoute />}>

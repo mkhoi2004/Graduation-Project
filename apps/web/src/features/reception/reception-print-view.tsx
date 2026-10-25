@@ -68,25 +68,46 @@ export function ReceptionPrintView({
   useEffect(() => {
     const handleKeyDown = (e: KeyboardEvent) => {
       if (e.key === 'Escape') onClose?.()
+      if ((e.ctrlKey || e.metaKey) && (e.key === 'p' || e.key === 'P')) {
+        e.preventDefault()
+        handlePrint()
+      }
     }
     window.addEventListener('keydown', handleKeyDown)
     return () => window.removeEventListener('keydown', handleKeyDown)
   }, [onClose])
 
+  const [isSaving, setIsSaving] = useState(false)
   const [saveStatus, setSaveStatus] = useState<string | null>(null)
+  const [saveError, setSaveError] = useState(false)
   const [savedUrl, setSavedUrl] = useState<string | null>(null)
 
   const handlePrint = async () => {
+    if (isSaving) return
     const el = document.getElementById('reception-print-content')
     if (el) {
+      setIsSaving(true)
+      setSaveError(false)
       setSaveStatus('Đang tạo và lưu file PDF vào Report/PhieuTiepNhan...')
-      const cleanId = intake.id.replace(/[\\/:*?"<>|]/g, '-')
-      const prefix = isPaid ? 'phieu-thu-tien' : 'phieu-tiep-nhan'
-      const fileName = `${prefix}-${cleanId}.pdf`
-      const res = await captureAndSavePrintPdf(el, 'PhieuTiepNhan', fileName, 'a5')
-      if (res?.success) {
-        setSaveStatus(`Đã lưu file thành công: ${res.relativePath}`)
-        setSavedUrl(res.url)
+      try {
+        const cleanId = intake.id.replace(/[\\/:*?"<>|]/g, '-')
+        const prefix = isPaid ? 'phieu-thu-tien' : 'phieu-tiep-nhan'
+        const fileName = `${prefix}-${cleanId}.pdf`
+        const res = await captureAndSavePrintPdf(el, 'PhieuTiepNhan', fileName, 'a5')
+        if (res?.success) {
+          setSaveStatus(`Đã lưu file thành công: ${res.relativePath}`)
+          setSavedUrl(res.url)
+          setSaveError(false)
+        } else {
+          setSaveStatus(`Lưu file thất bại: ${res?.message || 'Không thể tạo file'}`)
+          setSaveError(true)
+        }
+      } catch (err: unknown) {
+        console.error('Lưu PDF vào Report/PhieuTiepNhan thất bại:', err)
+        setSaveStatus(`Lỗi khi lưu PDF: ${err instanceof Error ? err.message : 'Không thể lưu file'}`)
+        setSaveError(true)
+      } finally {
+        setIsSaving(false)
       }
     }
     await onConfirmPrint?.()
@@ -148,11 +169,19 @@ export function ReceptionPrintView({
           </div>
         </div>
 
-        {/* File Saved Success Banner */}
+        {/* File Saved Status Banner */}
         {saveStatus && (
-          <div className="no-print mb-3 w-full rounded-xl border border-emerald-200 bg-emerald-50/95 px-3.5 py-2.5 text-xs text-emerald-900 shadow-sm backdrop-blur flex items-center justify-between gap-2.5">
+          <div
+            className={`no-print mb-3 w-full rounded-xl border px-3.5 py-2.5 text-xs shadow-sm backdrop-blur flex items-center justify-between gap-2.5 ${
+              saveError
+                ? 'border-rose-200 bg-rose-50/95 text-rose-900'
+                : isSaving
+                ? 'border-blue-200 bg-blue-50/95 text-blue-900'
+                : 'border-emerald-200 bg-emerald-50/95 text-emerald-900'
+            }`}
+          >
             <div className="flex items-center gap-2">
-              <span className="text-base shrink-0">📁</span>
+              <span className="text-base shrink-0">{saveError ? '⚠️' : isSaving ? '⏳' : '📁'}</span>
               <span className="font-semibold">{saveStatus}</span>
             </div>
             {savedUrl && (

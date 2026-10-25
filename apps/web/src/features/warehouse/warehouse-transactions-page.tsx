@@ -381,7 +381,7 @@ export function WarehouseTransactionsPage() {
         setMessage({ type: 'success', text: 'Đã cập nhật phiếu nhập kho thành công.' })
       } else {
         await createReceipt(payload)
-        setMessage({ type: 'success', text: 'Đã tạo phiếu nhập kho mới (Nháp).' })
+        setMessage({ type: 'success', text: 'Đã tạo phiếu nhập kho mới và chuyển sang Kế toán duyệt.' })
       }
 
       setReceiptModalOpen(false)
@@ -772,9 +772,11 @@ export function WarehouseTransactionsPage() {
               className="mt-1.5 w-full rounded-xl border border-slate-200 bg-slate-50/50 px-3 py-2.5 text-sm font-medium text-slate-800 outline-none transition focus:border-[#5546e8] focus:bg-white"
             >
               <option value="ALL">Tất cả trạng thái</option>
-              <option value="DRAFT">Nháp (DRAFT)</option>
+              <option value="PENDING_APPROVAL">Chờ Kế toán duyệt (PENDING_APPROVAL)</option>
+              <option value="POSTED">Đã ghi sổ / Đã duyệt (POSTED)</option>
+              <option value="REJECTED">Kế toán từ chối (REJECTED)</option>
               <option value="PRINTED">Đã in (PRINTED)</option>
-              <option value="POSTED">Đã ghi sổ (POSTED)</option>
+              <option value="DRAFT">Nháp (DRAFT)</option>
               <option value="CANCELLED">Đã hủy (CANCELLED)</option>
             </select>
           </div>
@@ -943,6 +945,10 @@ export function WarehouseTransactionsPage() {
                           className={`inline-flex items-center gap-1 rounded-full px-2.5 py-1 text-xs font-bold ${
                             doc.status === 'POSTED'
                               ? 'bg-emerald-100 text-emerald-800'
+                              : doc.status === 'PENDING_APPROVAL'
+                              ? 'bg-amber-100 text-amber-800'
+                              : doc.status === 'REJECTED'
+                              ? 'bg-rose-100 text-rose-800'
                               : doc.status === 'PRINTED'
                               ? 'bg-blue-100 text-blue-800'
                               : doc.status === 'CANCELLED'
@@ -951,11 +957,17 @@ export function WarehouseTransactionsPage() {
                           }`}
                         >
                           {doc.status === 'POSTED' && <CheckCircle2 className="size-3 text-emerald-600" />}
+                          {doc.status === 'PENDING_APPROVAL' && <Clock className="size-3 text-amber-600" />}
+                          {doc.status === 'REJECTED' && <Ban className="size-3 text-rose-600" />}
                           {doc.status === 'PRINTED' && <Printer className="size-3 text-blue-600" />}
                           {doc.status === 'CANCELLED' && <Ban className="size-3 text-red-600" />}
                           {doc.status === 'DRAFT' && <Clock className="size-3 text-slate-400" />}
                           {doc.status === 'POSTED'
                             ? 'Đã ghi sổ'
+                            : doc.status === 'PENDING_APPROVAL'
+                            ? 'Chờ Kế toán duyệt'
+                            : doc.status === 'REJECTED'
+                            ? 'Kế toán từ chối'
                             : doc.status === 'PRINTED'
                             ? 'Đã in'
                             : doc.status === 'CANCELLED'
@@ -994,8 +1006,8 @@ export function WarehouseTransactionsPage() {
                             <Eye className="size-4" />
                           </button>
 
-                          {/* Edit (only if DRAFT or PRINTED) */}
-                          {(doc.status === 'DRAFT' || doc.status === 'PRINTED') && isReceipt && (
+                          {/* Edit (only if DRAFT, PRINTED, or PENDING_APPROVAL) */}
+                          {(doc.status === 'DRAFT' || doc.status === 'PRINTED' || doc.status === 'PENDING_APPROVAL') && isReceipt && (
                             <button
                               type="button"
                               onClick={() => openEditReceipt(doc)}
@@ -1028,6 +1040,15 @@ export function WarehouseTransactionsPage() {
                             >
                               <CheckCircle2 className="size-4" />
                             </button>
+                          )}
+
+                          {isReceipt && doc.status === 'PENDING_APPROVAL' && (
+                            <span
+                              className="rounded-lg bg-amber-50 px-2 py-1 text-[11px] font-bold text-amber-700 border border-amber-200"
+                              title="Phiếu nhập kho này đang chờ Kế toán duyệt tại màn hình /accounting"
+                            >
+                              Chờ duyệt
+                            </span>
                           )}
 
                           {/* Cancel document */}
@@ -1422,7 +1443,7 @@ export function WarehouseTransactionsPage() {
                   disabled={busy}
                   className="rounded-xl bg-[#5546e8] px-6 py-2.5 text-sm font-bold text-white shadow-lg shadow-[#5546e8]/25 hover:bg-[#4335d6] disabled:opacity-50"
                 >
-                  {busy ? 'Đang lưu...' : 'Lưu phiếu nháp'}
+                  {busy ? 'Đang lưu...' : 'Lưu & Chuyển Kế toán duyệt'}
                 </button>
               </div>
             </form>

@@ -1,5 +1,6 @@
 import { BadRequestException, Injectable, NotFoundException } from '@nestjs/common';
 import { PrismaService } from '../infrastructure/database/prisma.service.js';
+import { readVietnameseCurrency } from '../warehouse/warehouse-domain.js';
 import { ageDebt, calculateSettlement, calculateTax, summarizeCash } from './accounting-domain.js';
 
 interface DoctorServiceLinePayload {
@@ -765,5 +766,267 @@ export class AccountingService {
       await tx.accountingEvent.update({ where: { id: event.id }, data: { status: 'PROCESSED', processedAt: effectiveDate } });
       return { eventId: event.id, status: 'PROCESSED' };
     }, { isolationLevel: 'Serializable' });
+  }
+
+  async getWarehouseReceipts(filters?: { status?: string; search?: string }) {
+    const where: any = { type: 'IN' };
+
+    if (filters?.status && filters.status !== 'ALL') {
+      where.status = filters.status;
+    }
+
+    if (filters?.search?.trim()) {
+      const term = filters.search.trim();
+      where.OR = [
+        { code: { contains: term } },
+        { supplier: { name: { contains: term } } },
+        { lines: { some: { supply: { name: { contains: term } } } } },
+      ];
+    }
+
+    const [documents, pendingCount, postedCount, rejectedCount] = await Promise.all([
+      this.prisma.stockDocument.findMany({
+        where,
+        include: {
+          supplier: true,
+          lines: {
+            include: { supply: true },
+          },
+          auditLogs: {
+            orderBy: { createdAt: 'desc' },
+            take: 5,
+          },
+        },
+        orderBy: { createdAt: 'desc' },
+      }),
+      this.prisma.stockDocument.count({
+        where: { type: 'IN', status: 'PENDING_APPROVAL' },
+      }),
+      this.prisma.stockDocument.count({
+        where: { type: 'IN', status: 'POSTED' },
+      }),
+      this.prisma.stockDocument.count({
+        where: { type: 'IN', status: 'REJECTED' },
+      }),
+    ]);
+
+    const formattedDocs = documents.map((doc: any) => ({
+      ...doc,
+      totalAmountInWords: readVietnameseCurrency(doc.totalAmount),
+    }));
+
+    return {
+      documents: formattedDocs,
+      counts: {
+        pending: pendingCount,
+        posted: postedCount,
+        rejected: rejectedCount,
+        total: pendingCount + postedCount + rejectedCount,
+      },
+    };
+  }
+
+  async approveWarehouseReceipt(
+    id: number,
+    actor: { id: number; role: string },
+    idempotencyKey?: string,
+  ) {
+    if (!['ACCOUNTING_STAFF', 'ADMIN'].includes(actor.role)) {
+      throw new BadRequestException('Chỉ Kế toán hoặc Quản trị viên mới được duyệt phiếu nhập kho.');
+    }
+
+    await this.prisma.$transaction(
+      async (tx: any) => {
+        const doc = await tx.stockDocument.findUnique({
+          where: { id },
+          include: {
+            lines: {
+              include: { supply: true },
+            },
+            supplier: true,
+          },
+        });
+
+        if (!doc) throw new NotFoundException('Không tìm thấy chứng từ nhập kho.');
+        if (doc.type !== 'IN') throw new BadRequestException('Chứng từ không phải là phiếu nhập kho.');
+        if (doc.status === 'POSTED') {
+          return doc;
+        }
+        if (doc.status === 'CANCELLED' || doc.status === 'REJECTED') {
+          throw new BadRequestException('Không thể duyệt phiếu nhập kho đã bị hủy hoặc từ chối.');
+        }
+
+        for (const line of doc.lines) {
+          const unitCost = Number(line.inputUnitPrice) / Number(line.conversionFactor);
+
+          const existingBatch = await tx.inventoryBatch.findFirst({
+            where: {
+              supplyId: line.supplyId,
+              batchNo: line.batchNo ?? null,
+              expiryDate: line.expiryDate ?? null,
+              unitCost: Math.round(unitCost * 10000) / 10000,
+            },
+          });
+
+          let batchId: number;
+          if (existingBatch) {
+            const updatedBatch = await tx.inventoryBatch.update({
+              where: { id: existingBatch.id },
+              data: { quantity: { increment: line.convertedQuantity } },
+            });
+            batchId = updatedBatch.id;
+          } else {
+            const newBatch = await tx.inventoryBatch.create({
+              data: {
+                supplyId: line.supplyId,
+                batchNo: line.batchNo,
+                expiryDate: line.expiryDate,
+                quantity: line.convertedQuantity,
+                unitCost: Math.round(unitCost * 10000) / 10000,
+                originalReceiptCode: doc.code,
+              },
+            });
+            batchId = newBatch.id;
+          }
+
+          const updatedSupply = await tx.medicalSupply.update({
+            where: { id: line.supplyId },
+            data: {
+              inStock: { increment: Number(line.convertedQuantity) },
+              costPrice: Math.round(unitCost),
+            },
+          });
+
+          await tx.stockLedgerEntry.create({
+            data: {
+              documentId: doc.id,
+              documentLineId: line.id,
+              supplyId: line.supplyId,
+              batchId,
+              direction: 'IN',
+              quantity: line.convertedQuantity,
+              unitCost: Math.round(unitCost * 10000) / 10000,
+              amount: line.goodsAmount,
+              balanceAfter: updatedSupply.inStock,
+            },
+          });
+        }
+
+        await tx.accountingWarehouseEntry.create({
+          data: {
+            documentId: doc.id,
+            eventType: 'PURCHASE_PAYABLE',
+            goodsAmount: doc.goodsAmount,
+            vatAmount: doc.vatAmount,
+            totalAmount: doc.totalAmount,
+            payloadJson: JSON.stringify({
+              code: doc.code,
+              type: doc.type,
+              supplierId: doc.supplierId,
+              lines: doc.lines.map((l: any) => ({
+                supplyId: l.supplyId,
+                quantity: Number(l.convertedQuantity),
+              })),
+            }),
+          },
+        });
+
+        await tx.warehouseAuditLog.create({
+          data: {
+            documentId: doc.id,
+            action: 'ACCOUNTANT_APPROVE',
+            actorId: actor.id,
+            changesJson: JSON.stringify({
+              approvedBy: actor.id,
+              status: 'POSTED',
+              totalAmount: doc.totalAmount,
+            }),
+          },
+        });
+
+        return tx.stockDocument.update({
+          where: { id },
+          data: {
+            status: 'POSTED',
+            isLocked: true,
+            postedAt: new Date(),
+            postedById: actor.id,
+            idempotencyKey,
+            goodsAmount: doc.goodsAmount,
+            totalAmount: doc.totalAmount,
+          },
+        });
+      },
+      { isolationLevel: 'Serializable' },
+    );
+
+    const accountingEntry = await this.prisma.accountingWarehouseEntry.findFirst({
+      where: { documentId: id },
+      orderBy: { createdAt: 'desc' },
+    });
+    if (accountingEntry) {
+      await this.ingestWarehouseEvent(
+        accountingEntry.id,
+        idempotencyKey ?? `warehouse-entry-${accountingEntry.id}`,
+      );
+    }
+
+    const updatedDoc = await this.prisma.stockDocument.findUnique({
+      where: { id },
+      include: {
+        lines: { include: { supply: true } },
+        supplier: true,
+      },
+    });
+
+    return {
+      ...updatedDoc,
+      totalAmountInWords: updatedDoc ? readVietnameseCurrency(updatedDoc.totalAmount) : '',
+    };
+  }
+
+  async rejectWarehouseReceipt(
+    id: number,
+    actor: { id: number; role: string },
+    reason: string,
+  ) {
+    if (!['ACCOUNTING_STAFF', 'ADMIN'].includes(actor.role)) {
+      throw new BadRequestException('Chỉ Kế toán hoặc Quản trị viên mới được từ chối phiếu nhập kho.');
+    }
+    if (!reason?.trim()) {
+      throw new BadRequestException('Bắt buộc phải nhập lý do từ chối.');
+    }
+
+    const doc = await this.prisma.stockDocument.findUnique({ where: { id } });
+    if (!doc) throw new NotFoundException('Không tìm thấy chứng từ nhập kho.');
+    if (doc.type !== 'IN') throw new BadRequestException('Chứng từ không phải là phiếu nhập kho.');
+    if (doc.status === 'POSTED') {
+      throw new BadRequestException('Chứng từ đã được ghi sổ nhập kho, không thể từ chối.');
+    }
+
+    const updated = await this.prisma.stockDocument.update({
+      where: { id },
+      data: {
+        status: 'REJECTED',
+        cancelledAt: new Date(),
+        reason: doc.reason ? `${doc.reason} | [Kế toán từ chối: ${reason.trim()}]` : `[Kế toán từ chối: ${reason.trim()}]`,
+        auditLogs: {
+          create: {
+            action: 'ACCOUNTANT_REJECT',
+            actorId: actor.id,
+            changesJson: JSON.stringify({ reason: reason.trim(), rejectedBy: actor.id }),
+          },
+        },
+      },
+      include: {
+        lines: { include: { supply: true } },
+        supplier: true,
+      },
+    });
+
+    return {
+      ...updated,
+      totalAmountInWords: readVietnameseCurrency(updated.totalAmount),
+    };
   }
 }

@@ -522,6 +522,7 @@ export class WarehouseService {
       data: {
         code,
         type: 'IN',
+        status: 'PENDING_APPROVAL',
         supplierId: dto.supplierId,
         reason: dto.reason,
         createdById: actorId,
@@ -533,7 +534,7 @@ export class WarehouseService {
           create: {
             action: 'CREATE',
             actorId,
-            changesJson: JSON.stringify({ code, supplierId: dto.supplierId, totalAmount }),
+            changesJson: JSON.stringify({ code, supplierId: dto.supplierId, totalAmount, status: 'PENDING_APPROVAL' }),
           },
         },
       },
@@ -784,8 +785,20 @@ export class WarehouseService {
         if (doc.status === 'POSTED') {
           return tx.stockDocument.findUnique({ where: { id }, include: documentInclude });
         }
-        if (doc.status !== 'PRINTED') {
-          throw new BadRequestException('Phải in phiếu trước khi ghi sổ.');
+        if (doc.type === 'IN') {
+          if (doc.status !== 'PRINTED' && doc.status !== 'PENDING_APPROVAL') {
+            throw new BadRequestException('Phiếu nhập kho phải ở trạng thái chờ duyệt hoặc đã in.');
+          }
+          if (actorId) {
+            const actorUser = await tx.user.findUnique({ where: { id: actorId }, include: { role: true } });
+            if (actorUser?.role?.code && !['ACCOUNTING_STAFF', 'ADMIN'].includes(actorUser.role.code)) {
+              throw new BadRequestException('Phiếu nhập kho bắt buộc phải do Kế toán duyệt trước khi ghi sổ.');
+            }
+          }
+        } else {
+          if (doc.status !== 'PRINTED') {
+            throw new BadRequestException('Phải in phiếu trước khi ghi sổ.');
+          }
         }
 
         // Strict content hash verification
@@ -1067,7 +1080,7 @@ export class WarehouseService {
         }
       }
 
-      if (doc.status === 'DRAFT' || doc.status === 'PRINTED') {
+      if (doc.status === 'DRAFT' || doc.status === 'PRINTED' || doc.status === 'PENDING_APPROVAL' || doc.status === 'REJECTED') {
         await tx.warehouseAuditLog.create({
           data: {
             documentId: id,

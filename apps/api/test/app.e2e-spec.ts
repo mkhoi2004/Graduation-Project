@@ -77,6 +77,7 @@ describe('AppController (e2e)', () => {
         dateOfBirth: '1995-12-10',
         gender: 'Nữ',
         phone: uniquePhone,
+        citizenId: '001195829304',
         address: 'Hà Nội',
         note: 'Kiểm tra lưu CSDL',
       })
@@ -135,6 +136,28 @@ describe('AppController (e2e)', () => {
 
     expect(transferRes.body.status).toBe('TRANSFERRED');
     expect(transferRes.body.transferredAt).toBeDefined();
+
+    // 8. Test saving large report to local Report/PhieuKham (500KB+ payload)
+    const largeContent = Buffer.alloc(500 * 1024, 'PDF-DENTAL-DATA').toString('base64');
+    const reportFileName = `phieu-kham-test-${Date.now()}.pdf`;
+    const saveReportRes = await request(app.getHttpServer())
+      .post('/api/reports/save')
+      .send({
+        folder: 'PhieuKham',
+        fileName: reportFileName,
+        fileBase64: largeContent,
+        contentType: 'application/pdf',
+      })
+      .expect(201);
+
+    expect(saveReportRes.body.success).toBe(true);
+    expect(saveReportRes.body.folder).toBe('PhieuKham');
+    expect(saveReportRes.body.relativePath).toContain('Report/PhieuKham');
+
+    // Verify file can be read back
+    await request(app.getHttpServer())
+      .get(`/api/reports/PhieuKham/${encodeURIComponent(reportFileName)}`)
+      .expect(200);
   });
 
   afterEach(async () => {

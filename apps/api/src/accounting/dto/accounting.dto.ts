@@ -62,3 +62,8 @@ export class CreateExpenseDto {
   @IsDateString() effectiveDate!: string;
   @IsString() @IsNotEmpty() reason!: string;
 }
+
+export class RejectWarehouseReceiptDto {
+  @IsString() @IsNotEmpty() reason!: string;
+}
+
